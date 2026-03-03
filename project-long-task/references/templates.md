@@ -1,6 +1,6 @@
 # Phase 2: Document Templates
 
-After confirmation, create the `docs/` directory and generate all documents (4 documents total).
+After confirmation, create the `docs/` directory and generate all documents (5 files under `docs/` + `CLAUDE.md` and `AGENT.md` at repo root).
 
 ## File: `docs/architecture.md`
 
@@ -47,9 +47,25 @@ Structure:
 
 ### Page: {Page Name}
 - **Purpose**: {What this page is for}
-- **Components**:
-  - {Component 1}: {what it displays, states, interactions}
-  - {Component 2}: {what it displays, states, interactions}
+- **Wireframe / Frame sketch (low-fidelity)**:
+  ```text
+  {Rough layout using labeled boxes; include key regions like header/sidebar/main and the major components inside each.}
+  {Example:}
+  [Top Bar: Logo | Nav | User Menu]
+  [Sidebar: Project List]
+  [Main: Filters | Table/List | Pagination]
+  [Dialogs/Drawers: Create, Edit, Delete Confirm]
+  ```
+- **Component tree (exhaustive)**:
+  - {PageFrame}
+    - {HeaderFrame}: {components}
+    - {SidebarFrame?}: {components}
+    - {ContentFrame}: {components}
+    - {FooterFrame?}: {components}
+    - {Overlays}: {dialogs/drawers/popovers/toasts used by this page}
+- **Key components (details)**:
+  - {Component 1}: {what it displays, required data, states, interactions}
+  - {Component 2}: {what it displays, required data, states, interactions}
 - **User actions**: {what can the user do on this page}
 - **Responsive behavior**: {how it adapts to mobile vs. desktop}
 
@@ -89,7 +105,8 @@ Structure:
 {Key endpoints or data fetching patterns — if applicable}
 
 ### Integrations
-- {Third-party services and how they connect}
+- {Third-party services and how they connect (e.g., payments, email, analytics like GA4/GTM)}
+- {If analytics is required: key events, consent strategy, and a strict "no PII in analytics" rule}
 
 ### Key Technical Decisions
 {Record important decisions made during the interview, e.g., "chose WebSocket over SSE because..."}
@@ -97,12 +114,19 @@ Structure:
 ## Hard Requirements
 - {Any constraints the user mentioned}
 - {Performance, security, accessibility requirements}
+- {Privacy/compliance requirements (PII, consent/cookies, retention, audit logging)}
 
 ## Deliverable
 A repo that contains:
 - A working app implementing the features above
 - Scripts: dev, build, test, lint, typecheck
+- `docs/architecture.md` — Architecture + product spec
 - `docs/plans.md` — Full implementation plan with milestone tracking
+- `docs/implement.md` — Execution rules
+- `docs/secrets.md` — Secrets & API keys guidance
+- `docs/documentation.md` — User-facing docs
+- `CLAUDE.md` and `AGENT.md` — AI quick reference (kept identical)
+- `.env.example` — Environment variable template (API keys/IDs, no real secrets)
 ```
 
 ## File: `docs/plans.md`
@@ -119,6 +143,7 @@ Structure:
 - **Tech stack**: {runtime, framework, styling, database}
 - **UI framework**: {e.g., shadcn/ui, Radix, Ant Design} (GUI projects only)
 - **Deployment**: {e.g., Vercel, Cloudflare Pages, Electron installer}
+- **Analytics**: {none / GA4 / GTM / other} (Web projects only)
 - **Created**: {date}
 - **Status**: In Progress
 
@@ -126,9 +151,9 @@ Structure:
 - {2-3 principles derived from the project's nature}
 
 ## Verification Checklist (kept current)
-- [ ] `{package-manager} run lint`
-- [ ] `{package-manager} run typecheck`
-- [ ] `{package-manager} run test`
+- [ ] `{pm} run lint`
+- [ ] `{pm} run typecheck`
+- [ ] `{pm} run test`
 - Last verified: not started
 
 ## Milestones
@@ -160,12 +185,13 @@ Verification:
 ### Milestone 02 - {Next logical step} [ ]
 ...
 
-{Generate milestone count based on project complexity:
-- Simple projects: 4-6 milestones
-- Standard projects: 7-10 milestones
-- Complex projects: 10-14 milestones
+{Generate milestone count based on the complexity tier assigned during Phase 1:
+- Lite tier: 4-6 milestones
+- Standard tier: 7-10 milestones
+- Complex tier: 10-14 milestones
 Each feature should map to 1-3 milestones depending on complexity.
 Always start with scaffold and end with polish/verification.
+For web apps: if analytics/tracking is in scope (GA4/GTM), include an Analytics milestone (after core navigation/auth is stable, before final polish).
 For CLI tools: place CLI Foundation (CC) as Milestone 02, right after repo scaffold.}
 
 {Sub-task generation rules:
@@ -219,6 +245,31 @@ Verification:
 - `{pm} run build && ./dist/mytool invalid-cmd 2>&1; echo $?` — verify exit code 2
 - `NO_COLOR=1 {pm} run build && ./dist/mytool --help` — verify no ANSI codes
 
+### Milestone WA - Web Analytics / Tracking [ ] (Web projects only, if analytics is in scope)
+Instrument analytics (e.g., GA4/GTM) with consent and a typed event layer.
+
+Scope:
+- Decide analytics provider (GA4 via gtag, GTM, or other) and consent requirements
+- Create a single analytics adapter module (avoid scattered direct SDK calls)
+- Instrument page views + 3-10 key events derived from the user journeys
+- Ensure analytics is disabled in dev/test by default (env-gated)
+- Add tests for event payload building (and enforce "no PII" in analytics payloads)
+
+Key files/modules:
+- Analytics adapter (e.g., `src/analytics/`)
+- Event schema/types (e.g., `src/analytics/events.ts`)
+- Consent handling (if applicable)
+
+Acceptance criteria:
+- Analytics can be toggled via env/config (off in dev/test by default)
+- Page view + key events are emitted through the adapter
+- Consent requirements are respected (if applicable)
+- No PII is sent in analytics payloads (explicitly documented)
+
+Verification:
+- `{pm} run test` — tests cover event payload builder
+- `{pm} run build` — production build includes analytics only when enabled
+
 ## Risk Register
 | Risk | Impact | Mitigation |
 |------|--------|------------|
@@ -237,11 +288,12 @@ Structure:
 # Execution Rules
 
 ## Non-negotiable Constraints
-- Do not stop after a milestone to ask questions or wait for confirmation
-- Proceed through every milestone in plans.md until complete
+- Do not stall after a milestone — continue unless blocked or a user decision is required
+- Proceed through milestones in plans.md until complete (or until scope is explicitly revised and recorded)
 - **Production-ready only** — every line of code must be production-quality. Specifically:
   - **No hardcoded values**: No hardcoded URLs, API keys, port numbers, user IDs, or environment-specific
     values. All configuration must come from environment variables, config files, or constants with clear naming.
+  - **No committed secrets**: Never commit real secrets. Use `.env` for local secrets and provide `.env.example` when applicable.
   - **No prototype-quality code**: No `// TODO`, no `any` types, no `console.log` debugging leftovers,
     no commented-out code blocks, no placeholder implementations that "work for now."
   - **No mock data in production paths**: Mock/seed data is only acceptable in test files and dev seed scripts,
@@ -276,8 +328,9 @@ Structure:
 ## Execution Rules (follow strictly)
 - Treat plans.md as the source of truth
 - If anything is ambiguous, make a reasonable decision and record it in plans.md
-- **Git strategy**: Initial implementation works directly on `main` — do NOT create feature branches.
-  Branch rules (`feature/`, `fix/`, `refactor/`) apply only to post-init development after the project is fully set up.
+- Follow `docs/secrets.md` for any secrets/API key handling (storage, redaction, output/display)
+- **Git strategy**: Follow the git workflow chosen in the interview. If unspecified, default to trunk-based development on `main`.
+  If branches are used, follow the project's naming convention (commonly: `feature/`, `fix/`, `refactor/`).
 - Implement with small, reviewable commits
 - **CLI implementation** (CLI projects only): Every CLI tool must meet these standards:
   - `--help` for every command and subcommand, with usage examples and argument descriptions
@@ -300,19 +353,25 @@ Structure:
   - Never use hardcoded mock data as a stand-in for a real API call in production code.
     If a backend endpoint isn't ready yet, create the typed client function that points to the real endpoint
     and gate the feature — do NOT fake the response shape inline.
+- **Analytics / tracking** (Web projects only, if analytics is in scope):
+  - Use a single adapter module (avoid scattered direct GA/gtag/GTM calls across UI components)
+  - Gate analytics behind env/config (disabled in dev/test by default)
+  - Never send PII in analytics payloads (document what counts as PII for this project)
+  - Respect consent requirements and opt-out signals if applicable
+  - Add tests for event payload building / adapter behavior
 - Work through milestones at the **sub-task** level:
   - Start each milestone by reading its sub-task list
   - Complete sub-tasks in order — check off each one in plans.md as you finish it
-  - **Every sub-task MUST have its own commit** — no batching, no skipping. One sub-task = one commit.
-    Commit message format: `milestone-{NN}.{M}: {sub-task description}`
-    (e.g., `milestone-03.2: implement user login API endpoint`)
+  - Prefer **1 sub-task = 1 commit** (bundle only truly trivial sub-tasks; record bundling in plans.md)
+  - Commit messages: use Conventional Commits; optionally include the milestone in the scope
+    (e.g., `feat(milestone-03.2): implement user login API endpoint`)
   - If a sub-task turns out to need a fix after committing, create a separate fix commit — do NOT amend
 - After every milestone (all sub-tasks checked off):
   - Run verification commands (lint, typecheck, tests)
   - Fix all failures immediately
   - Add or update tests for the milestone's core behavior
   - Mark the milestone itself as complete in plans.md
-  - Create a milestone-level commit: `milestone-{NN}: complete — {milestone title}`
+  - Create a milestone-level docs/status commit (e.g., `docs(milestone-{NN}): mark complete — {milestone title}`)
 - If a bug is discovered:
   - Write a failing test
   - Fix the bug
@@ -327,6 +386,12 @@ Structure:
 - All milestones in plans.md are implemented and checked off
 - `{pm} run dev` works
 - `{pm} run test`, `{pm} run lint`, `{pm} run typecheck` all pass
+- Secrets/API keys handled safely per `docs/secrets.md` (if applicable): no secrets committed/logged; any user-issued API keys are show-once + hashed storage
+- Analytics/tracking standards met (Web projects only, if analytics is in scope):
+  - Page views + key events are instrumented through the adapter
+  - Consent requirements are respected (if applicable)
+  - No PII is sent in analytics payloads
+  - Analytics is disabled in dev/test by default
 - CLI standards met (CLI projects only):
   - Every command has `--help` with usage examples
   - `--version` works
@@ -340,6 +405,41 @@ Structure:
   - API error responses follow the standardized error shape
   - Changing any API endpoint's contract updates all layers in the same commit
 - documentation.md is accurate and complete
+```
+
+## File: `docs/secrets.md`
+
+Guidance for handling secrets and API keys (both integration keys and user-issued keys).
+
+Structure:
+```markdown
+# Secrets & API Keys
+
+## Principles
+- Never commit secrets (API keys, tokens, private keys) to git
+- Prefer environment variables for local dev and a secrets manager in production
+- Redact secrets from logs, errors, and any user-facing output by default
+
+## Local Development Setup
+- Copy `.env.example` → `.env`
+- Fill in required keys/IDs (never paste real secrets into docs)
+- Never commit `.env`
+
+## Integration Keys (3rd-party services)
+- Store secrets in server-side env vars only (never ship secrets in client bundles)
+- Validate required env vars at startup and fail fast with an actionable error (do not print secret values)
+- Decide rotation strategy (how to rotate without downtime) and document it
+
+## If This Product Issues API Keys to Users (optional)
+- Generate high-entropy keys with a prefix (e.g., `sk_live_...`)
+- Store only a hash (plus metadata); never store plaintext keys
+- Show the full key only once at creation; afterwards show masked + last 4
+- Support revoke/rotate; add audit logging, scopes/permissions, and rate limits
+
+## Output/Display Guidance
+- Never print full keys by default (CLI/UI)
+- If showing a key is required, make it explicit (e.g., "Reveal" / `--show-key`) and warn the user
+- Ensure keys never appear in URLs, crash reports, or analytics events
 ```
 
 ## File: `docs/documentation.md`
@@ -362,6 +462,11 @@ Structure:
 - Prerequisites: {runtime version}
 - Install: `{pm} install`
 - Start: `{pm} run dev`
+
+## Environment Variables / API Keys
+- Use `.env.example` as the template for required env vars (API keys/IDs)
+- Create `.env` locally and fill values; never commit `.env`
+- Production: set env vars in your hosting provider / secrets manager
 
 ## Verification Commands
 - Lint: `{pm} run lint`
@@ -395,14 +500,15 @@ Structure:
 
 ## !! Execution Protocol — READ FIRST !!
 
-**Every time you read this file, start your response with: "Hey Jacky Bro"**
-This confirms you have loaded the project context. No exceptions.
+**Every time you read this file, start your response with: "Context loaded."**
+Then list which docs you read (to confirm you have loaded project context).
 
 **Before starting ANY implementation work, you MUST read all docs below — no skipping:**
 
 1. Read `docs/implement.md` — contains non-negotiable execution rules
 2. Read `docs/plans.md` — find the current milestone to work on
 3. Read `docs/architecture.md` — understand the full project context
+If the project uses secrets/integrations or issues API keys, also read `docs/secrets.md`.
 
 **After reading all docs, confirm by listing which docs you read.** Do NOT proceed to implementation
 until all relevant docs are loaded into context.
@@ -424,6 +530,7 @@ verification, testing, commit discipline, and bug handling that must be followed
 - `docs/implement.md` — **Execution rules (MUST read before any implementation)**
 - `docs/plans.md` — Milestones and execution progress (update after each milestone)
 - `docs/architecture.md` — Project background, user journeys, components, product spec, technical architecture
+- `docs/secrets.md` — Secrets & API keys guidance
 - `docs/documentation.md` — User-facing docs (keep in sync with reality)
 
 ## Tech Stack

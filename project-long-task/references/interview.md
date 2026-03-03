@@ -1,6 +1,19 @@
 # Phase 1: Interactive Interview
 
-Collect project information through conversation. Use `AskUserQuestion` for each step.
+Collect project information through conversation. If your environment supports interactive question prompts (with selectable options), use them — otherwise ask in plain text.
+
+## Complexity Tiers
+
+After collecting Project Goals (Step 2), assess complexity and assign a tier. The tier controls which
+interview rounds to run, how many follow-ups are allowed, and how deep to probe.
+
+| Tier | Criteria | Rounds to run | Follow-up Cap |
+|------|----------|--------------|---------------|
+| **Lite** | Single-purpose tool, 1 user role, no auth, no integrations, simple UI/CLI | Rounds 1-3, 6-7, 10, 10.5, deployment. **Skip** Rounds 4-5 (edge cases, journey validation), 8-9 (data flow, state mgmt) | 8 |
+| **Standard** | Multiple roles or features, some integrations, moderate UI/data complexity | All rounds (1-14). Full protocol | 20 |
+| **Complex** | Multi-role, multi-platform, integration-heavy, enterprise requirements | All rounds (1-14) + extended depth: extra follow-ups on architecture, security, and scale | 20 |
+
+After Step 2, announce the assessed tier to the user and let them override.
 
 ## Step 1 — Project Name
 
@@ -33,9 +46,13 @@ The two primary goals of this step are:
 
 Process:
 1. Read the user's goals description carefully
-2. Plan out a discovery interview of **9-12 base rounds**. The first section covers user journeys, the second
-   drills into components and details, then a required tech baseline checkpoint, then UI preferences (GUI) or
-   CLI interface design (CLI), and finally deployment. Cover these areas progressively (skip any already answered in Step 2):
+2. Plan the discovery interview based on the **complexity tier** assigned after Step 2:
+   - **Lite**: 5-7 base rounds — skip Rounds 4-5, 8-9 (see tier table above)
+   - **Standard**: 9-12 base rounds — full protocol
+   - **Complex**: 9-12 base rounds with extended depth on architecture, security, and scale
+   The first section covers user journeys, the second drills into components and details, then a required
+   tech stack finalization checkpoint, then UI preferences (GUI) or CLI interface design (CLI), and finally
+   deployment. Cover these areas progressively (skip any already answered in Step 2):
 
    **--- User Journeys (Rounds 1-5) ---**
 
@@ -63,12 +80,14 @@ Process:
    **Round 6 — Page/screen inventory**: Based on the journeys above, list out every page or screen the app
    needs. Ask the user to confirm and add any missing ones. For each page, ask: "What are the key elements
    on this page? What actions can the user take here?"
+   Also ask for a rough layout (wireframe/frame sketch): key regions (header/sidebar/main/footer) and the major components in each region.
 
    **Round 7 — Component deep-dive**: For each page identified, drill into the specific components:
    - What data does each component display?
    - What states does it have? (loading, empty, error, success, disabled)
    - What interactions does it support? (click, hover, drag, swipe)
    - How does it behave on mobile vs. desktop?
+   Ensure the component inventory is exhaustive for design/implementation (include overlays like dialogs/drawers/popovers/toasts, not just the visible page body).
 
    **Round 8 — Data flow & relationships**: How do components connect to each other?
    - What happens when you click a button — what changes on screen?
@@ -84,19 +103,37 @@ Process:
 
    **Round 10 — Integrations, constraints & non-functional requirements**:
    - Third-party services or APIs to connect with?
+   - Secrets/API keys: which integrations require keys? how will they be provided (env vars/secrets manager)? does the product issue API keys to end users (show-once, revoke/rotate)?
+   - Analytics/tracking needs (Web projects only): GA4/GTM? key events? conversion goals? consent/banner? strict no-PII rule?
    - Scale expectation (personal tool vs. SaaS vs. enterprise)?
    - Performance requirements? Offline support?
+   - Security/privacy/compliance requirements? (PII, retention, audit logging, regulatory constraints)
+   - Development workflow constraints: trunk-based on `main` vs feature branches + PR? any commit conventions?
    - Any hard business rules or constraints?
 
-   **Round 10.5 — Tech stack baseline checkpoint (required before UI/deployment)**:
+   **Round 10.5 — Tech Stack Finalization (required before UI/deployment)**:
+   This round replaces the old separate "Tech Stack" step — all stack decisions are finalized here.
    - Confirm runtime/package manager/framework baseline before entering UI and deployment rounds
-   - Minimum fields to lock: runtime, frontend/backend framework, styling approach (if GUI), data/storage approach
-   - If still undecided, propose 2-3 concrete stack options and ask the user to pick one as the working baseline
+   - Minimum fields to lock: runtime, package manager, frontend/backend framework, styling approach (if GUI), data/storage approach
+   - Offer common stacks as options but always allow custom input. Consider the user's existing preferences
+     from CLAUDE.md if available (e.g., if they prefer Bun over npm, `type` over `interface`)
+   - Suggested options based on common patterns:
+     - TypeScript + React + Vite + Tailwind
+     - TypeScript + Next.js + Tailwind
+     - TypeScript + Node.js backend
+     - Custom (let user type)
+   - If still undecided, propose 2-3 concrete stack options and ask the user to pick one
+   - Do NOT proceed past this round until the tech stack is locked
 
    **--- UI Preferences (Round 11, GUI projects only) ---**
 
    **Round 11 — UI component & styling approach**: Based on the project type, target users, and
    complexity gathered so far, ask about the UI implementation approach:
+   - **Visual references** — ask the user if they have any reference images (screenshots, mockups,
+     Dribbble/Behance links, photos of sketches, etc.) that represent the look & feel they want.
+     If provided, analyze the images to extract: color palette, layout patterns, typography style,
+     component density, and overall aesthetic (e.g., minimal, dense, playful, corporate).
+     Use these observations to inform the recommendations below.
    - **UI library / component framework** — recommend based on the tech stack (e.g., shadcn/ui, Radix,
      Ant Design, Material UI, fully custom) and explain why it fits the project
    - **CSS approach** — Tailwind, CSS Modules, styled-components, vanilla CSS, etc.
@@ -178,18 +215,20 @@ Process:
    Record the deployment choice — it affects `docs/architecture.md` (Technical Architecture section),
    `docs/plans.md` (deployment milestone), and `CLAUDE.md` / `AGENT.md` (build/deploy commands).
 
-3. Each round: ask **1-2 focused questions** using `AskUserQuestion` with concrete answer options when possible
+3. Each round: ask **1-2 focused questions**, offering concrete answer options when possible (use your tool's option UI if available; otherwise plain text)
 4. Each new round should build on previous answers — reference what the user said and dig deeper
-5. Aim for **at least 9 rounds** before moving on. Only stop earlier if the user explicitly says they want to move on.
+5. Aim for **at least the minimum rounds for the assigned tier** before moving on. Only stop earlier if the user explicitly says they want to move on.
+   - Lite: at least 5 rounds
+   - Standard / Complex: at least 9 rounds
 6. **Adaptive follow-up**: After any round, if the user's answer is vague, ambiguous, or opens up new
    dimensions worth exploring, **insert additional follow-up rounds** before moving to the next planned topic.
-   These follow-up rounds do NOT count toward the base 9-12 — they are extra depth.
-   Set a hard cap of **20 follow-up rounds total** for Step 3.
+   These follow-up rounds do NOT count toward the base rounds — they are extra depth.
+   Hard cap on follow-ups is determined by the complexity tier (Lite: 8, Standard/Complex: 20).
    Continue probing while there are genuinely unclear or expandable areas, but stop follow-ups once:
    - all major ambiguities are resolved, OR
-   - follow-up count reaches 20.
-7. Before leaving Step 3, always ask one final open-ended confirmation question:
-   - "在进入下一步前，你还有没有任何想追加、修正、或强调的需求？"
+   - follow-up count reaches the tier cap.
+7. Before leaving Step 3, always ask one final open-ended confirmation question (in the user's language):
+   - e.g., "Before moving on, is there anything you'd like to add, change, or emphasize?"
    Only proceed after the user confirms no further additions or provides the final additions.
 
    Triggers for follow-up rounds:
@@ -296,26 +335,11 @@ Round 10 — Integrations & constraints:
 ```
 
 When the user indicates they've provided enough info (e.g., "enough", "let's move on", "就这些", "可以了"),
-run one final additions check ("还有没有要补充/修正的内容？"), then proceed to the next step.
+run one final additions check (in the user's language, e.g., "Anything else to add or change?"), then proceed to the next step.
 
-## Step 4 — Tech Stack Finalization
+## Step 4 — Synthesis & Confirmation
 
-Finalize the technology choices based on the baseline confirmed in Round 10.5.
-If Round 10.5 already locked a stack, use this step to confirm final details (versions, key libraries, infra choices).
-If not locked yet, complete stack selection here before Step 5.
-Offer common stacks as options but always allow custom input.
-Consider the user's existing preferences from CLAUDE.md if available (e.g., if they prefer Bun over npm).
-
-Example question: "What tech stack do you want to use?"
-Suggested options based on common patterns:
-- TypeScript + React + Vite + Tailwind
-- TypeScript + Next.js + Tailwind
-- TypeScript + Node.js backend
-- Custom (let user type)
-
-## Step 5 — Synthesis & Confirmation
-
-After gathering enough context from Steps 2-4, **synthesize everything into a complete project summary**.
+After gathering enough context from Steps 2-3, **synthesize everything into a complete project summary**.
 Present to the user:
 
 1. **Project overview** — 2-3 sentence summary in your own words based on what you learned
@@ -323,7 +347,7 @@ Present to the user:
    - Feature name (short label)
    - What it does (1-3 sentences)
    - Key constraints or requirements you inferred
-3. **Tech stack** — Confirmed stack from Step 4
+3. **Tech stack** — Confirmed stack from Round 10.5
 4. **UI approach** — UI framework, CSS approach, key components, icon set (GUI projects only)
    **CLI interface** — Command structure, output modes, config strategy, key conventions (CLI projects only)
 5. **Deployment** — Hosting platform, database hosting, CI/CD approach
@@ -331,8 +355,137 @@ Present to the user:
 
 Ask the user to confirm, or revise anything before doc generation.
 
-Use `AskUserQuestion` with options like:
+Offer a simple confirmation choice like:
 - "Looks good, generate the docs"
 - "I want to adjust some things"
 
+If your environment supports selectable options/prompts, use them; otherwise ask the user to reply with one of the options above.
+
 If the user wants changes, iterate until they're satisfied.
+
+---
+
+## Update Mode Interview
+
+This protocol is used when modifying an existing project (Update mode).
+It assumes all existing docs have been read in Update Phase 1.
+
+All three update types share the same Step 1 (Description) and Step 3 (Synthesis), but have
+different clarifying question rounds in Step 2.
+
+### Step 1 — Description (Free-form)
+
+Ask the user to describe the change in their own words. Same principle as Init Step 2: capture
+intent before structured breakdown.
+
+Example questions by type:
+- New Feature: "Describe the feature you want to add — what does it do and why do you need it?"
+- Bug Fix: "Describe the bug — what's the expected behavior vs. actual behavior? How is it reproduced?"
+- Change: "Describe what you want to change — what's the current state and what should it become?"
+
+Let the user write freely. Do NOT interrupt with follow-up questions mid-description.
+
+### Step 2 — Clarifying Questions
+
+Based on the description and existing project context, ask targeted questions.
+This is NOT a full project interview — focus only on what's new or changing.
+
+---
+
+#### New Feature Rounds (F1-F8, use 3-8 depending on complexity)
+
+**Round F1 — User journey impact**: Which existing user journeys are affected? Are there new journeys?
+Walk through the feature from the user's perspective step by step.
+
+**Round F2 — Pages & components**: Does this feature need new pages/screens? Which existing pages
+are modified? What new components are needed? What existing components need changes?
+If the feature has UI, ask for visual references (screenshots, mockups, sketches) as in Round 11.
+
+**Round F3 — Data & API changes**: Does this feature require new data models, new API endpoints,
+or changes to existing ones? How does it interact with the current data model?
+
+**Round F4 — Edge cases & constraints**: Error states, permissions, validation rules, performance
+concerns. What happens when things go wrong?
+
+**Round F5 — Integrations** (if applicable): Does this feature require new third-party services,
+new secrets/API keys, or changes to existing integrations?
+
+**Round F6-F8 — Additional depth** (for complex features): Drill into areas that need more clarity
+based on the user's answers. Same adaptive follow-up rules as Init mode.
+
+Follow-up cap: 5 for simple features, 10 for complex ones.
+
+---
+
+#### Bug Fix Rounds (B1-B3, use 1-3 depending on severity)
+
+**Round B1 — Reproduction & root cause**: Clarify the exact reproduction steps if not already clear.
+What's the suspected root cause? Which components/modules are involved? Reference the existing
+architecture to pinpoint the affected area.
+
+**Round B2 — Impact analysis**: What else might be affected by this fix? Are there related features
+that depend on the current (broken) behavior? Does the fix change any documented behavior in
+architecture.md?
+
+**Round B3 — Fix approach** (for non-trivial bugs): If there are multiple ways to fix the issue,
+present 2-3 options with trade-offs and ask the user to pick one. Consider: backward compatibility,
+data migration needs, performance implications.
+
+Follow-up cap: 3.
+
+---
+
+#### Change Rounds (C1-C5, use 2-5 depending on scope)
+
+**Round C1 — Change scope**: What exactly is changing? Map the current state → desired state.
+Which existing features, user journeys, or components are affected? Reference the existing
+architecture to identify all touch points.
+
+**Round C2 — Migration & compatibility**: Does this change require data migration? Is there a
+transition period where old and new behavior coexist? How should existing users/data be handled?
+
+**Round C3 — Cascading effects**: Based on the existing architecture, what other parts of the
+system need to change as a result? API contracts, shared types, dependent components, tests?
+
+**Round C4 — Removed or replaced functionality**: Is anything being removed? If so, how should
+it be handled — hard removal, deprecation period, or replacement? Any data cleanup needed?
+
+**Round C5 — Additional depth** (for complex changes): Drill into areas that need more clarity.
+
+Follow-up cap: 5.
+
+---
+
+#### Shared rules for all update types:
+- Reference existing architecture when asking questions (e.g., "The current data model has X — does this change affect it?")
+- Skip rounds that don't apply
+- Each round: 1-2 focused questions with concrete options when possible
+- Before leaving Step 2, ask one final confirmation question (in the user's language)
+
+### Step 3 — Synthesis & Confirmation
+
+Synthesize the change into a summary. Present to the user:
+
+**For New Feature:**
+1. **Feature overview** — 1-2 sentence summary
+2. **User journey changes** — New or modified journeys
+3. **New/modified pages & components** — What's being added or changed
+4. **Data model & API changes** — New entities, endpoints, or modifications
+5. **New milestones** — Proposed milestones (continuing the numbering from existing plans.md)
+6. **Scope notes** — What's explicitly not included
+
+**For Bug Fix:**
+1. **Bug summary** — What's broken and why
+2. **Root cause** — The identified cause and affected components
+3. **Fix approach** — How it will be fixed
+4. **Impact** — What behavior changes (if any) and what docs need updating
+5. **Fix milestone** — A single milestone with sub-tasks for the fix
+
+**For Change:**
+1. **Change summary** — What's changing and why
+2. **Affected areas** — Which features, journeys, components are impacted
+3. **Migration plan** — How to transition (if applicable)
+4. **Updated/removed content** — What architecture sections change
+5. **New milestones** — Proposed milestones for implementing the change
+
+Ask the user to confirm or adjust before updating docs.

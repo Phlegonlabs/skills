@@ -1,14 +1,14 @@
 # Phase 2.5: Multi-Agent Documentation Review
 
 After generating all documents, launch a **multi-agent review team** to validate the documentation
-quality, consistency, and completeness before handing off to the user. Use the `Agent` tool to spawn
-reviewers in parallel — each agent reviews from a different perspective.
+quality, consistency, and completeness before handing off to the user.
+If your environment supports spawning parallel reviewers/agents, use it — otherwise run the same checklists sequentially.
 
-Determine project complexity first, then spawn reviewers in parallel using the tiers below:
+Use the **complexity tier** assigned during Phase 1 (see SKILL.md) to determine review scope:
 
-- **Lite tier** (simple/small scope): spawn Agent 1 + Agent 2 + Agent 3.
-- **Standard tier** (most projects): spawn Agent 1 + Agent 2 + Agent 3.
-- **Complex tier** (multi-role, multi-platform, integration-heavy): spawn Agent 1 + Agent 2 + Agent 3, then run a quick second-pass recheck with Agent 2 + Agent 3 after fixes.
+- **Lite**: spawn Agent 1 + Agent 2.
+- **Standard**: spawn Agent 1 + Agent 2 + Agent 3.
+- **Complex**: spawn Agent 1 + Agent 2 + Agent 3, then run a second-pass recheck with Agent 2 + Agent 3 after fixes.
 
 Use the agent definitions below as the review pool.
 
@@ -17,9 +17,10 @@ Use the agent definitions below as the review pool.
 - Check:
   - [ ] Every user role from the interview is documented with permissions
   - [ ] Every user journey is complete (entry → core action → goal), no missing steps
-  - [ ] Every page/screen has purpose, components, user actions, and responsive behavior
+  - [ ] Every page/screen has purpose, a low-fidelity wireframe/frame sketch, an exhaustive component tree/inventory, user actions, and responsive behavior
   - [ ] Every core feature has a detailed spec section with edge cases
   - [ ] Technical architecture (tech stack, data model, API design, integrations) is consistent with interview answers
+  - [ ] If analytics/tracking is in scope (e.g., GA4/GTM), Integrations documents provider, consent strategy, and a no-PII rule
   - [ ] Directory structure is realistic and matches the chosen framework conventions
   - [ ] Hard requirements section captures all constraints mentioned
   - [ ] Deliverable section lists all output docs
@@ -38,17 +39,18 @@ Use the agent definitions below as the review pool.
   - [ ] Acceptance criteria are concrete and testable (not vague like "works correctly")
   - [ ] Verification commands are real and runnable for the chosen tech stack
   - [ ] CLI Foundation milestone (CC) is Milestone 02, right after repo scaffold (CLI projects only)
+  - [ ] If analytics/tracking is in scope (e.g., GA4/GTM), there is at least one milestone covering instrumentation + consent + verification
   - [ ] No feature is left uncovered by milestones
   - [ ] Risk register has realistic entries
 - Report: list any missing features, vague criteria, or ordering issues
 
 ## Agent 3 — Execution Rules & Cross-doc Consistency Reviewer
-- Read ALL docs: `docs/implement.md`, `docs/documentation.md`, `CLAUDE.md`, `AGENT.md`
+- Read ALL docs: `docs/implement.md`, `docs/secrets.md`, `docs/documentation.md`, `CLAUDE.md`, `AGENT.md`
 - Cross-reference with `docs/plans.md` and `docs/architecture.md`
 - Check:
   - [ ] implement.md completion criteria match the actual doc set generated
   - [ ] implement.md verification commands match the tech stack
-  - [ ] implement.md git strategy (work on main) is present
+  - [ ] implement.md git strategy matches the workflow chosen in the interview (trunk-based vs branches)
   - [ ] documentation.md milestone list matches plans.md milestones
   - [ ] documentation.md setup commands match the tech stack
   - [ ] CLAUDE.md and AGENT.md are identical
@@ -57,6 +59,8 @@ Use the agent definitions below as the review pool.
   - [ ] CLAUDE.md commands are accurate for the chosen package manager and framework
   - [ ] If CLI: implement.md has CLI-specific rules (exit codes, help, stdout/stderr, NO_COLOR)
   - [ ] If CLI: implement.md completion criteria include CLI standards checklist
+  - [ ] If analytics/tracking is in scope: implement.md has analytics rules and docs/plans/doc setup remain consistent
+  - [ ] If secrets/API keys are in scope: docs/secrets.md guidance is present and consistent (no secret leaks; safe output/display; show-once + hashed storage if issuing API keys)
 - Report: list any cross-doc contradictions, missing references, or broken commands
 
 ## After Review
