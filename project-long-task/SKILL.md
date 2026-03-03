@@ -1,5 +1,5 @@
 ---
-name: project-init
+name: project-long-task
 description: >
   Initialize a long-running project with a structured docs workflow. Use this skill whenever the user wants to
   start a new project, kick off a long-running build task, set up project documentation structure, or says things
