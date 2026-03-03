@@ -17,9 +17,11 @@ Use the agent definitions below as the review pool.
 - Check:
   - [ ] Every user role from the interview is documented with permissions
   - [ ] Every user journey is complete (entry → core action → goal), no missing steps
-  - [ ] Every page/screen has purpose, a low-fidelity wireframe/frame sketch, an exhaustive component tree/inventory, user actions, and responsive behavior
+  - [ ] (GUI) Every page/screen has purpose, a low-fidelity wireframe/frame sketch, an exhaustive component tree/inventory, user actions, and responsive behavior
+  - [ ] (CLI) Command tree is documented with all subcommands, flags, argument types, exit codes, and pipe support
   - [ ] Every core feature has a detailed spec section with edge cases
   - [ ] Technical architecture (tech stack, data model, API design, integrations) is consistent with interview answers
+  - [ ] If third-party integrations exist, Integrations section includes Context7 API documentation rule
   - [ ] If analytics/tracking is in scope (e.g., GA4/GTM), Integrations documents provider, consent strategy, and a no-PII rule
   - [ ] Directory structure is realistic and matches the chosen framework conventions
   - [ ] Hard requirements section captures all constraints mentioned
@@ -41,8 +43,8 @@ Use the agent definitions below as the review pool.
   - [ ] CLI Foundation milestone (CC) is Milestone 02, right after repo scaffold (CLI projects only)
   - [ ] If analytics/tracking is in scope (e.g., GA4/GTM), there is at least one milestone covering instrumentation + consent + verification
   - [ ] No feature is left uncovered by milestones
-  - [ ] **Production Readiness Gate (Milestone PR) exists as the FINAL milestone** with comprehensive audit sub-tasks
-  - [ ] Risk register has realistic entries
+  - [ ] **Production Readiness Gate (Milestone PR) exists as the FINAL milestone** with comprehensive audit sub-tasks (including PR.11 dependency audit, PR.12 a11y check if GUI, PR.13 license audit)
+  - [ ] Risk register has at least 2 realistic entries (not placeholder text)
 - Report: list any missing features, vague criteria, or ordering issues
 
 ## Agent 3 — Execution Rules & Cross-doc Consistency Reviewer
@@ -54,6 +56,7 @@ Use the agent definitions below as the review pool.
   - [ ] implement.md verification commands match the tech stack
   - [ ] implement.md git strategy matches the workflow chosen in the interview (trunk-based vs branches)
   - [ ] implement.md includes "Production mindset from Day 1" rule and post-milestone production spot-check
+  - [ ] implement.md includes Context7 MCP rule for third-party API documentation
   - [ ] documentation.md milestone list matches plans.md milestones
   - [ ] documentation.md setup commands match the tech stack
   - [ ] CLAUDE.md and AGENT.md are identical

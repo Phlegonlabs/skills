@@ -7,13 +7,16 @@ Collect project information through conversation. If your environment supports i
 After collecting Project Goals (Step 2), assess complexity and assign a tier. The tier controls which
 interview rounds to run, how many follow-ups are allowed, and how deep to probe.
 
-| Tier | Criteria | Rounds to run | Follow-up Cap |
-|------|----------|--------------|---------------|
-| **Lite** | Single-purpose tool, 1 user role, no auth, no integrations, simple UI/CLI | Rounds 1-3, 6-7, 10, 10.5, deployment. **Skip** Rounds 4-5 (edge cases, journey validation), 8-9 (data flow, state mgmt) | 8 |
-| **Standard** | Multiple roles or features, some integrations, moderate UI/data complexity | All rounds (1-14). Full protocol | 20 |
-| **Complex** | Multi-role, multi-platform, integration-heavy, enterprise requirements | All rounds (1-14) + extended depth: extra follow-ups on architecture, security, and scale | 20 |
+**Default tier is Standard.** Only downgrade to Lite if the user explicitly requests a simplified interview
+or the project is clearly trivial (e.g., a single-file script, a config wrapper). When in doubt, stay at Standard.
 
-After Step 2, announce the assessed tier to the user and let them override.
+| Tier | Criteria | Target Questions | Rounds to run | Follow-up Cap |
+|------|----------|-----------------|--------------|---------------|
+| **Lite** | Single-purpose tool, 1 user role, no auth, no integrations, simple UI/CLI — **only if user explicitly requests simplified interview** | ~10 | Rounds 1-3, 6-7, 10, 10.5, 10.7, deployment. May condense Rounds 4-5, 8-9, 10.3 but do NOT skip entirely | 5 |
+| **Standard** | **Default for all projects.** Multiple roles or features, some integrations, moderate UI/data complexity | ~15 | All applicable rounds (full protocol; GUI ~10-11, CLI ~10-13 effective rounds) | 8 |
+| **Complex** | Multi-role, multi-platform, integration-heavy, enterprise requirements | ~25-30 | All applicable rounds (full protocol) + extended depth on architecture, security, scale | 20 |
+
+After Step 2, announce the assessed tier to the user and let them override. Default assumption is Standard.
 
 ## Step 1 — Project Name
 
@@ -47,9 +50,9 @@ The two primary goals of this step are:
 Process:
 1. Read the user's goals description carefully
 2. Plan the discovery interview based on the **complexity tier** assigned after Step 2:
-   - **Lite**: 5-7 base rounds — skip Rounds 4-5, 8-9 (see tier table above)
-   - **Standard**: 9-12 base rounds — full protocol
-   - **Complex**: 9-12 base rounds with extended depth on architecture, security, and scale
+   - **Lite**: 7-9 base rounds — condense Rounds 4-5, 8-9, 10.3 into lighter versions but do NOT skip them
+   - **Standard**: All applicable rounds — full protocol (this is the default; GUI ~10-11, CLI ~10-13 effective rounds)
+   - **Complex**: All applicable rounds with extended depth on architecture, security, and scale
    The first section covers user journeys, the second drills into components and details, then a required
    tech stack finalization checkpoint, then UI preferences (GUI) or CLI interface design (CLI), and finally
    deployment. Cover these areas progressively (skip any already answered in Step 2):
@@ -101,20 +104,40 @@ Process:
    - Caching strategy? Optimistic updates?
    - How is authentication state handled?
 
-   **Round 10 — Integrations, constraints & non-functional requirements**:
+   **Round 10 — Third-party integrations & secrets**:
    - Third-party services or APIs to connect with?
-   - Secrets/API keys: which integrations require keys? how will they be provided (env vars/secrets manager)? does the product issue API keys to end users (show-once, revoke/rotate)?
-   - Analytics/tracking needs (Web projects only): GA4/GTM? key events? conversion goals? consent/banner? strict no-PII rule?
+   - Secrets/API keys: which integrations require keys? how will they be provided (env vars/secrets manager)?
+     Does the product issue API keys to end users (show-once, revoke/rotate)?
+   - **When the user confirms specific third-party API integrations** (e.g., Stripe, GitHub API, OpenAI,
+     Twilio), use the **Context7 MCP tool** to fetch the latest API documentation for those services.
+     Reference the fetched docs when recommending the tech stack, identifying required API keys/scopes,
+     and flagging any known API constraints (rate limits, webhook requirements, auth flows).
+
+   **Round 10.3 — Non-functional requirements**:
    - Scale expectation (personal tool vs. SaaS vs. enterprise)?
-   - Performance requirements? Offline support?
+   - Performance requirements? (e.g., LCP < 2.5s, bundle < 200KB, supports slow 3G? Image optimization?) Offline support?
    - Security/privacy/compliance requirements? (PII, retention, audit logging, regulatory constraints)
-   - Development workflow constraints: trunk-based on `main` vs feature branches + PR? any commit conventions?
+   - Accessibility requirements (GUI projects): WCAG 2.1 AA compliance? Keyboard navigation? Screen reader support?
+     (If the product has external users, recommend AA compliance as baseline)
+   - SEO requirements (Web projects only): Public pages that need search indexing? SSR/SSG needed?
+     Metadata strategy (OG tags, sitemap, robots.txt)?
+   - Internationalization (i18n): Single language or multilingual? If multi-language, which locales?
+     Any RTL support needed? (If yes, confirm i18n library as part of tech stack lock in Round 10.7)
+   - Observability: Error tracking (Sentry/Datadog)? Structured logging strategy?
+     Performance monitoring? Alerting on errors or latency spikes?
+   - Analytics/tracking needs (Web projects only): GA4/GTM? key events? conversion goals? consent/banner? strict no-PII rule?
+
+   **Round 10.5 — Testing & development workflow**:
+   - Testing strategy: unit / integration / E2E? Which test runner (Vitest, Jest, Playwright, Cypress)?
+     Coverage targets? Approach to mocking third-party services in tests?
+   - Development workflow: trunk-based on `main` vs feature branches + PR? Any commit conventions?
    - Any hard business rules or constraints?
 
-   **Round 10.5 — Tech Stack Finalization (required before UI/deployment)**:
-   This round replaces the old separate "Tech Stack" step — all stack decisions are finalized here.
+   **Round 10.7 — Tech Stack Finalization (required before UI/deployment)**:
+   All stack decisions are finalized here. Do NOT proceed past this round until the tech stack is locked.
    - Confirm runtime/package manager/framework baseline before entering UI and deployment rounds
-   - Minimum fields to lock: runtime, package manager, frontend/backend framework, styling approach (if GUI), data/storage approach
+   - Minimum fields to lock: runtime, package manager, frontend/backend framework, styling approach (if GUI),
+     data/storage approach, test runner, i18n library (if multilingual)
    - Offer common stacks as options but always allow custom input. Consider the user's existing preferences
      from CLAUDE.md if available (e.g., if they prefer Bun over npm, `type` over `interface`)
    - Suggested options based on common patterns:
@@ -123,7 +146,6 @@ Process:
      - TypeScript + Node.js backend
      - Custom (let user type)
    - If still undecided, propose 2-3 concrete stack options and ask the user to pick one
-   - Do NOT proceed past this round until the tech stack is locked
 
    **--- UI Preferences (Round 11, GUI projects only) ---**
 
@@ -140,6 +162,8 @@ Process:
    - **Key UI components** — based on all pages discussed, identify the shared UI primitives needed
      (e.g., Button, Input, Card, Modal, Table, Avatar, Badge, Toast, etc.)
    - **Iconography** — suggest an icon set (e.g., Lucide, Phosphor, Heroicons)
+   - **Accessibility** — Confirm a11y requirements gathered in Round 10.3. If WCAG AA was selected,
+     note which UI library features support it (e.g., Radix primitives are accessible by default)
    - Ask the user to confirm or adjust
 
    **--- CLI Interface Design (Rounds 11C-13C, CLI projects only) ---**
@@ -218,12 +242,15 @@ Process:
 3. Each round: ask **1-2 focused questions**, offering concrete answer options when possible (use your tool's option UI if available; otherwise plain text)
 4. Each new round should build on previous answers — reference what the user said and dig deeper
 5. Aim for **at least the minimum rounds for the assigned tier** before moving on. Only stop earlier if the user explicitly says they want to move on.
-   - Lite: at least 5 rounds
-   - Standard / Complex: at least 9 rounds
+   - Lite: at least 7 rounds
+   - Standard: at least 9 rounds
+   - Complex: at least 11 rounds
 6. **Adaptive follow-up**: After any round, if the user's answer is vague, ambiguous, or opens up new
    dimensions worth exploring, **insert additional follow-up rounds** before moving to the next planned topic.
    These follow-up rounds do NOT count toward the base rounds — they are extra depth.
-   Hard cap on follow-ups is determined by the complexity tier (Lite: 8, Standard/Complex: 20).
+   Hard cap on follow-ups is determined by the complexity tier (Lite: 5, Standard: 8, Complex: 20).
+   **Err on the side of asking more, not less.** A thorough interview saves hours of rework later.
+   Target total questions (base rounds + follow-ups): Lite ~10, Standard ~15, Complex ~25-30.
    Continue probing while there are genuinely unclear or expandable areas, but stop follow-ups once:
    - all major ambiguities are resolved, OR
    - follow-up count reaches the tier cap.
@@ -243,6 +270,11 @@ Process:
      → Reconcile: "Earlier you said A, but just now you mentioned B — how should these work together?"
    - The user describes something that could be implemented multiple ways
      → Clarify approach: present 2-3 concrete options with trade-offs and ask which fits their vision
+   - The user mentions a specific third-party service (payment gateway, auth provider, messaging, etc.)
+     without specifying integration depth
+     → Ask immediately: "You mentioned [service] — is this a core dependency or a nice-to-have?
+       What specific operations do you need from it? Do you already have API credentials?"
+       Then use Context7 MCP tool to fetch that service's latest API docs for reference.
 
    Follow-up round format:
    - Label as "Round N.1", "Round N.2" etc. (e.g., "Round 3.1 — Clarifying admin permissions")
@@ -337,6 +369,18 @@ Round 10 — Integrations & constraints:
 When the user indicates they've provided enough info (e.g., "enough", "let's move on", "就这些", "可以了"),
 run one final additions check (in the user's language, e.g., "Anything else to add or change?"), then proceed to the next step.
 
+## Step 3.5 — Tier Recheck
+
+After completing all interview rounds, **reassess the complexity tier** based on what was actually discovered.
+The initial tier was assessed after Step 2 (a rough description) — now you have full context.
+
+- If the project turned out **more complex** than initially assessed (e.g., more roles, more integrations,
+  multi-platform needs discovered during rounds), **upgrade the tier** and announce the change.
+- If the project turned out **simpler**, optionally downgrade (but only if the user agrees).
+- Tier changes affect: milestone count in docs/plans.md, review scope in Phase 2.5.
+
+This step is silent if the tier hasn't changed — only announce when there's a change.
+
 ## Step 4 — Synthesis & Confirmation
 
 After gathering enough context from Steps 2-3, **synthesize everything into a complete project summary**.
@@ -351,8 +395,10 @@ Present to the user:
 4. **UI approach** — UI framework, CSS approach, key components, icon set (GUI projects only)
    **CLI interface** — Command structure, output modes, config strategy, key conventions (CLI projects only)
 5. **Deployment** — Hosting platform, database hosting, CI/CD approach
-6. **Scope notes** — Anything explicitly out of scope or deferred
-7. **Production standard** — Remind the user: "The generated plan includes a **Production Readiness Gate**
+6. **Quality & infrastructure** — Testing strategy, a11y requirements, i18n support, error tracking,
+   SEO approach (summarize decisions from Rounds 10.3 and 10.5)
+7. **Scope notes** — Anything explicitly out of scope or deferred
+8. **Production standard** — Remind the user: "The generated plan includes a **Production Readiness Gate**
    as the final milestone. Every milestone is written to produce production-quality code from the start.
    The final deliverable will be deployment-ready — not a demo or prototype."
 
@@ -410,13 +456,18 @@ or changes to existing ones? How does it interact with the current data model?
 **Round F4 — Edge cases & constraints**: Error states, permissions, validation rules, performance
 concerns. What happens when things go wrong?
 
+**Round F4.5 — Testing requirements**: Does this feature require new unit / integration / E2E tests?
+Are existing tests affected? Any testing-specific constraints (mock APIs, test data setup)?
+
 **Round F5 — Integrations** (if applicable): Does this feature require new third-party services,
 new secrets/API keys, or changes to existing integrations?
+If yes, use **Context7 MCP tool** to fetch the latest API docs for any newly introduced services
+before proposing the implementation approach.
 
 **Round F6-F8 — Additional depth** (for complex features): Drill into areas that need more clarity
 based on the user's answers. Same adaptive follow-up rules as Init mode.
 
-Follow-up cap: 5 for simple features, 10 for complex ones.
+Follow-up cap: 8 for simple features, 15 for complex ones.
 
 ---
 
@@ -434,7 +485,7 @@ architecture.md?
 present 2-3 options with trade-offs and ask the user to pick one. Consider: backward compatibility,
 data migration needs, performance implications.
 
-Follow-up cap: 3.
+Follow-up cap: 5.
 
 ---
 
@@ -446,6 +497,8 @@ architecture to identify all touch points.
 
 **Round C2 — Migration & compatibility**: Does this change require data migration? Is there a
 transition period where old and new behavior coexist? How should existing users/data be handled?
+Rollback strategy: if this change needs to be reverted after deploy, is that possible? Should it be
+behind a feature flag during rollout?
 
 **Round C3 — Cascading effects**: Based on the existing architecture, what other parts of the
 system need to change as a result? API contracts, shared types, dependent components, tests?
@@ -455,7 +508,7 @@ it be handled — hard removal, deprecation period, or replacement? Any data cle
 
 **Round C5 — Additional depth** (for complex changes): Drill into areas that need more clarity.
 
-Follow-up cap: 5.
+Follow-up cap: 8.
 
 ---
 

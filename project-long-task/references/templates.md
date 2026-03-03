@@ -107,6 +107,9 @@ Structure:
 ### Integrations
 - {Third-party services and how they connect (e.g., payments, email, analytics like GA4/GTM)}
 - {If analytics is required: key events, consent strategy, and a strict "no PII in analytics" rule}
+- **API Documentation Rule**: When implementing any third-party integration, use the **Context7 MCP tool**
+  to fetch the latest API docs for that service before writing integration code. Do NOT rely on
+  training-data knowledge of SDKs/APIs — always fetch current docs via Context7.
 
 ### Key Technical Decisions
 {Record important decisions made during the interview, e.g., "chose WebSocket over SSE because..."}
@@ -292,6 +295,9 @@ Sub-tasks:
 - [ ] PR.8 — Verify all environment variables are documented in `.env.example` and validated at startup
 - [ ] PR.9 — Review file sizes: flag any source file over 300 lines and verify it's justified
 - [ ] PR.10 — Final documentation sync: ensure `docs/documentation.md` accurately reflects the implemented state (setup, commands, structure, troubleshooting)
+- [ ] PR.11 — Dependency security audit: run `{pm} audit` (or equivalent) and remediate high/critical vulnerabilities
+- [ ] PR.12 — (Web/GUI projects) Accessibility check: verify keyboard navigation, ARIA labels on interactive elements, sufficient color contrast
+- [ ] PR.13 — License audit: verify all production dependencies use permissive licenses (MIT/Apache/BSD) compatible with this project's distribution model
 
 Key files/modules:
 - All source files
@@ -380,6 +386,10 @@ Structure:
 - Treat plans.md as the source of truth
 - If anything is ambiguous, make a reasonable decision and record it in plans.md
 - Follow `docs/secrets.md` for any secrets/API key handling (storage, redaction, output/display)
+- **Third-party API documentation**: When implementing any third-party integration (payment gateway,
+  email provider, OAuth, analytics SDK, etc.), use the **Context7 MCP tool** to fetch the latest API
+  docs for that service before writing any code. Do NOT rely on training-data knowledge of third-party
+  SDKs — APIs change frequently and outdated implementations are a production risk.
 - **Git strategy**: Follow the git workflow chosen in the interview. If unspecified, default to trunk-based development on `main`.
   If branches are used, follow the project's naming convention (commonly: `feature/`, `fix/`, `refactor/`).
 - Implement with small, reviewable commits
@@ -504,6 +514,10 @@ Structure:
 - Store only a hash (plus metadata); never store plaintext keys
 - Show the full key only once at creation; afterwards show masked + last 4
 - Support revoke/rotate; add audit logging, scopes/permissions, and rate limits
+
+## Secret Scanning (recommended)
+- Consider adding a pre-commit hook (e.g., `detect-secrets`, `git-secrets`, or GitHub secret scanning)
+  to catch accidental secret commits before they reach the remote
 
 ## Output/Display Guidance
 - Never print full keys by default (CLI/UI)
@@ -631,13 +645,14 @@ verification, testing, commit discipline, and bug handling that must be followed
 - {e.g., "Use server components by default, client components only when needed"}
 - {e.g., "All API routes return typed responses using shared types from src/types/"}
 - {e.g., "Components are colocated with their tests: Button.tsx + Button.test.tsx"}
+- When implementing third-party integrations, use Context7 MCP to fetch latest API docs first
 
 ## Current Status
 See `docs/plans.md` for milestone progress.
 ```
 
 Important rules for CLAUDE.md / AGENT.md:
-- Keep it under 80 lines — it's loaded into context every conversation, so brevity matters
+- Keep it under 120 lines — it's loaded into context every conversation, so brevity matters
 - Focus on what the agent needs to KNOW to work correctly, not on explaining the project to humans
 - Commands and structure should be accurate and runnable
 - Update both files together as the project evolves (e.g., new commands, changed structure)

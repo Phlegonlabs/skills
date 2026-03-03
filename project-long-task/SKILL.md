@@ -43,20 +43,25 @@ At the start, detect which mode to use:
 1. Check if `docs/architecture.md` and `docs/plans.md` already exist in the project
 2. If **both exist** → **Update mode** (the project was previously initialized with this skill)
 3. If **neither exists** → **Init mode** (new project)
-4. If ambiguous, ask the user whether they are modifying the existing project or starting fresh
+4. If **only one exists** → Potentially corrupted state. Inform the user which file is missing and ask:
+   init from scratch (overwrite), or attempt update with incomplete docs?
+5. If ambiguous for other reasons, ask the user whether they are modifying the existing project or starting fresh
 
 ## Complexity Tiers
 
 After Step 2 (Project Goals), assess complexity and assign a tier. This determines interview depth,
 milestone count, and review scope throughout the entire workflow.
 
-| Tier | When | Interview Rounds | Follow-up Cap | Milestones | Review |
-|------|------|-----------------|---------------|------------|--------|
-| **Lite** | Single-purpose tool, 1 role, no auth, no integrations | 5-7 base rounds (skip Rounds 4-5, 8-9) | 8 | 4-6 | Agent 1 + Agent 2 |
-| **Standard** | Most projects — multiple roles or features, some integrations | 9-12 base rounds (full) | 20 | 7-10 | Agent 1 + Agent 2 + Agent 3 |
-| **Complex** | Multi-role, multi-platform, integration-heavy, enterprise | 9-12 base rounds (full) + extended depth | 20 | 10-14 | Agent 1 + Agent 2 + Agent 3, then second-pass recheck |
+**Default tier is Standard.** Only downgrade to Lite if the user explicitly requests a simplified interview
+or the project is clearly trivial (e.g., a single-file script, a config wrapper). When in doubt, stay at Standard.
 
-Announce the tier to the user after Step 2 and let them override it (e.g., "I know it looks simple but I want thorough coverage").
+| Tier | When | Target Questions | Interview Rounds | Follow-up Cap | Milestones | Review |
+|------|------|-----------------|-----------------|---------------|------------|--------|
+| **Lite** | Single-purpose tool, 1 role, no auth, no integrations — **only if user explicitly requests simplified interview** | ~10 | 7-9 base rounds (may condense Rounds 4-5, 8-9 but do NOT skip entirely) | 5 | 4-6 | Agent 1 + Agent 2 |
+| **Standard** | **Default for all projects** — most projects fall here | ~15 | All applicable rounds (full protocol; GUI ~10-11, CLI ~10-13 effective rounds) | 8 | 7-10 | Agent 1 + Agent 2 + Agent 3 |
+| **Complex** | Multi-role, multi-platform, integration-heavy, enterprise | ~25-30 | All applicable rounds (full protocol) + extended depth on architecture, security, scale | 20 | 10-14 | Agent 1 + Agent 2 + Agent 3, then second-pass recheck |
+
+Announce the tier to the user after Step 2 and let them override it. Default assumption is Standard.
 
 ## Workflow
 
@@ -70,8 +75,10 @@ interview protocol including all rounds, follow-up triggers, and examples.
 2. **Project Goals** — Free-form description of what they're building, the problem, and target users
 3. **Clarifying Questions** — AI-driven discovery interview (rounds and depth determined by complexity tier,
    covering user journeys, components, tech stack finalization, UI/CLI preferences, and deployment).
-   Adaptive follow-ups for ambiguities. Tech stack is locked during this step (Round 10.5).
-4. **Synthesis & Confirmation** — Present a complete project summary for user approval before generating docs
+   Adaptive follow-ups for ambiguities. Tech stack is locked during this step (Round 10.7).
+4. **Tier Recheck** — After all interview rounds, reassess tier based on what was discovered. If the project
+   turned out more complex than initially assessed, upgrade the tier and announce the change to the user.
+5. **Synthesis & Confirmation** — Present a complete project summary for user approval before generating docs
 
 ### Phase 2: Generate Documentation
 
@@ -84,7 +91,7 @@ for the full templates and structure of each file.
 - `docs/implement.md` — Non-negotiable execution rules for disciplined autonomous work
 - `docs/secrets.md` — Secrets & API keys guidance (env vars + safe key handling)
 - `docs/documentation.md` — User-facing documentation, kept in sync with reality
-- `CLAUDE.md` + `AGENT.md` — Quick-reference files for AI coding tools (identical content, under 80 lines)
+- `CLAUDE.md` + `AGENT.md` — Quick-reference files for AI coding tools (identical content, under 120 lines)
 
 ### Phase 2.5: Multi-Agent Documentation Review
 
@@ -129,11 +136,16 @@ Ask the user what kind of change they're making, or infer from their description
 
 | Type | When | Interview Rounds | Follow-up Cap |
 |------|------|-----------------|---------------|
-| **New Feature** | Adding new functionality to the project | 3-8 rounds (F1-F8) | 5-10 |
-| **Bug Fix** | Fixing a bug that may change behavior, architecture, or require doc updates | 1-3 rounds (B1-B3) | 3 |
-| **Change** | Requirement changes, refactors, tech migrations, removing features | 2-5 rounds (C1-C5) | 5 |
+| **New Feature** | Adding new functionality to the project | 3-8 rounds (F1-F8) | 8-15 |
+| **Bug Fix** | Fixing a bug that may change behavior, architecture, or require doc updates | 1-3 rounds (B1-B3) | 5 |
+| **Change** | Requirement changes, refactors, tech migrations, removing features | 2-5 rounds (C1-C5) | 8 |
 
 Announce the classified type to the user and let them override.
+
+**Type reclassification**: If during the interview the actual scope significantly exceeds the classified type
+(e.g., a Bug Fix turns out to require architectural changes, or a Change reveals new feature needs),
+re-classify the update type, announce the reclassification to the user, and adjust the remaining
+interview rounds accordingly.
 
 ### Update Phase 2: Update Interview
 
@@ -150,8 +162,10 @@ the full protocol for each update type.
 After confirmation, **update** (not recreate) the existing documents. What to update depends on the type:
 
 **All types:**
-- `docs/plans.md` — Append new milestones after the last existing milestone (for New Feature / Change),
-  or add a fix milestone (for Bug Fix). Follow the same milestone format. Keep existing milestones intact.
+- `docs/plans.md` — Insert new milestones **before the Production Readiness Gate (Milestone PR)**, not after it.
+  The PR milestone must always remain the final milestone. For Bug Fix, add a fix milestone before PR.
+  Follow the same milestone format. Keep existing milestones intact. Update Milestone PR sub-tasks if
+  the change introduces new production-readiness requirements.
 - `docs/documentation.md` — Add new milestones to the status section
 
 **New Feature:**
@@ -178,13 +192,16 @@ After confirmation, **update** (not recreate) the existing documents. What to up
 
 ### Update Phase 3.5: Documentation Review
 
-Run a lighter review focused on the changes:
-- Verify new/modified milestones cover all aspects of the change
-- Verify updated architecture sections are consistent with existing ones
-- Verify no contradictions between new and existing content
+Run a lighter review focused on the changes. See `references/review.md` for full checklist details.
 
 Use Agent 2 (Plans reviewer) + Agent 3 (Consistency reviewer). Skip Agent 1 unless the change adds
 entirely new user roles or major architectural changes.
+
+Focus areas:
+- Agent 2: Verify new/modified milestones cover all aspects of the change; new milestones are inserted
+  before Milestone PR; milestone ordering is logical
+- Agent 3: Verify no contradictions between new and existing content; updated architecture sections are
+  consistent; CLAUDE.md/AGENT.md are updated if needed
 
 ### Update Phase 4: Next Steps
 
