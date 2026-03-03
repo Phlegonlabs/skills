@@ -190,9 +190,10 @@ Verification:
 - Standard tier: 7-10 milestones
 - Complex tier: 10-14 milestones
 Each feature should map to 1-3 milestones depending on complexity.
-Always start with scaffold and end with polish/verification.
-For web apps: if analytics/tracking is in scope (GA4/GTM), include an Analytics milestone (after core navigation/auth is stable, before final polish).
-For CLI tools: place CLI Foundation (CC) as Milestone 02, right after repo scaffold.}
+Always start with scaffold and end with the **Production Readiness Gate** (Milestone PR, see below).
+For web apps: if analytics/tracking is in scope (GA4/GTM), include an Analytics milestone (after core navigation/auth is stable, before Production Readiness Gate).
+For CLI tools: place CLI Foundation (CC) as Milestone 02, right after repo scaffold.
+The second-to-last milestone should be polish/verification. The LAST milestone is ALWAYS the Production Readiness Gate.}
 
 {Sub-task generation rules:
 - Every milestone MUST have a "Sub-tasks" section with numbered, checkboxed items
@@ -270,6 +271,53 @@ Verification:
 - `{pm} run test` — tests cover event payload builder
 - `{pm} run build` — production build includes analytics only when enabled
 
+### Milestone PR - Production Readiness Gate [ ] (MANDATORY — always the final milestone)
+Verify the entire project is production-ready, not just functional. This milestone is the final
+quality gate before the project can be considered complete.
+
+Scope:
+- Full audit of all code for production quality
+- Verify no demo/prototype artifacts remain
+- Confirm all features work end-to-end with real (non-mock) data paths
+- Security, performance, and error handling review
+
+Sub-tasks:
+- [ ] PR.1 — Run full verification suite (`{pm} run lint`, `{pm} run typecheck`, `{pm} run test`) — zero failures
+- [ ] PR.2 — Audit for hardcoded values: no hardcoded URLs, ports, API keys, user IDs, or env-specific values in source code
+- [ ] PR.3 — Audit for prototype leftovers: no `// TODO`, no `console.log` debugging, no commented-out code blocks, no `any` types, no `@ts-ignore` without justification
+- [ ] PR.4 — Audit for mock/placeholder data: no mock data in production code paths (only allowed in test files and dev seed scripts)
+- [ ] PR.5 — Verify error handling: every async operation has error handling, every user-facing error has a meaningful message, no empty catch blocks
+- [ ] PR.6 — Verify `{pm} run build` produces a clean production build with no warnings
+- [ ] PR.7 — Verify `{pm} run dev` starts cleanly and all features work end-to-end
+- [ ] PR.8 — Verify all environment variables are documented in `.env.example` and validated at startup
+- [ ] PR.9 — Review file sizes: flag any source file over 300 lines and verify it's justified
+- [ ] PR.10 — Final documentation sync: ensure `docs/documentation.md` accurately reflects the implemented state (setup, commands, structure, troubleshooting)
+
+Key files/modules:
+- All source files
+- `.env.example`
+- `docs/documentation.md`
+- `package.json` (scripts section)
+
+Acceptance criteria:
+- All verification commands pass with zero errors and zero warnings
+- No hardcoded secrets, URLs, ports, or environment-specific values in source code
+- No TODO comments, console.log debugging, or commented-out code blocks
+- No mock/placeholder data in production code paths
+- Every async operation has proper error handling
+- Production build succeeds cleanly
+- Dev server starts and all features are functional end-to-end
+- `.env.example` is complete and all env vars are validated at startup
+- `docs/documentation.md` is accurate and up-to-date
+- The project is ready to deploy — not a demo, not a prototype
+
+Verification:
+- `{pm} run lint` — zero errors
+- `{pm} run typecheck` — zero errors
+- `{pm} run test` — all tests pass
+- `{pm} run build` — clean build, no warnings
+- `{pm} run dev` — starts cleanly, manual smoke test of all features
+
 ## Risk Register
 | Risk | Impact | Mitigation |
 |------|--------|------------|
@@ -326,6 +374,9 @@ Structure:
     keep it well-structured and document why splitting would hurt cohesion.
 
 ## Execution Rules (follow strictly)
+- **Production mindset from Day 1** — every line of code you write should be production-quality from the start.
+  Do NOT write "get it working first, clean up later" code. There is no cleanup phase — each milestone's output
+  must be deployable as-is. If you catch yourself writing a shortcut, fix it immediately.
 - Treat plans.md as the source of truth
 - If anything is ambiguous, make a reasonable decision and record it in plans.md
 - Follow `docs/secrets.md` for any secrets/API key handling (storage, redaction, output/display)
@@ -370,6 +421,8 @@ Structure:
   - Run verification commands (lint, typecheck, tests)
   - Fix all failures immediately
   - Add or update tests for the milestone's core behavior
+  - **Production spot-check**: scan the milestone's code for hardcoded values, TODO comments, console.log,
+    `any` types, mock data in production paths, or missing error handling. Fix any issues before proceeding.
   - Mark the milestone itself as complete in plans.md
   - Create a milestone-level docs/status commit (e.g., `docs(milestone-{NN}): mark complete — {milestone title}`)
 - If a bug is discovered:
@@ -383,9 +436,18 @@ Structure:
 - Enforce determinism where applicable with snapshot tests
 
 ## Completion Criteria (do not stop until all are true)
-- All milestones in plans.md are implemented and checked off
+
+**The project is NOT complete until it is production-ready. "It works" is not enough — it must be
+deployment-grade. The final milestone (Production Readiness Gate) enforces this explicitly.**
+
+- All milestones in plans.md are implemented and checked off, **including the Production Readiness Gate**
 - `{pm} run dev` works
-- `{pm} run test`, `{pm} run lint`, `{pm} run typecheck` all pass
+- `{pm} run test`, `{pm} run lint`, `{pm} run typecheck` all pass with **zero errors and zero warnings**
+- `{pm} run build` produces a clean production build
+- **No prototype artifacts remain**: no `// TODO`, no `console.log` debugging, no `any` types,
+  no `@ts-ignore` without justification, no commented-out code, no placeholder/mock data in production paths
+- **No hardcoded values**: no hardcoded URLs, ports, API keys, user IDs, or environment-specific values
+- **All environment variables** documented in `.env.example` and validated at startup
 - Secrets/API keys handled safely per `docs/secrets.md` (if applicable): no secrets committed/logged; any user-issued API keys are show-once + hashed storage
 - Analytics/tracking standards met (Web projects only, if analytics is in scope):
   - Page views + key events are instrumented through the adapter
@@ -405,6 +467,13 @@ Structure:
   - API error responses follow the standardized error shape
   - Changing any API endpoint's contract updates all layers in the same commit
 - documentation.md is accurate and complete
+- **Production Readiness Gate passed** — the final milestone (Milestone PR) is complete, confirming:
+  - Zero prototype artifacts (TODOs, console.log, any types, mock data in prod paths)
+  - Zero hardcoded environment-specific values
+  - All env vars documented and validated
+  - Clean production build with no warnings
+  - All features work end-to-end
+  - The deliverable is ready to deploy to production — not a demo, not a proof-of-concept
 ```
 
 ## File: `docs/secrets.md`
@@ -518,10 +587,13 @@ until all relevant docs are loaded into context.
 2. Follow `docs/implement.md` rules strictly while implementing
 3. After completing a milestone:
    - Run verification (lint, typecheck, test), fix all failures
+   - Production spot-check: no TODOs, no console.log, no `any` types, no mock data in prod paths
    - Update `docs/plans.md` — check off the milestone, add implementation notes
    - Update `docs/documentation.md` — keep status, setup instructions, and repo structure in sync with reality
    - Commit with a clear message referencing the milestone
 4. Move to the next milestone — do NOT stop to ask unless truly blocked
+5. The final milestone (Production Readiness Gate) is MANDATORY — do NOT skip it. The project is not
+   done until production-readiness is verified.
 
 **NEVER skip reading `docs/implement.md` before executing. It contains critical rules about
 verification, testing, commit discipline, and bug handling that must be followed at all times.**

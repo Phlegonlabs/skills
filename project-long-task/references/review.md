@@ -32,7 +32,7 @@ Use the agent definitions below as the review pool.
 - Check:
   - [ ] Project metadata (platform, tech stack, UI framework, deployment) is accurate
   - [ ] Every feature in architecture.md maps to at least one milestone
-  - [ ] Milestones are ordered logically (scaffold → core features → integrations → polish)
+  - [ ] Milestones are ordered logically (scaffold → core features → integrations → polish → **Production Readiness Gate**)
   - [ ] Each milestone has: scope, sub-tasks, key files/modules, acceptance criteria, verification commands
   - [ ] Each milestone has 3-8 numbered sub-tasks, each describing ONE atomic action
   - [ ] Sub-tasks follow a logical implementation order within each milestone
@@ -41,6 +41,7 @@ Use the agent definitions below as the review pool.
   - [ ] CLI Foundation milestone (CC) is Milestone 02, right after repo scaffold (CLI projects only)
   - [ ] If analytics/tracking is in scope (e.g., GA4/GTM), there is at least one milestone covering instrumentation + consent + verification
   - [ ] No feature is left uncovered by milestones
+  - [ ] **Production Readiness Gate (Milestone PR) exists as the FINAL milestone** with comprehensive audit sub-tasks
   - [ ] Risk register has realistic entries
 - Report: list any missing features, vague criteria, or ordering issues
 
@@ -49,8 +50,10 @@ Use the agent definitions below as the review pool.
 - Cross-reference with `docs/plans.md` and `docs/architecture.md`
 - Check:
   - [ ] implement.md completion criteria match the actual doc set generated
+  - [ ] implement.md completion criteria include **Production Readiness Gate** as a mandatory final check
   - [ ] implement.md verification commands match the tech stack
   - [ ] implement.md git strategy matches the workflow chosen in the interview (trunk-based vs branches)
+  - [ ] implement.md includes "Production mindset from Day 1" rule and post-milestone production spot-check
   - [ ] documentation.md milestone list matches plans.md milestones
   - [ ] documentation.md setup commands match the tech stack
   - [ ] CLAUDE.md and AGENT.md are identical

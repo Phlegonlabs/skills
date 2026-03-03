@@ -32,6 +32,7 @@ workflow prevents that by separating concerns into distinct documents that each 
 - A **plan** that tracks progress (what's done, what's next)
 - **Execution rules** that enforce discipline (how to work)
 - **Living docs** that stay accurate (architecture + user docs)
+- A **production readiness gate** that ensures the final output is deployment-ready, not a demo or prototype
 
 The interview phase is critical — it forces clarity before any code is written, which saves hours of rework later.
 
@@ -105,6 +106,9 @@ After review, tell the user:
 2. Suggest they review `docs/architecture.md` and `docs/plans.md`
 3. Explain they can start execution by feeding `docs/implement.md` as instructions
 4. Mention they can adjust milestone count/scope in `docs/plans.md` before starting
+5. **Emphasize**: The final milestone is a **Production Readiness Gate** — the project is NOT considered
+   complete until it passes all production-readiness checks. Every milestone builds toward a production-grade
+   deliverable, not a demo or prototype.
 
 ---
 
@@ -189,6 +193,9 @@ Tell the user:
 2. Summarize what was changed (new/modified milestones, updated architecture sections, etc.)
 3. Suggest they review the changes in `docs/architecture.md` and `docs/plans.md`
 4. Mention they can adjust the new milestones before starting execution
+5. **Remind**: New milestones follow the same production-quality standard — every sub-task produces
+   deployment-ready code. If the update adds significant new functionality, ensure the Production
+   Readiness Gate milestone is updated to cover the new scope.
 
 ## Language
 

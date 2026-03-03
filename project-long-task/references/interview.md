@@ -352,6 +352,9 @@ Present to the user:
    **CLI interface** — Command structure, output modes, config strategy, key conventions (CLI projects only)
 5. **Deployment** — Hosting platform, database hosting, CI/CD approach
 6. **Scope notes** — Anything explicitly out of scope or deferred
+7. **Production standard** — Remind the user: "The generated plan includes a **Production Readiness Gate**
+   as the final milestone. Every milestone is written to produce production-quality code from the start.
+   The final deliverable will be deployment-ready — not a demo or prototype."
 
 Ask the user to confirm, or revise anything before doc generation.
 
