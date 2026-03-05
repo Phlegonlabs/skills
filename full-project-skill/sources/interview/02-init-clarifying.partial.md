@@ -139,6 +139,24 @@ Process:
    - **Iconography** — suggest an icon set (e.g., Lucide, Phosphor, Heroicons)
    - **Accessibility** — Confirm a11y requirements gathered in Round R10.3. If WCAG AA was selected,
      note which UI library features support it (e.g., Radix primitives are accessible by default)
+   - **Component hierarchy strategy** — will the project use a 3-tier approach
+     (Tier 1: UI library primitives → Tier 2: custom composites → Tier 3: page components)?
+     This was proposed in Step 2.8 — confirm the chosen organization model and discuss any adjustments.
+   - **Interactive pattern conventions** — define standard conventions for interactive states:
+     - Hover: what visual feedback on hover? (e.g., subtle background change, never text color change)
+     - Focus: focus ring style? (e.g., 2px ring with offset)
+     - Disabled: visual treatment? (e.g., 50% opacity + pointer-events-none)
+     - If applicable: inline editing pattern, popover/selector behavior
+   - **File conventions** — confirm where UI files live:
+     - Tier 1 primitives directory (e.g., `components/ui/`)
+     - Tier 2 custom components directory (e.g., `components/`)
+     - Pages/routes directory (e.g., `app/` or `pages/`)
+     - Hooks, utilities, contexts directories
+     - Naming convention: PascalCase for components, camelCase for hooks/utils
+     - Import alias convention (e.g., `@/components/...`)
+   - **Living design guide page** — for GUI projects, recommend including a `/design-guide` route
+     (or equivalent) as a development-only showcase page. This page displays all custom components
+     with their variants, states, and usage examples. Confirm if the user wants this included.
    - Ask the user to confirm or adjust
 
    **--- CLI Interface Design (Rounds 11C-13C, CLI projects only) ---**

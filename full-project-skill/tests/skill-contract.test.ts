@@ -10,6 +10,7 @@ import {
   validateInterviewQuestionPack,
   validatePartialsExist,
   validateConditionalDocumentAlignment,
+  validateDesignTemplateCoverage,
   validateQualityGates,
   validateRequiredChecksAgainstPackageScripts,
   validateUpdateModeCompleteness,
@@ -123,6 +124,25 @@ describe("Validation error paths", () => {
     expect(errors.some((error) => error.includes("version mismatch"))).toBe(true);
   });
 
+  test("quality-gates should report missing design-doc required section", () => {
+    const qualityGates = loadQualityGates();
+    const invalidGates = {
+      ...qualityGates,
+      designDocRequiredSections: {
+        ...qualityGates.designDocRequiredSections,
+        sections: qualityGates.designDocRequiredSections.sections.filter(
+          (section) => section !== "Component Inventory"
+        ),
+      },
+    };
+    const errors = validateQualityGates(invalidGates);
+    expect(
+      errors.some((error) =>
+        error.includes("designDocRequiredSections.sections missing required section: Component Inventory")
+      )
+    ).toBe(true);
+  });
+
   test("doc-build map should report invalid targets object", () => {
     const map = loadDocBuildMap();
     const invalidMap = {
@@ -145,7 +165,7 @@ describe("Workflow invariants", () => {
     ]);
   });
 
-  test("complex tier should include codex + post-codex + recheck review chain", () => {
+  test("complex tier should include codex + post-codex review chain", () => {
     const workflowMap = loadWorkflowMap();
     expect(workflowMap.tiers.complex.reviewAgents).toEqual([
       "agent-1",
@@ -154,8 +174,6 @@ describe("Workflow invariants", () => {
       "codex-review",
       "agent-2-post-codex",
       "agent-3-post-codex",
-      "agent-2-recheck",
-      "agent-3-recheck",
     ]);
   });
 
@@ -196,6 +214,16 @@ describe("requiredChecks vs package.json drift detection", () => {
     const errors = validateRequiredChecksAgainstPackageScripts(gates);
     expect(errors).toEqual([]);
   });
+
+  test("should reject unsupported requiredChecks command format", () => {
+    const fakeGates = {
+      ...loadQualityGates(),
+      requiredChecks: ["npm run test"],
+    };
+    const errors = validateRequiredChecksAgainstPackageScripts(fakeGates);
+    expect(errors.length).toBe(1);
+    expect(errors[0]).toContain("unsupported format");
+  });
 });
 
 describe("Update mode completeness", () => {
@@ -226,6 +254,8 @@ describe("Update mode completeness", () => {
     const questionPack = loadInterviewQuestionPack();
     expect(questionPack.update.new_feature).toContain("F0");
     expect(questionPack.update.new_feature[0]).toBe("F0");
+    expect(questionPack.update.new_feature).toContain("F4.5");
+    expect(questionPack.update.new_feature).toContain("F8");
   });
 
   test("init interview rounds should place 2.8 between 2.7 and R1", () => {
@@ -297,6 +327,19 @@ describe("Update mode completeness", () => {
     expect(errors.length).toBeGreaterThan(0);
   });
 
+  test("workflow-map should reject non-array conditionalDocuments", () => {
+    const workflowMap = loadWorkflowMap();
+    const invalidMap = {
+      ...workflowMap,
+      conditionalDocuments: {
+        path: "docs/decisions.md",
+        condition: "standard_or_complex_tier",
+      },
+    } as unknown as typeof workflowMap;
+    const errors = validateWorkflowMap(invalidMap);
+    expect(errors.some((error) => error.includes("must be an array"))).toBe(true);
+  });
+
   test("SKILL.md should contain Update Phase 3.7 section", () => {
     const skillMd = readSkillMarkdown();
     expect(skillMd).toContain("### Update Phase 3.7");
@@ -306,6 +349,17 @@ describe("Update mode completeness", () => {
   test("SKILL.md Update Phase 3.5 should reference cross-model review", () => {
     const skillMd = readSkillMarkdown();
     expect(skillMd).toContain("Cross-Model Review (Mandatory):");
+  });
+
+  test("SKILL.md should use F0-F8 update round range wording", () => {
+    const skillMd = readSkillMarkdown();
+    expect(skillMd).toContain("F0-F8");
+  });
+
+  test("design template should contain required design-doc sections", () => {
+    const qualityGates = loadQualityGates();
+    const errors = validateDesignTemplateCoverage(qualityGates);
+    expect(errors).toEqual([]);
   });
 
   test("SKILL.md Update Phase 1 should have specific codebase scan strategy", () => {

@@ -47,6 +47,18 @@
       "condition": "standard_or_complex_tier"
     }
   ],
+  "designDocRequiredSections": {
+    "condition": "gui_project",
+    "sections": [
+      "Component Inventory",
+      "Composition Patterns",
+      "Interactive Patterns",
+      "Layout System",
+      "Living Design Guide",
+      "File Conventions",
+      "Common Mistakes"
+    ]
+  },
   "requiredChecks": [
     "bun run contract:check",
     "bun run typecheck",

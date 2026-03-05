@@ -48,8 +48,8 @@ See `references/review.md` for the full review protocol and agent definitions.
 If multi-agent spawning isn't available in your environment, run the same checklists sequentially as a self-review.
 
 **Review agents by tier:**
-- **Standard**: Agent 2 + Agent 3, then Codex review.
-- **Complex**: Agent 1 + Agent 2 + Agent 3, then Codex review, then Agent 2 + Agent 3 post-Codex re-review, then a second-pass recheck after fixes.
+- **Standard**: Agent 2 + Agent 3.
+- **Complex**: Agent 1 + Agent 2 + Agent 3.
 
 Fix all issues found, then proceed.
 
@@ -63,7 +63,7 @@ Cross-model review is mandatory and must run via `mcp__codex__codex`.
 3. Ask Codex to focus on: architectural gaps, missing edge cases, unrealistic milestones, and
    cross-doc inconsistencies.
 4. Fix all valid findings from Codex.
-5. **Complex tier only**: after fixes, run **Agent 2 + Agent 3** again (post-Codex re-review) before proceeding.
+5. **Complex tier only**: after fixes, run **exactly one** post-Codex re-review with **Agent 2 + Agent 3** before proceeding.
    **Standard tier** can proceed directly to Phase 2.7 after Codex findings are applied.
 6. Record in output that Phase 2.6 was executed and summarize what was fixed.
 

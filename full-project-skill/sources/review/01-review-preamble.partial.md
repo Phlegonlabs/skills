@@ -6,7 +6,7 @@ If your environment supports spawning parallel reviewers/agents, use it — othe
 
 Use the **complexity tier** assigned during Phase 1 (see SKILL.md) to determine review scope:
 
-- **Standard**: spawn Agent 2 + Agent 3, then run Codex review.
-- **Complex**: spawn Agent 1 + Agent 2 + Agent 3, then run Codex review, then post-Codex re-review with Agent 2 + Agent 3, then run a second-pass recheck with Agent 2 + Agent 3 after fixes.
+- **Standard**: spawn Agent 2 + Agent 3.
+- **Complex**: spawn Agent 1 + Agent 2 + Agent 3.
 
 Use the agent definitions below as the review pool.

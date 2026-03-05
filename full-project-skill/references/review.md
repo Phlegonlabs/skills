@@ -6,8 +6,8 @@ If your environment supports spawning parallel reviewers/agents, use it — othe
 
 Use the **complexity tier** assigned during Phase 1 (see SKILL.md) to determine review scope:
 
-- **Standard**: spawn Agent 2 + Agent 3, then run Codex review.
-- **Complex**: spawn Agent 1 + Agent 2 + Agent 3, then run Codex review, then post-Codex re-review with Agent 2 + Agent 3, then run a second-pass recheck with Agent 2 + Agent 3 after fixes.
+- **Standard**: spawn Agent 2 + Agent 3.
+- **Complex**: spawn Agent 1 + Agent 2 + Agent 3.
 
 Use the agent definitions below as the review pool.
 
@@ -74,6 +74,10 @@ Use the agent definitions below as the review pool.
   - [ ] implement.md contains Code Quality Red Lines table
   - [ ] implement.md contains Session Handoff Protocol
   - [ ] implement.md contains TDD/BDD Workflow guidance
+  - [ ] If GUI project: `docs/design.md` includes all 9 parts (Design System, Component Inventory, Composition Patterns, Interactive Patterns, Layout System, Living Design Guide, File Conventions, Common Mistakes, Page-Level Design)
+  - [ ] If GUI project: `docs/design.md` Component Hierarchy covers all tiers identified during interview
+  - [ ] If GUI project: `docs/design.md` Composition Patterns are documented for recurring multi-component patterns
+  - [ ] If GUI project: `docs/design.md` File Conventions section specifies component/hook/page locations and naming
   - [ ] CLAUDE.md contains AI Behavior Rules section
   - [ ] CLAUDE.md contains Lessons & Prevention Rules section
   - [ ] CLAUDE.md contains STATUS Response Contract block
@@ -95,11 +99,11 @@ After Phase 2.5 issues are fixed:
 1. Send the full `docs/architecture.md` + `docs/plans.md` content to `mcp__codex__codex`.
 2. Ask for an independent review focused on architectural gaps, edge cases, and milestone realism.
 3. Apply valid findings.
-4. **Complex tier only**: run post-Codex re-review with **Agent 2 + Agent 3**.
+4. **Complex tier only**: run **exactly one** post-Codex re-review with **Agent 2 + Agent 3**, then apply valid findings.
    **Standard tier** can proceed directly to Phase 2.7 after Codex findings are applied.
 5. If `mcp__codex__codex` is unavailable, do not skip silently. Ask the user to choose one explicit alternative:
    - **Option A (manual checklist path)**: run the same review scope with the documented checklists
      sequentially (including tier-specific reviewers), and require zero unresolved critical issues.
    - **Option B (alternate model path)**: run an equivalent independent review using another available
-     model/tool with the same prompt scope, then apply and summarize findings.
+      model/tool with the same prompt scope, then apply and summarize findings.
    Record which alternative path was used.

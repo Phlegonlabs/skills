@@ -7,17 +7,21 @@ See `references/interview.md` § "Update Mode Interview" for the full protocol.
 
 ### Update Phase 1: Context Loading
 
-1. Read all existing docs: `docs/architecture.md`, `docs/plans.md`, `docs/implement.md`, `docs/secrets.md`, `docs/documentation.md`, `docs/design.md`
-2. Identify: current milestone progress, existing features, tech stack, established patterns
-3. Briefly summarize the project's current state to the user to confirm alignment
-4. **Codebase Pattern Scan** (if source code exists): Before the interview, scan the existing
+1. Read core docs required for Update mode: `docs/architecture.md`, `docs/plans.md`
+2. Load supporting docs: `docs/implement.md`, `docs/secrets.md`, `docs/documentation.md`, `docs/design.md`.
+   If any are missing (legacy project), **auto-create** them from current templates before continuing.
+   Record which docs were auto-created in the update summary.
+3. Identify: current milestone progress, existing features, tech stack, established patterns
+4. Briefly summarize the project's current state to the user to confirm alignment
+5. **Codebase Pattern Scan** (if source code exists): Before the interview, scan the existing
    source directory to verify docs–code alignment:
 
    **Scan strategy:**
-   1. Read the top-level directory structure of `src/` or `app/` (whichever exists)
+   1. Discover code roots in this order: `src/`, `app/`, `apps/*/src`, `apps/*/app`, `packages/*/src`, `packages/*/app`, `services/*/src`.
+      Scan every root that exists (single-app and monorepo layouts).
    2. Compare against the Directory Structure section in `docs/architecture.md`
    3. Grep for key patterns: route definitions, component naming conventions, API endpoint formats
-   4. If >3 divergences are found, summarize them and ask the user:
+   4. If >3 divergences are found, summarize them (with concrete path examples) and ask the user:
       "I found these divergences between docs and code: [list]. Should we plan against the
       **code** (update docs to match) or the **docs** (treat code as drifted)?"
 
@@ -30,7 +34,7 @@ Ask the user what kind of change they're making, or infer from their description
 
 | Type | When | Interview Rounds | Follow-up Cap |
 |------|------|-----------------|---------------|
-| **New Feature** | Adding new functionality to the project | 3-8 rounds (F1-F8) | 8-15 |
+| **New Feature** | Adding new functionality to the project | 3-8 rounds (F0-F8 + F4.5, F0 optional) | 8-15 |
 | **Bug Fix** | Fixing a bug that may change behavior, architecture, or require doc updates | 1-3 rounds (B1-B3) | 5 |
 | **Change** | Requirement changes, refactors, tech migrations, removing features | 2-5 rounds (C1-C5) | 8 |
 
@@ -61,6 +65,7 @@ After confirmation, **update** (not recreate) the existing documents. What to up
   Follow the same milestone format. Keep existing milestones intact. Update Milestone PR sub-tasks if
   the change introduces new production-readiness requirements.
 - `docs/documentation.md` — Add new milestones to the status section
+- If any supporting docs were missing in Phase 1, create them first from current templates, then apply update edits.
 
 **New Feature:**
 - `docs/architecture.md` — Append new user journeys, pages, components, and product spec sections.
@@ -102,7 +107,7 @@ Focus areas:
 **Cross-Model Review (Mandatory):**
 After Agent 2+3 review, run `mcp__codex__codex` on the modified sections (or full updated docs when needed),
 focused on: consistency with existing content, missed edge cases, and milestone coverage gaps.
-After applying valid Codex findings, run **Agent 2 + Agent 3** one more time for post-Codex re-review.
+After applying valid Codex findings, run **exactly one** post-Codex re-review with **Agent 2 + Agent 3**.
 If `mcp__codex__codex` is unavailable, stop and ask the user to install/enable it or choose one explicit
 alternative path:
 - **Option A (manual checklist path)**: run Agent 2 + Agent 3 checklists end-to-end on the updated docs,

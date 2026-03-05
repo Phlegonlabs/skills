@@ -19,7 +19,7 @@
       "baseRoundRange": [11, 16],
       "followUpCap": 20,
       "milestoneRange": [10, 14],
-      "reviewAgents": ["agent-1", "agent-2", "agent-3", "codex-review", "agent-2-post-codex", "agent-3-post-codex", "agent-2-recheck", "agent-3-recheck"]
+      "reviewAgents": ["agent-1", "agent-2", "agent-3", "codex-review", "agent-2-post-codex", "agent-3-post-codex"]
     }
   },
   "initPhaseOrder": [

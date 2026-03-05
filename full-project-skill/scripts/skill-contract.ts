@@ -6,9 +6,14 @@ import { firstDiffLine, normalizeEol } from "./lib/text-utils";
 type TierKey = "standard" | "complex";
 type UpdateTypeKey = "new_feature" | "bug_fix" | "change";
 type ConditionalDocumentCondition = "standard_or_complex_tier";
+type DesignDocRequiredSectionsCondition = "gui_project";
 type ConditionalDocumentRule = {
   path: string;
   condition: string;
+};
+type DesignDocRequiredSectionsRule = {
+  condition: string;
+  sections: string[];
 };
 
 export interface TierConfig {
@@ -73,6 +78,7 @@ export interface QualityGatesV1 {
   requiredPhrases: string[];
   requiredGeneratedDocs: string[];
   conditionalGeneratedDocs?: ConditionalDocumentRule[];
+  designDocRequiredSections: DesignDocRequiredSectionsRule;
   requiredChecks: string[];
 }
 
@@ -123,6 +129,7 @@ const REQUIRED_INIT_ROUNDS = [
   "13C",
   "R14",
 ];
+const REQUIRED_NEW_FEATURE_UPDATE_ROUNDS = ["F0", "F1", "F2", "F3", "F4", "F4.5", "F5", "F6", "F7", "F8"];
 const REQUIRED_DOCS = [
   "docs/architecture.md",
   "docs/plans.md",
@@ -170,14 +177,26 @@ const REQUIRED_AGENT_PARTIALS = [
   "_assembly-order.md",
 ];
 const REQUIRED_DOC_BUILD_TARGETS = ["skill", "interview", "templates", "review"];
+const REQUIRED_DESIGN_DOC_SECTIONS = [
+  "Component Inventory",
+  "Composition Patterns",
+  "Interactive Patterns",
+  "Layout System",
+  "Living Design Guide",
+  "File Conventions",
+  "Common Mistakes",
+];
 const KNOWN_CONDITIONAL_DOCUMENT_CONDITIONS: ReadonlySet<ConditionalDocumentCondition> = new Set([
   "standard_or_complex_tier",
 ]);
+const KNOWN_DESIGN_DOC_REQUIRED_SECTION_CONDITIONS: ReadonlySet<DesignDocRequiredSectionsCondition> =
+  new Set(["gui_project"]);
 
 export const ROOT_DIR = join(import.meta.dir, "..");
 export const ASSETS_DIR = join(ROOT_DIR, "assets");
 export const SKILL_MD_PATH = join(ROOT_DIR, "SKILL.md");
 export const DOC_BUILD_MAP_PATH = join(ASSETS_DIR, "doc-build-map.v1.json");
+export const TEMPLATES_MD_PATH = join(ROOT_DIR, "references", "templates.md");
 
 type JsonFileShape = {
   label: string;
@@ -213,6 +232,7 @@ const QUALITY_GATES_SHAPE: JsonFileShape = {
     "requiredSkillSections",
     "requiredPhrases",
     "requiredGeneratedDocs",
+    "designDocRequiredSections",
     "requiredChecks",
   ],
 };
@@ -404,6 +424,14 @@ export function validateInterviewQuestionPack(pack: InterviewQuestionPackV1): st
       errors.push(`interview-question-pack update.${updateType} must not be empty`);
     }
   }
+  for (const round of REQUIRED_NEW_FEATURE_UPDATE_ROUNDS) {
+    if (!pack.update.new_feature.includes(round)) {
+      errors.push(`interview-question-pack update.new_feature missing ${round}`);
+    }
+  }
+  if (pack.update.new_feature[0] !== "F0") {
+    errors.push("interview-question-pack update.new_feature must start with F0");
+  }
 
   if (pack.rules.techStackLockRound !== "R10.7") {
     errors.push("interview-question-pack rules.techStackLockRound must be R10.7");
@@ -437,6 +465,7 @@ export function validateQualityGates(gates: QualityGatesV1): string[] {
   if (gates.requiredChecks.length === 0) {
     errors.push("quality-gates requiredChecks must not be empty");
   }
+  errors.push(...validateDesignDocRequiredSections(gates.designDocRequiredSections));
 
   for (const doc of REQUIRED_DOCS) {
     if (!gates.requiredGeneratedDocs.includes(doc)) {
@@ -453,12 +482,66 @@ export function validateQualityGates(gates: QualityGatesV1): string[] {
   return errors;
 }
 
+function validateDesignDocRequiredSections(rule: DesignDocRequiredSectionsRule | undefined): string[] {
+  const errors: string[] = [];
+
+  if (!rule || typeof rule !== "object" || Array.isArray(rule)) {
+    errors.push("quality-gates designDocRequiredSections must be an object");
+    return errors;
+  }
+  if (
+    typeof rule.condition !== "string" ||
+    !KNOWN_DESIGN_DOC_REQUIRED_SECTION_CONDITIONS.has(
+      rule.condition as DesignDocRequiredSectionsCondition
+    )
+  ) {
+    const allowed = [...KNOWN_DESIGN_DOC_REQUIRED_SECTION_CONDITIONS].join(", ");
+    errors.push(
+      `quality-gates designDocRequiredSections.condition must be one of: ${allowed} (received "${String(
+        rule.condition
+      )}")`
+    );
+  }
+  if (!Array.isArray(rule.sections) || rule.sections.length === 0) {
+    errors.push("quality-gates designDocRequiredSections.sections must not be empty");
+    return errors;
+  }
+
+  const normalizedSections = new Set<string>();
+  for (let index = 0; index < rule.sections.length; index += 1) {
+    const section = rule.sections[index];
+    if (typeof section !== "string" || section.trim() === "") {
+      errors.push(`quality-gates designDocRequiredSections.sections[${index}] must be a non-empty string`);
+      continue;
+    }
+    const normalized = section.trim();
+    if (normalizedSections.has(normalized)) {
+      errors.push(`quality-gates designDocRequiredSections.sections has duplicate: ${normalized}`);
+    }
+    normalizedSections.add(normalized);
+  }
+
+  for (const requiredSection of REQUIRED_DESIGN_DOC_SECTIONS) {
+    if (!normalizedSections.has(requiredSection)) {
+      errors.push(
+        `quality-gates designDocRequiredSections.sections missing required section: ${requiredSection}`
+      );
+    }
+  }
+
+  return errors;
+}
+
 function validateConditionalDocumentRules(
   source: string,
-  rules: ConditionalDocumentRule[] | undefined
+  rules: ConditionalDocumentRule[] | undefined | unknown
 ): string[] {
   const errors: string[] = [];
   if (!rules) return errors;
+  if (!Array.isArray(rules)) {
+    errors.push(`${source} must be an array when provided`);
+    return errors;
+  }
 
   const seen = new Set<string>();
   for (let index = 0; index < rules.length; index += 1) {
@@ -863,7 +946,12 @@ export function validateRequiredChecksAgainstPackageScripts(gates: QualityGatesV
 
   for (const check of gates.requiredChecks) {
     const match = check.match(/^bun run (\S+)/);
-    if (!match) continue;
+    if (!match) {
+      errors.push(
+        `requiredChecks uses unsupported format "${check}" (expected "bun run <script>")`
+      );
+      continue;
+    }
     const scriptName = match[1];
     if (!scriptNames.has(scriptName)) {
       errors.push(
@@ -875,11 +963,19 @@ export function validateRequiredChecksAgainstPackageScripts(gates: QualityGatesV
   return errors;
 }
 
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function containsExactLine(content: string, line: string): boolean {
+  return new RegExp(`^${escapeRegex(line)}$`, "m").test(content);
+}
+
 export function validateSkillMarkdown(skillMd: string, gates: QualityGatesV1): string[] {
   const errors: string[] = [];
 
   for (const section of gates.requiredSkillSections) {
-    if (!skillMd.includes(section)) {
+    if (!containsExactLine(skillMd, section)) {
       errors.push(`SKILL.md missing required section: ${section}`);
     }
   }
@@ -893,6 +989,23 @@ export function validateSkillMarkdown(skillMd: string, gates: QualityGatesV1): s
   for (const check of gates.requiredChecks) {
     if (!skillMd.includes(check)) {
       errors.push(`SKILL.md missing required check command: ${check}`);
+    }
+  }
+
+  return errors;
+}
+
+export function validateDesignTemplateCoverage(gates: QualityGatesV1): string[] {
+  const errors: string[] = [];
+  if (!existsSync(TEMPLATES_MD_PATH)) {
+    errors.push("references/templates.md not found — cannot validate designDocRequiredSections coverage");
+    return errors;
+  }
+
+  const templatesMd = readFileSync(TEMPLATES_MD_PATH, "utf-8");
+  for (const section of gates.designDocRequiredSections.sections) {
+    if (!templatesMd.includes(section)) {
+      errors.push(`references/templates.md missing design section marker: ${section}`);
     }
   }
 
@@ -928,6 +1041,9 @@ export function validateUpdateModeCompleteness(
   if (!map.updatePhaseOrder.includes("update-phase-3.5-documentation-review")) {
     errors.push("workflow-map updatePhaseOrder missing update-phase-3.5-documentation-review");
   }
+  if (!skillMd.includes("F0-F8")) {
+    errors.push("SKILL.md update New Feature round range must reference F0-F8");
+  }
 
   return errors;
 }
@@ -935,31 +1051,103 @@ export function validateUpdateModeCompleteness(
 export function verifySkillContract(): VerificationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
+  const run = (label: string, fn: () => void): void => {
+    try {
+      fn();
+    } catch (error) {
+      errors.push(`${label} failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+  const runWarning = (fn: () => void): void => {
+    try {
+      fn();
+    } catch {
+      // warnings are best-effort only
+    }
+  };
 
-  try {
-    const workflowMap = loadWorkflowMap();
-    const interviewPack = loadInterviewQuestionPack();
-    const qualityGates = loadQualityGates();
-    const docBuildMap = loadDocBuildMap();
-    const skillMd = readSkillMarkdown();
+  let workflowMap: WorkflowMapV1 | undefined;
+  let interviewPack: InterviewQuestionPackV1 | undefined;
+  let qualityGates: QualityGatesV1 | undefined;
+  let docBuildMap: DocBuildMapV1 | undefined;
+  let skillMd: string | undefined;
 
-    errors.push(...validateWorkflowMap(workflowMap));
-    errors.push(...validateInterviewQuestionPack(interviewPack));
-    errors.push(...validateQualityGates(qualityGates));
-    errors.push(...validateDocBuildMap(docBuildMap));
-    errors.push(...validateReferenceFilesExist(qualityGates));
-    errors.push(...validateHookScriptsExist());
-    errors.push(...validateVersionsRegistry());
-    warnings.push(...validateVersionsFreshnessWarnings());
-    errors.push(...validatePartialsExist());
-    errors.push(...validateGeneratedArtifacts(docBuildMap));
-    errors.push(...validateSkillMarkdown(skillMd, qualityGates));
-    errors.push(...validateRequiredChecksAgainstPackageScripts(qualityGates));
-    errors.push(...validateConditionalDocumentAlignment(workflowMap, qualityGates));
-    errors.push(...validateUpdateModeCompleteness(skillMd, workflowMap, interviewPack));
-  } catch (error) {
-    errors.push(error instanceof Error ? error.message : String(error));
+  run("load workflow-map", () => {
+    workflowMap = loadWorkflowMap();
+  });
+  run("load interview-question-pack", () => {
+    interviewPack = loadInterviewQuestionPack();
+  });
+  run("load quality-gates", () => {
+    qualityGates = loadQualityGates();
+  });
+  run("load doc-build-map", () => {
+    docBuildMap = loadDocBuildMap();
+  });
+  run("read SKILL.md", () => {
+    skillMd = readSkillMarkdown();
+  });
+
+  if (workflowMap) {
+    run("validate workflow-map", () => {
+      errors.push(...validateWorkflowMap(workflowMap!));
+    });
   }
+  if (interviewPack) {
+    run("validate interview-question-pack", () => {
+      errors.push(...validateInterviewQuestionPack(interviewPack!));
+    });
+  }
+  if (qualityGates) {
+    run("validate quality-gates", () => {
+      errors.push(...validateQualityGates(qualityGates!));
+    });
+    run("validate reference files", () => {
+      errors.push(...validateReferenceFilesExist(qualityGates!));
+    });
+    run("validate required checks against package scripts", () => {
+      errors.push(...validateRequiredChecksAgainstPackageScripts(qualityGates!));
+    });
+    run("validate design template coverage", () => {
+      errors.push(...validateDesignTemplateCoverage(qualityGates!));
+    });
+  }
+  if (docBuildMap) {
+    run("validate doc-build-map", () => {
+      errors.push(...validateDocBuildMap(docBuildMap!));
+    });
+    run("validate generated artifacts", () => {
+      errors.push(...validateGeneratedArtifacts(docBuildMap!));
+    });
+  }
+  if (skillMd && qualityGates) {
+    run("validate SKILL markdown contract", () => {
+      errors.push(...validateSkillMarkdown(skillMd!, qualityGates!));
+    });
+  }
+  if (workflowMap && qualityGates) {
+    run("validate conditional document alignment", () => {
+      errors.push(...validateConditionalDocumentAlignment(workflowMap!, qualityGates!));
+    });
+  }
+  if (skillMd && workflowMap && interviewPack) {
+    run("validate update mode completeness", () => {
+      errors.push(...validateUpdateModeCompleteness(skillMd!, workflowMap!, interviewPack!));
+    });
+  }
+
+  run("validate hook scripts", () => {
+    errors.push(...validateHookScriptsExist());
+  });
+  run("validate versions registry", () => {
+    errors.push(...validateVersionsRegistry());
+  });
+  runWarning(() => {
+    warnings.push(...validateVersionsFreshnessWarnings());
+  });
+  run("validate partial templates", () => {
+    errors.push(...validatePartialsExist());
+  });
 
   return { errors, warnings };
 }

@@ -22,6 +22,10 @@
   - [ ] implement.md contains Code Quality Red Lines table
   - [ ] implement.md contains Session Handoff Protocol
   - [ ] implement.md contains TDD/BDD Workflow guidance
+  - [ ] If GUI project: `docs/design.md` includes all 9 parts (Design System, Component Inventory, Composition Patterns, Interactive Patterns, Layout System, Living Design Guide, File Conventions, Common Mistakes, Page-Level Design)
+  - [ ] If GUI project: `docs/design.md` Component Hierarchy covers all tiers identified during interview
+  - [ ] If GUI project: `docs/design.md` Composition Patterns are documented for recurring multi-component patterns
+  - [ ] If GUI project: `docs/design.md` File Conventions section specifies component/hook/page locations and naming
   - [ ] CLAUDE.md contains AI Behavior Rules section
   - [ ] CLAUDE.md contains Lessons & Prevention Rules section
   - [ ] CLAUDE.md contains STATUS Response Contract block

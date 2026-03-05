@@ -100,7 +100,21 @@ Protocol:
    - typography direction
    - layout style
    - overall aesthetic principles
-4. Get explicit user confirmation on the chosen design direction before entering Step 3.
+4. **Design principles** — ask the user to pick 3-5 guiding design principles from a menu
+   (or provide their own). Suggested options:
+   - Dense vs spacious information display
+   - Keyboard-first vs touch-first interaction model
+   - Dark mode default vs light mode default
+   - Minimal chrome vs rich/decorative UI
+   - Component-driven (reusable blocks) vs page-driven (unique layouts)
+   - Data-heavy (tables, dashboards) vs content-heavy (prose, media)
+   - Speed-optimized (instant feedback) vs accuracy-optimized (confirmation flows)
+5. **Component organization** — ask how UI components should be organized:
+   - Follow UI library structure (mirror the library's categorization)
+   - Flat structure (all components in one directory)
+   - Domain-grouped (components organized by feature/domain area)
+   - 3-tier hierarchy (primitives → composites → pages) — recommended default
+6. Get explicit user confirmation on the chosen design direction before entering Step 3.
 
 ## Step 3 — Clarifying Questions (AI-driven discovery)
 
@@ -243,6 +257,24 @@ Process:
    - **Iconography** — suggest an icon set (e.g., Lucide, Phosphor, Heroicons)
    - **Accessibility** — Confirm a11y requirements gathered in Round R10.3. If WCAG AA was selected,
      note which UI library features support it (e.g., Radix primitives are accessible by default)
+   - **Component hierarchy strategy** — will the project use a 3-tier approach
+     (Tier 1: UI library primitives → Tier 2: custom composites → Tier 3: page components)?
+     This was proposed in Step 2.8 — confirm the chosen organization model and discuss any adjustments.
+   - **Interactive pattern conventions** — define standard conventions for interactive states:
+     - Hover: what visual feedback on hover? (e.g., subtle background change, never text color change)
+     - Focus: focus ring style? (e.g., 2px ring with offset)
+     - Disabled: visual treatment? (e.g., 50% opacity + pointer-events-none)
+     - If applicable: inline editing pattern, popover/selector behavior
+   - **File conventions** — confirm where UI files live:
+     - Tier 1 primitives directory (e.g., `components/ui/`)
+     - Tier 2 custom components directory (e.g., `components/`)
+     - Pages/routes directory (e.g., `app/` or `pages/`)
+     - Hooks, utilities, contexts directories
+     - Naming convention: PascalCase for components, camelCase for hooks/utils
+     - Import alias convention (e.g., `@/components/...`)
+   - **Living design guide page** — for GUI projects, recommend including a `/design-guide` route
+     (or equivalent) as a development-only showcase page. This page displays all custom components
+     with their variants, states, and usage examples. Confirm if the user wants this included.
    - Ask the user to confirm or adjust
 
    **--- CLI Interface Design (Rounds 11C-13C, CLI projects only) ---**
@@ -554,7 +586,7 @@ This is NOT a full project interview — focus only on what's new or changing.
 
 ---
 
-#### New Feature Rounds (F0-F8, use 3-8 depending on complexity)
+#### New Feature Rounds (F0-F8 + F4.5, use 3-8 depending on complexity)
 
 **Round F0 — Quick reference scan** (optional, for significant features):
 Before deep scoping, run a lightweight competitive scan for the new feature — 2-3 reference
@@ -578,6 +610,10 @@ Walk through the feature from the user's perspective step by step.
 **Round F2 — Pages & components**: Does this feature need new pages/screens? Which existing pages
 are modified? What new components are needed? What existing components need changes?
 If the feature has UI, ask for visual references (screenshots, mockups, sketches) as in Round R11.
+If the feature introduces new UI components, also ask:
+- Should new components be added to the Component Inventory section in `docs/design.md`?
+- Does the Living Design Guide page (if one exists) need to be updated with the new components?
+- Do any new composition patterns or interactive patterns need to be documented?
 
 **Round F3 — Data & API changes**: Does this feature require new data models, new API endpoints,
 or changes to existing ones? How does it interact with the current data model?
@@ -587,6 +623,11 @@ concerns. What happens when things go wrong?
 
 **Round F4.5 — Testing requirements**: Does this feature require new unit / integration / E2E tests?
 Are existing tests affected? Any testing-specific constraints (mock APIs, test data setup)?
+
+Round counting rule:
+- F0 is optional (significant features only).
+- F4.5 is conditional (include when testing impact is non-trivial).
+- F6-F8 are depth rounds for complex features.
 
 **Round F5 — Integrations** (if applicable): Does this feature require new third-party services,
 new secrets/API keys, or changes to existing integrations?

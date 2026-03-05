@@ -65,6 +65,20 @@ describe("Quality gates", () => {
     expect(decisionDoc?.condition).toBe("standard_or_complex_tier");
   });
 
+  test("design-doc required sections contract should stay complete", () => {
+    const qualityGates = loadQualityGates();
+    expect(qualityGates.designDocRequiredSections.condition).toBe("gui_project");
+    expect(qualityGates.designDocRequiredSections.sections).toEqual([
+      "Component Inventory",
+      "Composition Patterns",
+      "Interactive Patterns",
+      "Layout System",
+      "Living Design Guide",
+      "File Conventions",
+      "Common Mistakes",
+    ]);
+  });
+
   test("workflow and quality gates conditional docs should stay aligned", () => {
     const qualityGates = loadQualityGates();
     const workflowMap = loadWorkflowMap();

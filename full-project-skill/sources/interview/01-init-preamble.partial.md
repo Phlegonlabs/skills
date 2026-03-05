@@ -100,4 +100,18 @@ Protocol:
    - typography direction
    - layout style
    - overall aesthetic principles
-4. Get explicit user confirmation on the chosen design direction before entering Step 3.
+4. **Design principles** — ask the user to pick 3-5 guiding design principles from a menu
+   (or provide their own). Suggested options:
+   - Dense vs spacious information display
+   - Keyboard-first vs touch-first interaction model
+   - Dark mode default vs light mode default
+   - Minimal chrome vs rich/decorative UI
+   - Component-driven (reusable blocks) vs page-driven (unique layouts)
+   - Data-heavy (tables, dashboards) vs content-heavy (prose, media)
+   - Speed-optimized (instant feedback) vs accuracy-optimized (confirmation flows)
+5. **Component organization** — ask how UI components should be organized:
+   - Follow UI library structure (mirror the library's categorization)
+   - Flat structure (all components in one directory)
+   - Domain-grouped (components organized by feature/domain area)
+   - 3-tier hierarchy (primitives → composites → pages) — recommended default
+6. Get explicit user confirmation on the chosen design direction before entering Step 3.
