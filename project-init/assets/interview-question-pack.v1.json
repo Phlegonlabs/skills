@@ -1,0 +1,41 @@
+{
+  "version": "split-interview-question-pack.v1",
+  "mode": "init",
+  "requiredRoundSets": {
+    "init": [
+      "1",
+      "2",
+      "2.5",
+      "2.7",
+      "2.8",
+      "R1",
+      "R2",
+      "R3",
+      "R4",
+      "R5",
+      "R6",
+      "R7",
+      "R8",
+      "R9",
+      "R10",
+      "R10.3",
+      "R10.5",
+      "R10.7",
+      "R11",
+      "R11M",
+      "R12M",
+      "R13M",
+      "11C",
+      "12C",
+      "13C",
+      "R14"
+    ]
+  },
+  "rules": {
+    "maxQuestionsPerRound": 2,
+    "followUpCaps": {
+      "standard": 8,
+      "complex": 20
+    }
+  }
+}

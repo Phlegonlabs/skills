@@ -1,0 +1,18 @@
+{
+  "version": "split-interview-question-pack.v1",
+  "mode": "update",
+  "requiredRoundSets": {
+    "new_feature": ["F0", "F1", "F2", "F3", "F4", "F4.5", "F5", "F6", "F7", "F8"],
+    "bug_fix": ["B1", "B2", "B3"],
+    "change": ["C1", "C2", "C3", "C4", "C5"]
+  },
+  "rules": {
+    "maxQuestionsPerRound": 2,
+    "followUpCaps": {
+      "new_feature_simple": 8,
+      "new_feature_complex": 15,
+      "bug_fix": 5,
+      "change": 8
+    }
+  }
+}

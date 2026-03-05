@@ -1,0 +1,15 @@
+{
+  "version": "split-interview-question-pack.v1",
+  "mode": "convert",
+  "requiredRoundSets": {
+    "baseline_conversion": ["CV0", "CV1", "CV2", "CV3"],
+    "upgrade_conversion": ["CV0", "CU1", "CU2", "CU3", "CU4"]
+  },
+  "rules": {
+    "maxQuestionsPerRound": 2,
+    "followUpCaps": {
+      "baseline_conversion": 6,
+      "upgrade_conversion": 10
+    }
+  }
+}

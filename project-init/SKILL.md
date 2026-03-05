@@ -19,17 +19,76 @@ Before interviewing, check:
 2. If docs are missing but code roots/manifests exist (`src/`, `app/`, `apps/*/src`, `package.json`, etc.), stop and switch to `project-convert`.
 3. Continue only when docs are missing and codebase signals are absent.
 
-## 2. Interactive Interview
+## 2. Interactive Interview Parity (Must Match `full-project-skill`)
 
-Collect requirements before generating any docs:
+This split skill must run the same initialization interview depth as `full-project-skill`.
+Do not use a lightweight interview path.
 
-1. Ask project name and core goals.
-2. Run one market snapshot (similar products, patterns to reuse/avoid).
-3. Draft project intro + end-to-end core flow and confirm with the user.
-4. Propose 3-4 architecture + visual directions; get user choice.
-5. Run clarifying rounds (user journeys, components, stack, deployment, constraints).
-6. Assign complexity tier (Standard by default; Complex only when justified) and confirm.
-7. Provide final synthesis; require explicit user approval before writing files.
+### 2.1 Mandatory Protocol Source
+
+Before asking interview questions, load and follow:
+
+- `references/interview.md`
+
+Follow the same step order and constraints as the Init interview protocol in that file.
+If the file is unavailable, stop and ask the user whether to:
+- provide an alternate protocol file, or
+- switch to using `full-project-skill` directly.
+
+### 2.2 Required Interview Flow (Exact Order)
+
+Collect requirements before generating any docs, using the same flow:
+
+1. Step 1 - Project Name.
+2. Step 2 - Project Goals (free-form, no interruption).
+3. Step 2.5 - Market Research Snapshot (similar products, reusable/avoid patterns).
+4. Step 2.7 - Project Intro + end-to-end Core Flow draft, then user confirmation.
+5. Step 2.8 - Propose 3-4 product architecture + visual directions; require user choice.
+6. Step 3 - Clarifying Questions (user journeys, components, data/state, integrations, non-functional requirements, testing workflow, stack lock, UI/CLI/mobile, deployment).
+7. Step 3.5 - Tier recheck based on discovered complexity.
+8. Step 4 - Final synthesis + explicit user approval before writing files.
+
+### 2.3 Hard Interview Constraints (No Simplification)
+
+Use the same tiering logic as `full-project-skill`:
+
+- Default tier: Standard.
+- Complex tier only when justified by scope.
+- Announce tier after Project Goals and allow user override.
+
+Use the same round-depth rules:
+
+- Standard: at least 9 rounds before moving on.
+- Complex: at least 11 rounds before moving on.
+- Ask 1-2 focused questions per round.
+- Each new round must build on previous answers.
+- Only stop earlier when the user explicitly asks to move on.
+
+Use the same follow-up rules:
+
+- Insert adaptive follow-up rounds when answers are vague, conflicting, or under-specified.
+- Follow-up rounds do not count toward base minimum rounds.
+- Follow-up cap by tier:
+  - Standard: 8
+  - Complex: 20
+
+Coverage requirements must match the same protocol:
+
+- User journeys first (R1-R5).
+- Components/details next (R6-R10 + R10.3 + R10.5 + required stack-lock checkpoint R10.7).
+- Then platform-specific rounds:
+  - GUI: R11
+  - CLI: 11C-13C
+  - Mobile: R11M-R13M
+- Deployment round (R14).
+
+Before leaving the interview, always ask one final additions check and only proceed after the user confirms.
+
+### 2.4 Guard Before Doc Generation
+
+After Step 4 synthesis, stop and wait for explicit user confirmation.
+Do not generate docs, write files, or install hooks before that confirmation.
+If user adds requirements instead of confirming, continue interview refinement.
 
 ## 3. Generate Documentation
 
@@ -95,9 +154,8 @@ Before final messaging, auto-install hooks:
    - `pnpm-lock.yaml` -> pnpm
    - `yarn.lock` -> yarn
    - otherwise npm
-2. Resolve installer path in this order:
+2. Resolve installer path:
    - `scripts/setup-hooks.sh`
-   - `../full-project-skill/scripts/setup-hooks.sh`
 3. Run:
 
 ```bash

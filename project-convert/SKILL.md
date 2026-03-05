@@ -30,22 +30,47 @@ Build factual baseline before writing docs:
 4. Detect missing workflow assets (`docs/`, `tasks/`, `.claude/hooks/`, `.codex/hooks/`).
 5. Summarize current reality and gaps to user; require baseline confirmation.
 
-## 3. Conversion Profile
+## 3. Conversion Interview Parity (Must Match `full-project-skill`)
 
-Classify profile and let user override:
+This split skill must run the same conversion interview protocol as `full-project-skill`.
+Do not use a shortened or simplified Q&A path.
 
-- Baseline Conversion: bootstrap docs/hooks for current behavior (2-4 rounds)
-- Upgrade Conversion: bootstrap plus planned structural upgrades (3-6 rounds)
+### 3.1 Mandatory Protocol Source
 
-If scope grows, reclassify and announce.
+Before asking conversion interview questions, load and follow:
 
-## 4. Focused Convert Interview
+- `references/interview.md` (`Convert/Upgrade Mode Interview` section)
 
-1. Confirm discovered current-state behavior with user.
-2. Run profile-scoped clarifying rounds.
-3. Provide synthesis and require explicit approval before writing docs.
+If this file is unavailable, stop and ask the user whether to:
+- provide an alternate protocol file, or
+- switch to using `full-project-skill` directly.
 
-## 5. Documentation Bootstrap
+### 3.2 Required Interview Flow (Exact Order)
+
+1. Step 1 - Current-state confirmation:
+   - Present the discovery baseline (structure/runtime, feature boundaries, command/test/deploy shape, missing assets).
+   - Require user confirmation/correction before Step 2.
+2. Step 1.5 - Conversion profile classification:
+   - Baseline Conversion or Upgrade Conversion.
+   - Announce profile and allow override.
+   - If scope expands during interview, reclassify and announce.
+3. Step 2 - Clarifying rounds (profile-scoped):
+   - Baseline Conversion: CV0-CV3, use 2-4 rounds, follow-up cap 6.
+   - Upgrade Conversion: include CV0 + CU1-CU4, use 3-6 rounds, follow-up cap 10.
+   - Shared round rules: 1-2 focused questions per round, anchor every question to discovered code reality, skip non-applicable rounds.
+4. Before leaving Step 2, run one final additions/confirmation question in the user's language.
+5. Step 3 - Convert synthesis & confirmation:
+   - Present conversion plan summary.
+   - Require explicit user approval before writing any docs.
+
+### 3.3 Hard Constraints (No Simplification)
+
+1. Do not skip CV/CU round IDs defined in the protocol without explicit user direction.
+2. Follow-up rounds are extra depth and do not replace required base rounds.
+3. Do not generate docs, write files, or install hooks before explicit synthesis confirmation.
+4. If user adds requirements during synthesis, fold them back into interview rounds first.
+
+## 4. Documentation Bootstrap
 
 Generate workflow docs from actual code reality:
 
@@ -73,7 +98,7 @@ Profile rules:
 5. In `docs/plans.md`, every task must include `Commit Boundary: exactly one atomic commit`.
 6. In `tasks/todo.md`, every task must include `Task ID` and `Commit Status` (`pending` or `done`).
 
-## 5.5. Implementation Discipline (Mandatory)
+## 4.5. Implementation Discipline (Mandatory)
 
 Apply these rules to post-conversion implementation tasks:
 
@@ -86,7 +111,7 @@ Apply these rules to post-conversion implementation tasks:
 7. If a rewrite changes interfaces, fix every impacted caller in the same task.
 8. Do not defer breakage fixes to future tasks.
 
-## 6. Review Protocol
+## 5. Review Protocol
 
 Before handoff:
 
@@ -97,13 +122,12 @@ Before handoff:
 
 If `mcp__codex__codex` is unavailable, pause and ask user to choose manual checklist path or alternate-model path.
 
-## 7. Hooks Installation (Mandatory)
+## 6. Hooks Installation (Mandatory)
 
 Install/update hooks after docs are accepted:
 
-1. Resolve installer path in this order:
+1. Resolve installer path:
    - `scripts/setup-hooks.sh`
-   - `../full-project-skill/scripts/setup-hooks.sh`
 2. Run:
 
 ```bash
@@ -114,7 +138,7 @@ bash <resolved-setup-hooks-path> --pm <detected-pm> --project-dir <project-dir> 
 4. If no installer path exists, ask the user where their hook installer lives and stop.
 5. If command fails, surface error and stop for user resolution.
 
-## 8. Final Handoff
+## 7. Final Handoff
 
 Tell the user:
 

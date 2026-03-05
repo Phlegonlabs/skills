@@ -1,0 +1,24 @@
+{
+  "version": "split-workflow-map.v1",
+  "mode": "init",
+  "requiredDocuments": [
+    "docs/architecture.md",
+    "docs/plans.md",
+    "docs/implement.md",
+    "docs/secrets.md",
+    "docs/documentation.md",
+    "docs/design.md",
+    "docs/decisions.md",
+    "tasks/todo.md",
+    "tasks/lessons.md",
+    "CLAUDE.md",
+    "AGENTS.md"
+  ],
+  "requiredChecks": [
+    "bun run contract:check",
+    "bun run typecheck",
+    "bun run test"
+  ],
+  "requiredProtocolReference": "references/interview.md",
+  "hookInstaller": "scripts/setup-hooks.sh"
+}

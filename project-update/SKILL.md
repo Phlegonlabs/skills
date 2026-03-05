@@ -29,23 +29,48 @@ Load current state first:
 4. Summarize current milestones, architecture, and patterns to the user.
 5. If code exists, scan code roots and compare docs vs code; report major divergences before planning.
 
-## 3. Classify Update Type
+## 3. Update Interview Parity (Must Match `full-project-skill`)
 
-Classify and announce one type (allow override):
+This split skill must run the same update interview protocol as `full-project-skill`.
+Do not use a shortened or simplified Q&A path.
 
-- New Feature: 3-8 focused rounds
-- Bug Fix: 1-3 focused rounds
-- Change/Refactor/Migration: 2-5 focused rounds
+### 3.1 Mandatory Protocol Source
 
-Reclassify if discovered scope no longer matches the original type.
+Before asking update interview questions, load and follow:
 
-## 4. Focused Interview
+- `references/interview.md` (`Update Mode Interview` section)
 
-1. Capture user description of requested change.
-2. Run scoped clarifying rounds based on type.
-3. Produce synthesis and require explicit approval before editing docs.
+If this file is unavailable, stop and ask the user whether to:
+- provide an alternate protocol file, or
+- switch to using `full-project-skill` directly.
 
-## 5. Update Documentation
+### 3.2 Required Interview Flow (Exact Order)
+
+1. Step 1 - Description (free-form, no interruption).
+2. Step 1.5 - Classify update type (New Feature / Bug Fix / Change), announce type, allow override.
+3. Step 2 - Clarifying rounds (type-scoped):
+   - New Feature: F0-F8 + conditional F4.5, use 3-8 rounds depending on complexity.
+   - Bug Fix: B1-B3, use 1-3 rounds depending on severity.
+   - Change: C1-C5, use 2-5 rounds depending on scope.
+4. Apply follow-up caps exactly:
+   - New Feature: 8 for simple features, 15 for complex ones.
+   - Bug Fix: 5.
+   - Change: 8.
+5. If scope grows during interview, reclassify type and announce reclassification.
+6. Before leaving Step 2, run one final additions/confirmation question in the user's language.
+7. Step 3 - Synthesis & confirmation:
+   - Present change summary.
+   - Require explicit user approval before writing docs.
+
+### 3.3 Hard Constraints (No Simplification)
+
+1. New Feature rounds must include user journey impact, pages/components impact, data/API impact, edge cases, and testing impact when non-trivial.
+2. Bug Fix rounds must include reproduction/root cause and impact analysis before fix approach is finalized.
+3. Change rounds must include migration/compatibility and cascading effects when applicable.
+4. Follow-up rounds are extra depth and do not replace required base rounds.
+5. Do not generate docs, write files, or install hooks before explicit synthesis confirmation.
+
+## 4. Update Documentation
 
 Update existing files instead of recreating:
 
@@ -63,7 +88,7 @@ Update existing files instead of recreating:
 8. In `docs/plans.md`, every new or modified task must include `Commit Boundary: exactly one atomic commit`.
 9. In `tasks/todo.md`, every new or modified task must include `Task ID` and `Commit Status` (`pending` or `done`).
 
-## 5.5. Implementation Discipline (Mandatory)
+## 4.5. Implementation Discipline (Mandatory)
 
 Apply these rules to every update task:
 
@@ -76,7 +101,7 @@ Apply these rules to every update task:
 7. If a rewrite changes interfaces, update all impacted callers in the same task.
 8. Do not split breakage repair into later tasks.
 
-## 6. Review Protocol
+## 5. Review Protocol
 
 Run lightweight review on modified scope:
 
@@ -87,13 +112,12 @@ Run lightweight review on modified scope:
 
 If `mcp__codex__codex` is unavailable, stop and ask user to choose manual checklist path or alternate-model path.
 
-## 7. Hooks Installation (Mandatory)
+## 6. Hooks Installation (Mandatory)
 
 Install/update hooks for both platforms:
 
-1. Resolve installer path in this order:
+1. Resolve installer path:
    - `scripts/setup-hooks.sh`
-   - `../full-project-skill/scripts/setup-hooks.sh`
 2. Run:
 
 ```bash
@@ -104,7 +128,7 @@ bash <resolved-setup-hooks-path> --pm <detected-pm> --project-dir <project-dir> 
 4. If no installer path exists, ask the user where their hook installer lives and stop.
 5. If install fails, show error and stop.
 
-## 8. Final Handoff
+## 7. Final Handoff
 
 Tell the user:
 
