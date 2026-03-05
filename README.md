@@ -12,4 +12,4 @@ npx skills add Phlegonlabs/skills
 
 | Skill | Description |
 |-------|-------------|
-| [project-long-task](https://skills.sh/Phlegonlabs/skills/project-long-task) | Structured project initialization for long-running, milestone-based builds |
+| [full-project-skill](https://skills.sh/Phlegonlabs/skills/full-project-skill) | Structured project initialization/update workflow for long-running, milestone-based builds |
