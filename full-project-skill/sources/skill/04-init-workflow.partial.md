@@ -102,13 +102,28 @@ the workflow lightweight.
 
 ### Phase 3: Next Steps
 
-After review, tell the user:
+After review:
+
+**Step 1 — Auto-install hooks (mandatory, run before telling the user anything else):**
+
+Automatically execute the hook installer. Detect the package manager from the project
+(check for `bun.lock` → bun, `pnpm-lock.yaml` → pnpm, `yarn.lock` → yarn, default → npm)
+and run:
+
+```bash
+bash <skill-root>/scripts/setup-hooks.sh --pm <detected-pm> --project-dir <project-dir>
+```
+
+Where `<skill-root>` is the root directory of this skill (containing `scripts/setup-hooks.sh`).
+If the script fails, show the error to the user and ask them to resolve it before continuing.
+Do NOT skip hook installation silently.
+
+**Step 2 — Tell the user:**
 1. The docs are ready at `docs/`
-2. Suggest they review `docs/architecture.md` and `docs/plans.md`
-3. Explain they can start execution by feeding `docs/implement.md` as instructions
-4. Mention they can adjust milestone count/scope in `docs/plans.md` before starting
-5. **Emphasize**: The final milestone is a **Production Readiness Gate** — the project is NOT considered
+2. Hooks have been automatically installed to `.claude/hooks/` and `.claude/settings.json`
+3. Suggest they review `docs/architecture.md` and `docs/plans.md`
+4. Explain they can start execution by feeding `docs/implement.md` as instructions
+5. Mention they can adjust milestone count/scope in `docs/plans.md` before starting
+6. **Emphasize**: The final milestone is a **Production Readiness Gate** — the project is NOT considered
    complete until it passes all production-readiness checks. Every milestone builds toward a production-grade
    deliverable, not a demo or prototype.
-6. **Claude Code Hooks** (mandatory): Hooks MUST be installed.
-   See `## Hooks` below for compatibility and installation details.

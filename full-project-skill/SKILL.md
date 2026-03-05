@@ -165,16 +165,31 @@ the workflow lightweight.
 
 ### Phase 3: Next Steps
 
-After review, tell the user:
+After review:
+
+**Step 1 — Auto-install hooks (mandatory, run before telling the user anything else):**
+
+Automatically execute the hook installer. Detect the package manager from the project
+(check for `bun.lock` → bun, `pnpm-lock.yaml` → pnpm, `yarn.lock` → yarn, default → npm)
+and run:
+
+```bash
+bash <skill-root>/scripts/setup-hooks.sh --pm <detected-pm> --project-dir <project-dir>
+```
+
+Where `<skill-root>` is the root directory of this skill (containing `scripts/setup-hooks.sh`).
+If the script fails, show the error to the user and ask them to resolve it before continuing.
+Do NOT skip hook installation silently.
+
+**Step 2 — Tell the user:**
 1. The docs are ready at `docs/`
-2. Suggest they review `docs/architecture.md` and `docs/plans.md`
-3. Explain they can start execution by feeding `docs/implement.md` as instructions
-4. Mention they can adjust milestone count/scope in `docs/plans.md` before starting
-5. **Emphasize**: The final milestone is a **Production Readiness Gate** — the project is NOT considered
+2. Hooks have been automatically installed to `.claude/hooks/` and `.claude/settings.json`
+3. Suggest they review `docs/architecture.md` and `docs/plans.md`
+4. Explain they can start execution by feeding `docs/implement.md` as instructions
+5. Mention they can adjust milestone count/scope in `docs/plans.md` before starting
+6. **Emphasize**: The final milestone is a **Production Readiness Gate** — the project is NOT considered
    complete until it passes all production-readiness checks. Every milestone builds toward a production-grade
    deliverable, not a demo or prototype.
-6. **Claude Code Hooks** (mandatory): Hooks MUST be installed.
-   See `## Hooks` below for compatibility and installation details.
 
 ---
 
@@ -317,12 +332,27 @@ annotation cycle** (mirrors Init Phase 2.7 but scoped to changes):
 
 ### Update Phase 4: Next Steps
 
-Tell the user:
+After review:
+
+**Step 1 — Auto-install/update hooks (mandatory):**
+
+Check if `.claude/hooks/` already exists in the project. Run the hook installer regardless
+(it will merge/update existing hooks):
+
+```bash
+bash <skill-root>/scripts/setup-hooks.sh --pm <detected-pm> --project-dir <project-dir>
+```
+
+Detect the package manager from the project (check for `bun.lock` → bun, `pnpm-lock.yaml` → pnpm,
+`yarn.lock` → yarn, default → npm). If the script fails, show the error and ask the user to resolve it.
+
+**Step 2 — Tell the user:**
 1. The docs have been updated
-2. Summarize what was changed (new/modified milestones, updated architecture sections, etc.)
-3. Suggest they review the changes in `docs/architecture.md` and `docs/plans.md`
-4. Mention they can adjust the new milestones before starting execution
-5. **Remind**: New milestones follow the same production-quality standard — every sub-task produces
+2. Hooks have been installed/updated in `.claude/hooks/`
+3. Summarize what was changed (new/modified milestones, updated architecture sections, etc.)
+4. Suggest they review the changes in `docs/architecture.md` and `docs/plans.md`
+5. Mention they can adjust the new milestones before starting execution
+6. **Remind**: New milestones follow the same production-quality standard — every sub-task produces
    deployment-ready code. If the update adds significant new functionality, ensure the Production
    Readiness Gate milestone is updated to cover the new scope.
 
@@ -368,31 +398,48 @@ Doc assembly commands:
 
 ## Hooks
 
-Install project hooks via `scripts/setup-hooks.sh`. See `assets/hooks/settings.template.json`
-for the full hook wiring. Hook scripts live in `assets/hooks/` and are copied to
-`.claude/hooks/` by the installer.
+Install project hooks via `scripts/setup-hooks.sh`. Hooks are **platform-universal** and support
+both Claude Code and Codex CLI.
 
-These hooks are Claude Code specific and depend on Claude Code hook events + JSON protocol.
-They are not compatible with Codex CLI hooks.
+### Supported Platforms
+
+| Platform | Config Dir | Template | Event Names |
+|----------|-----------|----------|-------------|
+| Claude Code | `.claude/` | `settings.template.json` | `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `Stop` |
+| Codex CLI | `.codex/` | `settings.template.codex.json` | `on_agent_message`, `pre_tool_call`, `post_tool_call`, `on_session_end` |
+
+### Hook Scripts (shared across platforms)
+
+All hook scripts live in `assets/hooks/` and are platform-agnostic. They use shared helpers:
+- `hook-input.sh` — Unified input parsing (supports both Claude Code and Codex CLI env vars / JSON)
+- `hook-output.sh` — Platform-aware structured output (auto-detects platform for JSON responses)
 
 Default hook coverage:
 - User prompt guards: `prompt-guard.sh`, `phase-tracker.sh`
-- Pre-write guards: `worktree-guard.sh`, `tdd-guard-hook.sh`, `pre-code-change.sh`, `plan-gate.sh`, `research-gate.sh`
-- Post-write guards: `anti-simplification.sh`, `doc-drift-guard.sh`, `atomic-pending.sh`
+- Pre-tool guards: `worktree-guard.sh`, `tdd-guard-hook.sh`, `pre-code-change.sh`, `plan-gate.sh`, `research-gate.sh`
+- Pre-tool (Bash): `pre-commit-lint.sh`, `pre-push-test.sh`, `immutable-layer-guard.sh`
+- Post-tool guards: `anti-simplification.sh`, `doc-drift-guard.sh`, `atomic-pending.sh`, `plan-sync-reminder.sh`
 - Post-bash guards: `post-bash.sh`, `atomic-commit.sh`
 - Session monitor: `context-pressure-hook.sh`
-- Shared helper: `hook-input.sh`
+- Session end: `session-end-reminder.sh`
+- Shared helpers: `hook-input.sh`, `hook-output.sh`
 
-Inline template hooks retained in settings:
-- pre-commit lint/typecheck
-- pre-push test
-- immutable-layer guard
-- plan-sync guard
-- session-end reminder
+### Auto-Installation
 
-During Phase 3 (Next Steps), hooks MUST be installed:
+Hooks are **automatically installed** during Phase 3 (Init) and Update Phase 4.
+The skill auto-detects the package manager and runs `setup-hooks.sh` without user intervention.
+
+Manual installation:
 ```bash
+# Claude Code (default)
 bash scripts/setup-hooks.sh --pm bun --project-dir /path/to/project
+
+# Codex CLI
+bash scripts/setup-hooks.sh --pm bun --project-dir /path/to/project --platform codex
+
+# Both platforms at once
+bash scripts/setup-hooks.sh --pm bun --project-dir /path/to/project --platform claude
+bash scripts/setup-hooks.sh --pm bun --project-dir /path/to/project --platform codex
 ```
 
 ## Language

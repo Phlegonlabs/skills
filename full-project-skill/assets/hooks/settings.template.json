@@ -18,7 +18,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "if echo \"$TOOL_INPUT\" | grep -qE 'git\\s+commit'; then cd \"$CLAUDE_PROJECT_DIR\" && {{PM}} run lint && {{PM}} run typecheck; fi",
+            "command": "bash .claude/hooks/pre-commit-lint.sh",
             "timeout": 60,
             "statusMessage": "Running lint + typecheck before commit..."
           }
@@ -30,7 +30,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "if echo \"$TOOL_INPUT\" | grep -qE 'git\\s+push'; then cd \"$CLAUDE_PROJECT_DIR\" && {{PM}} run test; fi",
+            "command": "bash .claude/hooks/pre-push-test.sh",
             "timeout": 120,
             "statusMessage": "Running tests before push..."
           }
@@ -53,7 +53,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "if echo \"$TOOL_INPUT\" | grep -qE 'docs/(architecture|implement)\\.md'; then echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"ask\",\"permissionDecisionReason\":\"This file is in the immutable layer. Confirm with the user before modifying.\"}}'; fi",
+            "command": "bash .claude/hooks/immutable-layer-guard.sh",
             "timeout": 10
           }
         ]
@@ -66,18 +66,8 @@
         "hooks": [
           { "type": "command", "command": "bash .claude/hooks/anti-simplification.sh" },
           { "type": "command", "command": "bash .claude/hooks/doc-drift-guard.sh" },
-          { "type": "command", "command": "bash .claude/hooks/atomic-pending.sh" }
-        ]
-      },
-      {
-        "$id": "plan-sync-guard",
-        "matcher": "Edit|Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "if echo \"$TOOL_INPUT\" | grep -q 'plans.md'; then echo '{\"systemMessage\":\"Reminder: docs/plans.md was modified. Keep docs/documentation.md milestone status in sync.\"}'; fi",
-            "timeout": 5
-          }
+          { "type": "command", "command": "bash .claude/hooks/atomic-pending.sh" },
+          { "type": "command", "command": "bash .claude/hooks/plan-sync-reminder.sh" }
         ]
       },
       {
@@ -100,7 +90,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "if [ -f \"$CLAUDE_PROJECT_DIR/tasks/todo.md\" ] && grep -q '\\- \\[ \\]' \"$CLAUDE_PROJECT_DIR/tasks/todo.md\"; then echo '{\"systemMessage\":\"Session ending with unchecked tasks in tasks/todo.md. Follow Session Handoff Protocol: update task status, note in-progress context, run verification, create WIP commit.\"}'; fi",
+            "command": "bash .claude/hooks/session-end-reminder.sh",
             "timeout": 5
           }
         ]

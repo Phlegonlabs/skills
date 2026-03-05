@@ -139,11 +139,26 @@ annotation cycle** (mirrors Init Phase 2.7 but scoped to changes):
 
 ### Update Phase 4: Next Steps
 
-Tell the user:
+After review:
+
+**Step 1 — Auto-install/update hooks (mandatory):**
+
+Check if `.claude/hooks/` already exists in the project. Run the hook installer regardless
+(it will merge/update existing hooks):
+
+```bash
+bash <skill-root>/scripts/setup-hooks.sh --pm <detected-pm> --project-dir <project-dir>
+```
+
+Detect the package manager from the project (check for `bun.lock` → bun, `pnpm-lock.yaml` → pnpm,
+`yarn.lock` → yarn, default → npm). If the script fails, show the error and ask the user to resolve it.
+
+**Step 2 — Tell the user:**
 1. The docs have been updated
-2. Summarize what was changed (new/modified milestones, updated architecture sections, etc.)
-3. Suggest they review the changes in `docs/architecture.md` and `docs/plans.md`
-4. Mention they can adjust the new milestones before starting execution
-5. **Remind**: New milestones follow the same production-quality standard — every sub-task produces
+2. Hooks have been installed/updated in `.claude/hooks/`
+3. Summarize what was changed (new/modified milestones, updated architecture sections, etc.)
+4. Suggest they review the changes in `docs/architecture.md` and `docs/plans.md`
+5. Mention they can adjust the new milestones before starting execution
+6. **Remind**: New milestones follow the same production-quality standard — every sub-task produces
    deployment-ready code. If the update adds significant new functionality, ensure the Production
    Readiness Gate milestone is updated to cover the new scope.

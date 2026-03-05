@@ -31,9 +31,9 @@ describe("SKILL.md sync", () => {
     expect(errors).toEqual([]);
   });
 
-  test("should mention Claude Code Hooks in Phase 3", () => {
+  test("should mention auto-install hooks in Phase 3", () => {
     const skill = readSkillMarkdown();
-    expect(skill).toContain("Claude Code Hooks");
+    expect(skill).toContain("Auto-install hooks");
   });
 
   test("should mention task tracking files and tech component reference", () => {
