@@ -2,7 +2,17 @@
   "version": "workflow-map.v1",
   "modeDetection": {
     "updateModeDocs": ["docs/architecture.md", "docs/plans.md"],
-    "corruptedStatePolicy": "if_only_one_required_doc_exists_ask_user_overwrite_or_partial_update"
+    "codeRoots": [
+      "src/",
+      "app/",
+      "apps/*/src",
+      "apps/*/app",
+      "packages/*/src",
+      "packages/*/app",
+      "services/*/src"
+    ],
+    "convertModePolicy": "if_required_update_docs_missing_and_code_exists_run_convert_upgrade_mode",
+    "corruptedStatePolicy": "if_only_one_required_doc_exists_ask_user_overwrite_or_partial_update_or_convert"
   },
   "tiers": {
     "standard": {
@@ -39,6 +49,15 @@
     "update-phase-3.7-user-annotation-review",
     "update-phase-4-next-steps"
   ],
+  "convertPhaseOrder": [
+    "convert-phase-1-codebase-discovery-baseline",
+    "convert-phase-1.5-conversion-profile-classification",
+    "convert-phase-2-convert-interview",
+    "convert-phase-3-documentation-bootstrap",
+    "convert-phase-3.5-documentation-review",
+    "convert-phase-3.7-user-annotation-review",
+    "convert-phase-4-next-steps"
+  ],
   "updateTypes": {
     "new_feature": {
       "roundRange": [3, 8],
@@ -51,6 +70,16 @@
     "change": {
       "roundRange": [2, 5],
       "followUpCapRange": [8, 8]
+    }
+  },
+  "convertProfiles": {
+    "baseline_conversion": {
+      "roundRange": [2, 4],
+      "followUpCapRange": [6, 6]
+    },
+    "upgrade_conversion": {
+      "roundRange": [3, 6],
+      "followUpCapRange": [10, 10]
     }
   },
   "generatedDocuments": [

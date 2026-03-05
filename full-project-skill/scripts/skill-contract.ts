@@ -5,6 +5,7 @@ import { firstDiffLine, normalizeEol } from "./lib/text-utils";
 
 type TierKey = "standard" | "complex";
 type UpdateTypeKey = "new_feature" | "bug_fix" | "change";
+type ConvertProfileKey = "baseline_conversion" | "upgrade_conversion";
 type ConditionalDocumentCondition = "standard_or_complex_tier";
 type DesignDocRequiredSectionsCondition = "gui_project";
 type ConditionalDocumentRule = {
@@ -30,15 +31,26 @@ export interface WorkflowMapV1 {
   version: "workflow-map.v1";
   modeDetection: {
     updateModeDocs: string[];
+    codeRoots: string[];
+    convertModePolicy: string;
     corruptedStatePolicy: string;
   };
   tiers: Record<TierKey, TierConfig>;
   initPhaseOrder: string[];
   updatePhaseOrder: string[];
+  convertPhaseOrder: string[];
   updateTypes: Record<
     UpdateTypeKey,
     {
       // Round range for update-mode interviews only.
+      roundRange: [number, number];
+      followUpCapRange: [number, number];
+    }
+  >;
+  convertProfiles: Record<
+    ConvertProfileKey,
+    {
+      // Round range for convert-mode interviews only.
       roundRange: [number, number];
       followUpCapRange: [number, number];
     }
@@ -63,6 +75,7 @@ export interface InterviewQuestionPackV1 {
     }>;
   };
   update: Record<UpdateTypeKey, string[]>;
+  convert: Record<ConvertProfileKey, string[]>;
   rules: {
     maxQuestionsPerRound: number;
     followUpRoundFormat: string;
@@ -102,7 +115,20 @@ export interface VerificationResult {
 
 const REQUIRED_TIERS: TierKey[] = ["standard", "complex"];
 const REQUIRED_UPDATE_TYPES: UpdateTypeKey[] = ["new_feature", "bug_fix", "change"];
+const REQUIRED_CONVERT_PROFILES: ConvertProfileKey[] = [
+  "baseline_conversion",
+  "upgrade_conversion",
+];
 const REQUIRED_UPDATE_MODE_DOCS = ["docs/architecture.md", "docs/plans.md"];
+const REQUIRED_CODE_ROOT_SIGNALS = [
+  "src/",
+  "app/",
+  "apps/*/src",
+  "apps/*/app",
+  "packages/*/src",
+  "packages/*/app",
+  "services/*/src",
+];
 const REQUIRED_INIT_ROUNDS = [
   "2.5",
   "2.7",
@@ -130,6 +156,8 @@ const REQUIRED_INIT_ROUNDS = [
   "R14",
 ];
 const REQUIRED_NEW_FEATURE_UPDATE_ROUNDS = ["F0", "F1", "F2", "F3", "F4", "F4.5", "F5", "F6", "F7", "F8"];
+const REQUIRED_BASELINE_CONVERT_ROUNDS = ["CV0", "CV1", "CV2", "CV3"];
+const REQUIRED_UPGRADE_CONVERT_ROUNDS = ["CV0", "CU1", "CU2", "CU3", "CU4"];
 const REQUIRED_DOCS = [
   "docs/architecture.md",
   "docs/plans.md",
@@ -212,7 +240,9 @@ const WORKFLOW_MAP_SHAPE: JsonFileShape = {
     "tiers",
     "initPhaseOrder",
     "updatePhaseOrder",
+    "convertPhaseOrder",
     "updateTypes",
+    "convertProfiles",
     "generatedDocuments",
     "productionReadinessGate",
   ],
@@ -221,7 +251,7 @@ const WORKFLOW_MAP_SHAPE: JsonFileShape = {
 const INTERVIEW_QUESTION_PACK_SHAPE: JsonFileShape = {
   label: "interview-question-pack",
   version: "interview-question-pack.v1",
-  requiredKeys: ["init", "update", "rules"],
+  requiredKeys: ["init", "update", "convert", "rules"],
 };
 
 const QUALITY_GATES_SHAPE: JsonFileShape = {
@@ -360,6 +390,14 @@ export function validateWorkflowMap(map: WorkflowMapV1): string[] {
       errors.push(`workflow-map modeDetection.updateModeDocs missing ${doc}`);
     }
   }
+  for (const codeRoot of REQUIRED_CODE_ROOT_SIGNALS) {
+    if (!map.modeDetection.codeRoots.includes(codeRoot)) {
+      errors.push(`workflow-map modeDetection.codeRoots missing ${codeRoot}`);
+    }
+  }
+  if (typeof map.modeDetection.convertModePolicy !== "string" || map.modeDetection.convertModePolicy === "") {
+    errors.push("workflow-map modeDetection.convertModePolicy must be a non-empty string");
+  }
 
   for (const updateType of REQUIRED_UPDATE_TYPES) {
     const config = map.updateTypes[updateType];
@@ -372,6 +410,19 @@ export function validateWorkflowMap(map: WorkflowMapV1): string[] {
     }
     if (config.followUpCapRange[0] > config.followUpCapRange[1]) {
       errors.push(`workflow-map updateTypes.${updateType}.followUpCapRange is invalid`);
+    }
+  }
+  for (const convertProfile of REQUIRED_CONVERT_PROFILES) {
+    const config = map.convertProfiles[convertProfile];
+    if (!config) {
+      errors.push(`workflow-map convertProfiles missing ${convertProfile}`);
+      continue;
+    }
+    if (config.roundRange[0] > config.roundRange[1]) {
+      errors.push(`workflow-map convertProfiles.${convertProfile}.roundRange is invalid`);
+    }
+    if (config.followUpCapRange[0] > config.followUpCapRange[1]) {
+      errors.push(`workflow-map convertProfiles.${convertProfile}.followUpCapRange is invalid`);
     }
   }
 
@@ -390,6 +441,12 @@ export function validateWorkflowMap(map: WorkflowMapV1): string[] {
   }
   if (!map.updatePhaseOrder.includes("update-phase-3.5-documentation-review")) {
     errors.push("workflow-map updatePhaseOrder missing update-phase-3.5-documentation-review");
+  }
+  if (!map.convertPhaseOrder.includes("convert-phase-3.5-documentation-review")) {
+    errors.push("workflow-map convertPhaseOrder missing convert-phase-3.5-documentation-review");
+  }
+  if (!map.convertPhaseOrder.includes("convert-phase-3.7-user-annotation-review")) {
+    errors.push("workflow-map convertPhaseOrder missing convert-phase-3.7-user-annotation-review");
   }
   errors.push(
     ...validateConditionalDocumentRules("workflow-map conditionalDocuments", map.conditionalDocuments)
@@ -431,6 +488,28 @@ export function validateInterviewQuestionPack(pack: InterviewQuestionPackV1): st
   }
   if (pack.update.new_feature[0] !== "F0") {
     errors.push("interview-question-pack update.new_feature must start with F0");
+  }
+  for (const convertProfile of REQUIRED_CONVERT_PROFILES) {
+    const rounds = pack.convert[convertProfile];
+    if (!Array.isArray(rounds) || rounds.length === 0) {
+      errors.push(`interview-question-pack convert.${convertProfile} must not be empty`);
+    }
+  }
+  for (const round of REQUIRED_BASELINE_CONVERT_ROUNDS) {
+    if (!pack.convert.baseline_conversion.includes(round)) {
+      errors.push(`interview-question-pack convert.baseline_conversion missing ${round}`);
+    }
+  }
+  for (const round of REQUIRED_UPGRADE_CONVERT_ROUNDS) {
+    if (!pack.convert.upgrade_conversion.includes(round)) {
+      errors.push(`interview-question-pack convert.upgrade_conversion missing ${round}`);
+    }
+  }
+  if (pack.convert.baseline_conversion[0] !== "CV0") {
+    errors.push("interview-question-pack convert.baseline_conversion must start with CV0");
+  }
+  if (pack.convert.upgrade_conversion[0] !== "CV0") {
+    errors.push("interview-question-pack convert.upgrade_conversion must start with CV0");
   }
 
   if (pack.rules.techStackLockRound !== "R10.7") {
@@ -1045,6 +1124,21 @@ export function validateUpdateModeCompleteness(
   // Verify workflow-map updatePhaseOrder contains the documentation review step
   if (!map.updatePhaseOrder.includes("update-phase-3.5-documentation-review")) {
     errors.push("workflow-map updatePhaseOrder missing update-phase-3.5-documentation-review");
+  }
+  if (!skillMd.includes("## Convert/Upgrade Mode")) {
+    errors.push("SKILL.md missing Convert/Upgrade mode section");
+  }
+  if (!map.convertPhaseOrder.includes("convert-phase-3.7-user-annotation-review")) {
+    errors.push("workflow-map convertPhaseOrder missing convert-phase-3.7-user-annotation-review");
+  }
+  if (!map.convertPhaseOrder.includes("convert-phase-3.5-documentation-review")) {
+    errors.push("workflow-map convertPhaseOrder missing convert-phase-3.5-documentation-review");
+  }
+  for (const convertProfile of REQUIRED_CONVERT_PROFILES) {
+    const rounds = pack.convert[convertProfile];
+    if (!Array.isArray(rounds) || rounds.length === 0) {
+      errors.push(`interview-question-pack convert.${convertProfile} must have at least 1 round`);
+    }
   }
   if (!skillMd.includes("F0-F8")) {
     errors.push("SKILL.md update New Feature round range must reference F0-F8");

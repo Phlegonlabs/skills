@@ -8,15 +8,19 @@ description: >
   when the user mentions wanting a milestone-based plan, structured execution workflow, or asks to scaffold
   documentation for a complex multi-step build. Additionally, use this skill when the user wants to modify an
   existing project that already has a `docs/` directory — e.g., "add a new feature", "fix this bug",
-  "refactor X", "I want to change how Y works", "new feature request".
+  "refactor X", "I want to change how Y works", "new feature request". Also use this skill when the user has
+  an existing codebase (for example downloaded/cloned from GitHub) but missing this skill's docs and hook/HK
+  setup, and wants to convert/upgrade it into the full structured workflow.
 ---
 
 # Project Long Task
 
-A structured workflow for long-running, milestone-based builds. This skill supports two modes:
+A structured workflow for long-running, milestone-based builds. This skill supports three modes:
 
 - **Init mode** — New project: collects requirements through an interactive interview, then generates a complete
   documentation scaffold that guides autonomous execution from planning through implementation.
+- **Convert/Upgrade mode** — Existing codebase without required docs: scans current code reality, generates
+  missing documentation + task trackers + hook/HK setup, and optionally plans upgrade work before execution.
 - **Update mode** — Existing project: collects requirements for a change through a focused interview, then
   updates the existing documentation to incorporate the change. Supports three update types:
   - **New Feature** — Adding new functionality (3-8 interview rounds)

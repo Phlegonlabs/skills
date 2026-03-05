@@ -13,7 +13,9 @@ describe("SKILL.md sync", () => {
     expect(skill).toContain("### Phase 2: Generate Documentation");
     expect(skill).toContain("### Phase 2.5: Multi-Agent Documentation Review");
     expect(skill).toContain("## Update Mode (modifying an existing project)");
+    expect(skill).toContain("## Convert/Upgrade Mode (bootstrap docs for existing codebase)");
     expect(skill).toContain("### Update Phase 3: Update Documentation");
+    expect(skill).toContain("### Convert Phase 3: Documentation Bootstrap");
   });
 
   test("should include engineering and quality sections", () => {
@@ -48,4 +50,3 @@ describe("SKILL.md sync", () => {
     expect(result.errors).toEqual([]);
   });
 });
-

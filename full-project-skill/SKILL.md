@@ -8,15 +8,19 @@ description: >
   when the user mentions wanting a milestone-based plan, structured execution workflow, or asks to scaffold
   documentation for a complex multi-step build. Additionally, use this skill when the user wants to modify an
   existing project that already has a `docs/` directory — e.g., "add a new feature", "fix this bug",
-  "refactor X", "I want to change how Y works", "new feature request".
+  "refactor X", "I want to change how Y works", "new feature request". Also use this skill when the user has
+  an existing codebase (for example downloaded/cloned from GitHub) but missing this skill's docs and hook/HK
+  setup, and wants to convert/upgrade it into the full structured workflow.
 ---
 
 # Project Long Task
 
-A structured workflow for long-running, milestone-based builds. This skill supports two modes:
+A structured workflow for long-running, milestone-based builds. This skill supports three modes:
 
 - **Init mode** — New project: collects requirements through an interactive interview, then generates a complete
   documentation scaffold that guides autonomous execution from planning through implementation.
+- **Convert/Upgrade mode** — Existing codebase without required docs: scans current code reality, generates
+  missing documentation + task trackers + hook/HK setup, and optionally plans upgrade work before execution.
 - **Update mode** — Existing project: collects requirements for a change through a focused interview, then
   updates the existing documentation to incorporate the change. Supports three update types:
   - **New Feature** — Adding new functionality (3-8 interview rounds)
@@ -42,10 +46,19 @@ At the start, detect which mode to use:
 
 1. Check if `docs/architecture.md` and `docs/plans.md` already exist in the project
 2. If **both exist** → **Update mode** (the project was previously initialized with this skill)
-3. If **neither exists** → **Init mode** (new project)
-4. If **only one exists** → Potentially corrupted state. Inform the user which file is missing and ask:
-   init from scratch (overwrite), or attempt update with incomplete docs?
-5. If ambiguous for other reasons, ask the user whether they are modifying the existing project or starting fresh
+3. If **neither exists**, scan for existing codebase signals:
+   - code roots: `src/`, `app/`, `apps/*/src`, `apps/*/app`, `packages/*/src`, `packages/*/app`, `services/*/src`
+   - project manifests/configs: `package.json`, `pyproject.toml`, `go.mod`, `Cargo.toml`
+4. If docs are missing **and** codebase signals exist → **Convert/Upgrade mode** (bootstrap this existing codebase
+   into the structured docs + hooks/HK workflow)
+5. If docs are missing and no codebase signals exist → **Init mode** (new project)
+6. If **only one** required doc exists → Potentially partial/corrupted state. Inform the user which file is missing
+   and ask whether to:
+   - convert/upgrade from current code reality (recommended)
+   - attempt update with incomplete docs
+   - init from scratch (overwrite docs)
+7. If ambiguous for other reasons, ask the user whether they are modifying the existing project, converting an
+   existing codebase, or starting fresh
 
 ## Complexity Tiers
 
@@ -356,14 +369,119 @@ Detect the package manager from the project (check for `bun.lock` → bun, `pnpm
    deployment-ready code. If the update adds significant new functionality, ensure the Production
    Readiness Gate milestone is updated to cover the new scope.
 
+---
+
+## Convert/Upgrade Mode (bootstrap docs for existing codebase)
+
+When mode detection determines **Convert/Upgrade mode**, use this workflow for existing codebases that
+do not yet have this skill's required docs stack. Typical case: project cloned from GitHub with working
+code but missing `docs/architecture.md`, `docs/plans.md`, tasks trackers, and hook/HK setup.
+
+See `references/interview.md` § "Convert/Upgrade Mode Interview" for the full protocol.
+
+### Convert Phase 1: Codebase Discovery & Baseline
+
+1. Discover code roots in this order: `src/`, `app/`, `apps/*/src`, `apps/*/app`, `packages/*/src`,
+   `packages/*/app`, `services/*/src`
+2. Identify actual runtime shape from code and manifests:
+   - app entry points, routes, API surfaces, module boundaries
+   - data/storage and integration touch points
+   - test commands and deployment/build commands (if present)
+3. Detect existing docs fragments (`README`, ad-hoc design notes) and map what can be reused
+4. Detect missing workflow assets: `docs/`, `tasks/`, `.claude/hooks/`, `.codex/hooks/`, settings templates
+5. Summarize current reality + detected gaps to the user, then confirm conversion baseline
+
+This phase is read-only and should not modify code.
+
+### Convert Phase 1.5: Conversion Profile Classification
+
+Classify which conversion profile fits best, then let the user override:
+
+| Profile | When | Interview Rounds | Follow-up Cap |
+|------|------|-----------------|---------------|
+| **Baseline Conversion** | Keep current behavior; mainly bootstrap docs/hooks/HK assets from existing code | 2-4 rounds (CV0-CV3) | 6 |
+| **Upgrade Conversion** | Bootstrap docs/hooks and also plan structural upgrades while preserving delivery continuity | 3-6 rounds (CU1-CU4 + CV0) | 10 |
+
+If the scope grows during interview (e.g., baseline turns into architecture upgrade), reclassify and announce it.
+
+### Convert Phase 2: Convert Interview
+
+A focused interview scoped to conversion and baseline accuracy (NOT a greenfield full interview).
+
+**Steps overview:**
+1. **Current-state confirmation** — Confirm discovered architecture and product behavior from Phase 1
+2. **Clarifying Questions** — Rounds/depth based on conversion profile (see table above)
+3. **Synthesis & Confirmation** — Present conversion plan and ask explicit approval before writing docs
+
+### Convert Phase 3: Documentation Bootstrap
+
+After confirmation, generate the full workflow docs from **current code reality** (not hypothetical future state).
+
+**All profiles:**
+- Create missing core docs: `docs/architecture.md`, `docs/plans.md`, `docs/implement.md`, `docs/secrets.md`,
+  `docs/documentation.md`, `docs/design.md`
+- Create missing coordination docs: `tasks/todo.md`, `tasks/lessons.md`, `CLAUDE.md`, `AGENTS.md`
+- In `docs/architecture.md`, include a "Current-State Snapshot" and any docs-code divergences that need cleanup
+- In `docs/plans.md`, insert conversion milestones and keep **Production Readiness Gate (Milestone PR)** as final
+- Preserve existing code behavior by default; conversion should not silently refactor implementation
+
+**Baseline Conversion:**
+- Focus on accurate documentation of what exists today
+- Add stabilization milestones only where gaps/risks are already observable
+
+**Upgrade Conversion:**
+- Add explicit upgrade milestones separated from baseline capture milestones
+- Include migration/rollback notes when upgrade work changes architecture or contracts
+
+### Convert Phase 3.5: Documentation Review
+
+Run the same lightweight multi-agent review pattern as Update mode:
+- Agent 2 (Plans reviewer) + Agent 3 (Consistency reviewer)
+- Mandatory `mcp__codex__codex` cross-model review on converted docs
+- Apply findings, then run exactly one post-Codex Agent 2 + Agent 3 re-review
+
+Focus areas:
+- docs match real code structure and command surface
+- milestones reflect both bootstrap work and required production hardening
+- hooks/HK instructions are present and executable
+
+### Convert Phase 3.7: User Annotation Review
+
+Run one lightweight annotation pass on `docs/architecture.md` and `docs/plans.md`, same pattern as Update mode:
+1. User annotates inline notes
+2. Resolve each note and remove markers
+3. Summarize changes and wait for explicit readiness confirmation
+
+### Convert Phase 4: Next Steps
+
+After review:
+
+**Step 1 — Auto-install/update hooks (mandatory):**
+
+Run hook installation for both platforms:
+
+```bash
+bash <skill-root>/scripts/setup-hooks.sh --pm <detected-pm> --project-dir <project-dir> --platform both
+```
+
+Detect package manager from project files (`bun.lock` → bun, `pnpm-lock.yaml` → pnpm, `yarn.lock` → yarn, default → npm).
+If installation fails, show the error and stop for user resolution.
+
+**Step 2 — Tell the user:**
+1. Conversion/upgrade docs bootstrap is complete
+2. Hooks/HK assets have been installed/updated in `.claude/` and `.codex/`
+3. Summarize baseline capture vs upgrade backlog items
+4. Ask user to review `docs/architecture.md` and `docs/plans.md` before execution
+5. Remind that **Production Readiness Gate** remains the final completion bar
+
 ## Engineering Layer
 
 Keep the workflow above as the source of truth, and use a machine-readable contract layer to make it testable.
 
 ### Contract Files
 
-- `assets/workflow-map.v1.json` — Mode detection, tier defaults, phase order, update type ranges, output doc list
-- `assets/interview-question-pack.v1.json` — Init/update interview round registry and round-level constraints
+- `assets/workflow-map.v1.json` — Mode detection, tier defaults, init/update/convert phase order, type/profile ranges, output doc list
+- `assets/interview-question-pack.v1.json` — Init/update/convert interview round registry and round-level constraints
 - `assets/quality-gates.v1.json` — Required references, required SKILL sections, and release gate checklist
 - `assets/doc-build-map.v1.json` — Source module directories, assembly order files, and generated doc targets
 
@@ -426,7 +544,7 @@ Default hook coverage:
 
 ### Auto-Installation
 
-Hooks are **automatically installed** during Phase 3 (Init) and Update Phase 4.
+Hooks are **automatically installed** during Phase 3 (Init), Update Phase 4, and Convert Phase 4.
 The skill auto-detects the package manager and runs `setup-hooks.sh --platform both` without user intervention.
 
 Manual installation:

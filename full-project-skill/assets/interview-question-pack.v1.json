@@ -52,6 +52,10 @@
     "bug_fix": ["B1", "B2", "B3"],
     "change": ["C1", "C2", "C3", "C4", "C5"]
   },
+  "convert": {
+    "baseline_conversion": ["CV0", "CV1", "CV2", "CV3"],
+    "upgrade_conversion": ["CV0", "CU1", "CU2", "CU3", "CU4"]
+  },
   "rules": {
     "maxQuestionsPerRound": 2,
     "followUpRoundFormat": "Round RN.X",

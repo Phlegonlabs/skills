@@ -18,11 +18,13 @@
     "### Phase 2.6: Cross-Model Review (Mandatory)",
     "### Phase 2.7: User Annotation Review",
     "## Update Mode (modifying an existing project)",
+    "## Convert/Upgrade Mode (bootstrap docs for existing codebase)",
     "## Engineering Layer",
     "### Quality Gates"
   ],
   "requiredPhrases": [
     "Init mode",
+    "Convert/Upgrade mode",
     "Update mode",
     "Production Readiness Gate",
     "docs/architecture.md",

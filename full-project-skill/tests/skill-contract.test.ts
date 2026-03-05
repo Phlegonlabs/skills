@@ -184,6 +184,12 @@ describe("Workflow invariants", () => {
     expect(workflowMap.updateTypes.change.roundRange).toEqual([2, 5]);
   });
 
+  test("convert profile ranges should preserve current process intent", () => {
+    const workflowMap = loadWorkflowMap();
+    expect(workflowMap.convertProfiles.baseline_conversion.roundRange).toEqual([2, 4]);
+    expect(workflowMap.convertProfiles.upgrade_conversion.roundRange).toEqual([3, 6]);
+  });
+
   test("userPreferencesCheckRound should be R10.7", () => {
     const questionPack = loadInterviewQuestionPack();
     expect(questionPack.rules.userPreferencesCheckRound).toBe("R10.7");
@@ -195,6 +201,13 @@ describe("Workflow invariants", () => {
     expect(workflowMap.generatedDocuments).toContain("tasks/todo.md");
     expect(workflowMap.generatedDocuments).toContain("tasks/lessons.md");
     expect(workflowMap.generatedDocuments).toContain("docs/design.md");
+  });
+
+  test("mode detection should include convert policy signals", () => {
+    const workflowMap = loadWorkflowMap();
+    expect(workflowMap.modeDetection.codeRoots).toContain("src/");
+    expect(workflowMap.modeDetection.codeRoots).toContain("apps/*/src");
+    expect(workflowMap.modeDetection.convertModePolicy).toContain("convert");
   });
 });
 
@@ -250,12 +263,35 @@ describe("Update mode completeness", () => {
     expect(idx37).toBeLessThan(idx4);
   });
 
+  test("convertPhaseOrder should include phase-3.7 user annotation review", () => {
+    const workflowMap = loadWorkflowMap();
+    expect(workflowMap.convertPhaseOrder).toContain("convert-phase-3.7-user-annotation-review");
+  });
+
+  test("convertPhaseOrder should have phase-3.7 after phase-3.5 and before phase-4", () => {
+    const workflowMap = loadWorkflowMap();
+    const order = workflowMap.convertPhaseOrder;
+    const idx35 = order.indexOf("convert-phase-3.5-documentation-review");
+    const idx37 = order.indexOf("convert-phase-3.7-user-annotation-review");
+    const idx4 = order.indexOf("convert-phase-4-next-steps");
+    expect(idx35).toBeLessThan(idx37);
+    expect(idx37).toBeLessThan(idx4);
+  });
+
   test("new_feature interview rounds should include F0", () => {
     const questionPack = loadInterviewQuestionPack();
     expect(questionPack.update.new_feature).toContain("F0");
     expect(questionPack.update.new_feature[0]).toBe("F0");
     expect(questionPack.update.new_feature).toContain("F4.5");
     expect(questionPack.update.new_feature).toContain("F8");
+  });
+
+  test("convert interview rounds should include CV0 and CU4", () => {
+    const questionPack = loadInterviewQuestionPack();
+    expect(questionPack.convert.baseline_conversion[0]).toBe("CV0");
+    expect(questionPack.convert.baseline_conversion).toContain("CV3");
+    expect(questionPack.convert.upgrade_conversion[0]).toBe("CV0");
+    expect(questionPack.convert.upgrade_conversion).toContain("CU4");
   });
 
   test("init interview rounds should place 2.8 between 2.7 and R1", () => {
@@ -284,6 +320,12 @@ describe("Update mode completeness", () => {
     expect(questionPack.update.new_feature.length).toBeGreaterThanOrEqual(1);
     expect(questionPack.update.bug_fix.length).toBeGreaterThanOrEqual(1);
     expect(questionPack.update.change.length).toBeGreaterThanOrEqual(1);
+  });
+
+  test("each convert profile should have at least 1 interview round", () => {
+    const questionPack = loadInterviewQuestionPack();
+    expect(questionPack.convert.baseline_conversion.length).toBeGreaterThanOrEqual(1);
+    expect(questionPack.convert.upgrade_conversion.length).toBeGreaterThanOrEqual(1);
   });
 
   test("conditional documents should include docs/decisions.md", () => {
@@ -344,6 +386,12 @@ describe("Update mode completeness", () => {
     const skillMd = readSkillMarkdown();
     expect(skillMd).toContain("### Update Phase 3.7");
     expect(skillMd).toContain("User Annotation Review");
+  });
+
+  test("SKILL.md should contain Convert/Upgrade mode section", () => {
+    const skillMd = readSkillMarkdown();
+    expect(skillMd).toContain("## Convert/Upgrade Mode");
+    expect(skillMd).toContain("### Convert Phase 3.7");
   });
 
   test("SKILL.md Update Phase 3.5 should reference cross-model review", () => {

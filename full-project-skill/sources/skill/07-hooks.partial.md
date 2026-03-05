@@ -28,7 +28,7 @@ Default hook coverage:
 
 ### Auto-Installation
 
-Hooks are **automatically installed** during Phase 3 (Init) and Update Phase 4.
+Hooks are **automatically installed** during Phase 3 (Init), Update Phase 4, and Convert Phase 4.
 The skill auto-detects the package manager and runs `setup-hooks.sh --platform both` without user intervention.
 
 Manual installation:

@@ -4,8 +4,8 @@ Keep the workflow above as the source of truth, and use a machine-readable contr
 
 ### Contract Files
 
-- `assets/workflow-map.v1.json` — Mode detection, tier defaults, phase order, update type ranges, output doc list
-- `assets/interview-question-pack.v1.json` — Init/update interview round registry and round-level constraints
+- `assets/workflow-map.v1.json` — Mode detection, tier defaults, init/update/convert phase order, type/profile ranges, output doc list
+- `assets/interview-question-pack.v1.json` — Init/update/convert interview round registry and round-level constraints
 - `assets/quality-gates.v1.json` — Required references, required SKILL sections, and release gate checklist
 - `assets/doc-build-map.v1.json` — Source module directories, assembly order files, and generated doc targets
 

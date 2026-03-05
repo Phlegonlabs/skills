@@ -22,6 +22,11 @@ describe("Quality gates", () => {
     ]);
   });
 
+  test("required phrases should include convert mode trigger text", () => {
+    const qualityGates = loadQualityGates();
+    expect(qualityGates.requiredPhrases).toContain("Convert/Upgrade mode");
+  });
+
   test("workflow map generated docs should include all quality-gate required docs", () => {
     const qualityGates = loadQualityGates();
     const workflowMap = loadWorkflowMap();
