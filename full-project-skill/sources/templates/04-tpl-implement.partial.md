@@ -115,6 +115,9 @@ Structure:
   - Never send PII in analytics payloads (document what counts as PII for this project)
   - Respect consent requirements and opt-out signals if applicable
   - Add tests for event payload building / adapter behavior
+- **First-Principles Execution**: before implementing or fixing any task, derive the root cause from product intent and architecture.
+  - Avoid symptom-level fixes that do not resolve the underlying design or contract issue.
+  - If root cause analysis proves the current module direction is wrong, rewrite the module instead of patch layering.
 - **Code is cheap — rewrite over patch**: When implementation hits a dead end (wrong library,
   bad architecture, accumulating workarounds), do NOT keep patching. Instead:
   - **Rewrite trigger**: If a module needs repeated workaround patches or no longer matches the agreed architecture,
