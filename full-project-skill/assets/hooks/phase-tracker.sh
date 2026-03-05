@@ -1,6 +1,6 @@
 #!/bin/bash
 # Phase Tracker — UserPromptSubmit
-# Detects intent keywords and updates .claude/.phase automatically.
+# Detects intent keywords and updates phase state automatically.
 
 set -euo pipefail
 
@@ -8,7 +8,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=/dev/null
 . "$SCRIPT_DIR/hook-input.sh"
 
-PHASE_FILE=".claude/.phase"
+PHASE_FILE="$(hook_get_phase_file)"
+STATE_DIR="$(dirname "$PHASE_FILE")"
 PROMPT_TEXT="$(hook_get_prompt "${1:-}")"
 PROMPT_LC="$(printf '%s' "$PROMPT_TEXT" | tr '[:upper:]' '[:lower:]')"
 
@@ -41,7 +42,7 @@ if [[ -f "$PHASE_FILE" ]]; then
   PREV_PHASE="$(tr -d '\r\n[:space:]' < "$PHASE_FILE" 2>/dev/null || true)"
 fi
 
-mkdir -p ".claude"
+mkdir -p "$STATE_DIR"
 printf '%s\n' "$NEXT_PHASE" > "$PHASE_FILE"
 echo "[PhaseTracker] phase=$NEXT_PHASE"
 

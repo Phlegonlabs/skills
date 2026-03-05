@@ -60,6 +60,11 @@ Structure:
   Do NOT write "get it working first, clean up later" code. There is no cleanup phase — each milestone's output
   must be deployable as-is. If you catch yourself writing a shortcut, fix it immediately.
 - Treat plans.md as the source of truth
+- **Task/action tracking is mandatory**:
+  - Before writing implementation code for a sub-task, add that sub-task to `tasks/todo.md` under Current Sprint (or mark it as in-progress if already listed)
+  - After finishing the sub-task, move it to Completed and keep Blocked/Review updated as needed
+  - Record key implementation actions/decisions in `docs/plans.md` under "Implementation Notes" as work progresses (not only at milestone end)
+  - If a mistake, blocker, or correction occurs, record a prevention rule in `tasks/lessons.md` immediately
 - **Immutable / Mutable Layers**:
   - **Immutable** (do NOT modify without informing the user first): `docs/architecture.md` (spec & contracts),
     `docs/implement.md` (execution rules), test files that encode accepted behavior
@@ -69,8 +74,9 @@ Structure:
     Only proceed after acknowledgement.
 - If anything is ambiguous, make a reasonable decision and record it in plans.md
 - Follow `docs/secrets.md` for any secrets/API key handling (storage, redaction, output/display)
-- **Claude Code hooks compatibility**: Hook configuration in `.claude/settings.json` relies on Claude Code's
-  hook event system and JSON protocol. It is not compatible with Codex CLI hooks.
+- **Hook compatibility (Claude + Codex)**:
+  - This workflow supports both `.claude/settings.json` and `.codex/settings.json`
+  - Install hooks for both platforms by default (`setup-hooks.sh --platform both`) so the same guardrails apply regardless of runtime
 - **Third-party API documentation**: When implementing any third-party integration (payment gateway,
   email provider, OAuth, analytics SDK, etc.), use the **Context7 MCP tool** to fetch the latest API
   docs for that service before writing any code. Do NOT rely on training-data knowledge of third-party

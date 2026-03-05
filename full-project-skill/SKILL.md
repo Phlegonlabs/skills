@@ -174,7 +174,7 @@ Automatically execute the hook installer. Detect the package manager from the pr
 and run:
 
 ```bash
-bash <skill-root>/scripts/setup-hooks.sh --pm <detected-pm> --project-dir <project-dir>
+bash <skill-root>/scripts/setup-hooks.sh --pm <detected-pm> --project-dir <project-dir> --platform both
 ```
 
 Where `<skill-root>` is the root directory of this skill (containing `scripts/setup-hooks.sh`).
@@ -183,7 +183,7 @@ Do NOT skip hook installation silently.
 
 **Step 2 — Tell the user:**
 1. The docs are ready at `docs/`
-2. Hooks have been automatically installed to `.claude/hooks/` and `.claude/settings.json`
+2. Hooks have been automatically installed to both `.claude/` and `.codex/` (`hooks/` + `settings.json`)
 3. Suggest they review `docs/architecture.md` and `docs/plans.md`
 4. Explain they can start execution by feeding `docs/implement.md` as instructions
 5. Mention they can adjust milestone count/scope in `docs/plans.md` before starting
@@ -336,11 +336,11 @@ After review:
 
 **Step 1 — Auto-install/update hooks (mandatory):**
 
-Check if `.claude/hooks/` already exists in the project. Run the hook installer regardless
-(it will merge/update existing hooks):
+Check if `.claude/hooks/` or `.codex/hooks/` already exists in the project. Run the hook installer regardless
+(it will merge/update existing hooks on both platforms):
 
 ```bash
-bash <skill-root>/scripts/setup-hooks.sh --pm <detected-pm> --project-dir <project-dir>
+bash <skill-root>/scripts/setup-hooks.sh --pm <detected-pm> --project-dir <project-dir> --platform both
 ```
 
 Detect the package manager from the project (check for `bun.lock` → bun, `pnpm-lock.yaml` → pnpm,
@@ -348,7 +348,7 @@ Detect the package manager from the project (check for `bun.lock` → bun, `pnpm
 
 **Step 2 — Tell the user:**
 1. The docs have been updated
-2. Hooks have been installed/updated in `.claude/hooks/`
+2. Hooks have been installed/updated in both `.claude/hooks/` and `.codex/hooks/`
 3. Summarize what was changed (new/modified milestones, updated architecture sections, etc.)
 4. Suggest they review the changes in `docs/architecture.md` and `docs/plans.md`
 5. Mention they can adjust the new milestones before starting execution
@@ -427,19 +427,18 @@ Default hook coverage:
 ### Auto-Installation
 
 Hooks are **automatically installed** during Phase 3 (Init) and Update Phase 4.
-The skill auto-detects the package manager and runs `setup-hooks.sh` without user intervention.
+The skill auto-detects the package manager and runs `setup-hooks.sh --platform both` without user intervention.
 
 Manual installation:
 ```bash
-# Claude Code (default)
+# Both platforms (default)
 bash scripts/setup-hooks.sh --pm bun --project-dir /path/to/project
 
 # Codex CLI
 bash scripts/setup-hooks.sh --pm bun --project-dir /path/to/project --platform codex
 
-# Both platforms at once
+# Claude Code only
 bash scripts/setup-hooks.sh --pm bun --project-dir /path/to/project --platform claude
-bash scripts/setup-hooks.sh --pm bun --project-dir /path/to/project --platform codex
 ```
 
 ## Language

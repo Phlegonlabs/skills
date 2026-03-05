@@ -614,46 +614,51 @@ export function validateReferenceFilesExist(gates: QualityGatesV1): string[] {
 
 export function validateHookScriptsExist(): string[] {
   const errors: string[] = [];
-  const hooksTemplatePath = join(ASSETS_DIR, "hooks", "settings.template.json");
+  const hooksTemplatePaths = [
+    join(ASSETS_DIR, "hooks", "settings.template.json"),
+    join(ASSETS_DIR, "hooks", "settings.template.codex.json"),
+  ];
   const hooksDir = join(ASSETS_DIR, "hooks");
 
-  if (!existsSync(hooksTemplatePath)) {
-    return [`hooks template not found: ${hooksTemplatePath}`];
-  }
-
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(readFileSync(hooksTemplatePath, "utf-8"));
-  } catch (error) {
-    return [
-      `failed to parse hooks template: ${error instanceof Error ? error.message : String(error)}`,
-    ];
-  }
-
-  const commands: string[] = [];
-  const visit = (node: unknown): void => {
-    if (Array.isArray(node)) {
-      for (const item of node) visit(item);
-      return;
-    }
-    if (!node || typeof node !== "object") return;
-
-    const candidate = node as Record<string, unknown>;
-    if (typeof candidate.command === "string") {
-      commands.push(candidate.command);
-    }
-    for (const value of Object.values(candidate)) {
-      visit(value);
-    }
-  };
-
-  visit(parsed);
-
   const scriptNames = new Set<string>();
-  for (const command of commands) {
-    const matches = command.matchAll(/bash\s+\.claude\/hooks\/([A-Za-z0-9._-]+\.sh)/g);
-    for (const match of matches) {
-      scriptNames.add(match[1]);
+  for (const hooksTemplatePath of hooksTemplatePaths) {
+    if (!existsSync(hooksTemplatePath)) {
+      errors.push(`hooks template not found: ${hooksTemplatePath}`);
+      continue;
+    }
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(readFileSync(hooksTemplatePath, "utf-8"));
+    } catch (error) {
+      errors.push(`failed to parse hooks template: ${error instanceof Error ? error.message : String(error)}`);
+      continue;
+    }
+
+    const commands: string[] = [];
+    const visit = (node: unknown): void => {
+      if (Array.isArray(node)) {
+        for (const item of node) visit(item);
+        return;
+      }
+      if (!node || typeof node !== "object") return;
+
+      const candidate = node as Record<string, unknown>;
+      if (typeof candidate.command === "string") {
+        commands.push(candidate.command);
+      }
+      for (const value of Object.values(candidate)) {
+        visit(value);
+      }
+    };
+
+    visit(parsed);
+
+    for (const command of commands) {
+      const matches = command.matchAll(/bash\s+\.(?:claude|codex)\/hooks\/([A-Za-z0-9._-]+\.sh)/g);
+      for (const match of matches) {
+        scriptNames.add(match[1]);
+      }
     }
   }
 
@@ -892,8 +897,8 @@ export function validateGeneratedArtifacts(map: DocBuildMapV1): string[] {
       const outputAbsolute = join(ROOT_DIR, target.output);
 
       const orphanPartials = readdirSync(sourceRootAbsolute)
-        .filter((file) => file.endsWith(".partial.md"))
-        .filter((file) => !assembled.orderedPartials.includes(file));
+        .filter((file: string) => file.endsWith(".partial.md"))
+        .filter((file: string) => !assembled.orderedPartials.includes(file));
       if (orphanPartials.length > 0) {
         errors.push(
           `doc-build target "${targetName}" has orphan partials not listed in ${target.orderFile}: ${orphanPartials.join(", ")}`

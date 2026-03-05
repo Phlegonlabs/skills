@@ -111,7 +111,7 @@ Automatically execute the hook installer. Detect the package manager from the pr
 and run:
 
 ```bash
-bash <skill-root>/scripts/setup-hooks.sh --pm <detected-pm> --project-dir <project-dir>
+bash <skill-root>/scripts/setup-hooks.sh --pm <detected-pm> --project-dir <project-dir> --platform both
 ```
 
 Where `<skill-root>` is the root directory of this skill (containing `scripts/setup-hooks.sh`).
@@ -120,7 +120,7 @@ Do NOT skip hook installation silently.
 
 **Step 2 — Tell the user:**
 1. The docs are ready at `docs/`
-2. Hooks have been automatically installed to `.claude/hooks/` and `.claude/settings.json`
+2. Hooks have been automatically installed to both `.claude/` and `.codex/` (`hooks/` + `settings.json`)
 3. Suggest they review `docs/architecture.md` and `docs/plans.md`
 4. Explain they can start execution by feeding `docs/implement.md` as instructions
 5. Mention they can adjust milestone count/scope in `docs/plans.md` before starting

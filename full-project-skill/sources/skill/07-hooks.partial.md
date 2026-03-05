@@ -29,17 +29,16 @@ Default hook coverage:
 ### Auto-Installation
 
 Hooks are **automatically installed** during Phase 3 (Init) and Update Phase 4.
-The skill auto-detects the package manager and runs `setup-hooks.sh` without user intervention.
+The skill auto-detects the package manager and runs `setup-hooks.sh --platform both` without user intervention.
 
 Manual installation:
 ```bash
-# Claude Code (default)
+# Both platforms (default)
 bash scripts/setup-hooks.sh --pm bun --project-dir /path/to/project
 
 # Codex CLI
 bash scripts/setup-hooks.sh --pm bun --project-dir /path/to/project --platform codex
 
-# Both platforms at once
+# Claude Code only
 bash scripts/setup-hooks.sh --pm bun --project-dir /path/to/project --platform claude
-bash scripts/setup-hooks.sh --pm bun --project-dir /path/to/project --platform codex
 ```

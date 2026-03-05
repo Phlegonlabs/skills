@@ -153,3 +153,71 @@ hook_get_tool_input() {
     return
   fi
 }
+
+hook_get_state_dir() {
+  if [[ -n "${HOOK_STATE_DIR:-}" ]]; then
+    printf '%s' "$HOOK_STATE_DIR"
+    return
+  fi
+
+  if [[ -d ".ai" ]]; then
+    printf '%s' ".ai"
+    return
+  fi
+
+  if [[ -d ".claude" && ! -d ".codex" ]]; then
+    printf '%s' ".claude"
+    return
+  fi
+
+  if [[ -d ".codex" && ! -d ".claude" ]]; then
+    printf '%s' ".codex"
+    return
+  fi
+
+  printf '%s' ".ai"
+}
+
+hook_get_phase_file() {
+  local state_dir
+  state_dir="$(hook_get_state_dir)"
+
+  if [[ -f "$state_dir/.phase" ]]; then
+    printf '%s' "$state_dir/.phase"
+    return
+  fi
+
+  if [[ -f ".claude/.phase" ]]; then
+    printf '%s' ".claude/.phase"
+    return
+  fi
+
+  if [[ -f ".codex/.phase" ]]; then
+    printf '%s' ".codex/.phase"
+    return
+  fi
+
+  printf '%s' "$state_dir/.phase"
+}
+
+hook_get_phase_gate_marker() {
+  local state_dir
+  state_dir="$(hook_get_state_dir)"
+
+  if [[ -f "$state_dir/.require-phase-gate" ]]; then
+    printf '%s' "$state_dir/.require-phase-gate"
+    return
+  fi
+
+  if [[ -f ".claude/.require-phase-gate" ]]; then
+    printf '%s' ".claude/.require-phase-gate"
+    return
+  fi
+
+  if [[ -f ".codex/.require-phase-gate" ]]; then
+    printf '%s' ".codex/.require-phase-gate"
+    return
+  fi
+
+  printf '%s' "$state_dir/.require-phase-gate"
+}

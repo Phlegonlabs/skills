@@ -1,7 +1,7 @@
 #!/bin/bash
 # Plan Gate — PreToolUse on Edit|Write
 # Prevents implementation writes during planning / annotation phases.
-# Default mode: warn only. Enforcement mode: block when marker exists.
+# Blocks by default when phase constraints are violated.
 
 set -euo pipefail
 
@@ -9,8 +9,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=/dev/null
 . "$SCRIPT_DIR/hook-input.sh"
 
-PHASE_FILE=".claude/.phase"
-ENFORCE_MARKER=".claude/.require-phase-gate"
+PHASE_FILE="$(hook_get_phase_file)"
+ENFORCE_MARKER="$(hook_get_phase_gate_marker)"
 FILE_PATH="$(hook_get_file_path "${1:-}")"
 
 [[ -f "$PHASE_FILE" ]] || exit 0
@@ -34,22 +34,19 @@ is_allowed_for_phase() {
   esac
 }
 
-warn_or_block() {
+block_with_reason() {
   local message="$1"
-  if [[ -f "$ENFORCE_MARKER" ]]; then
-    echo "[PlanGate] $message"
-    echo "  Enforcement marker: $ENFORCE_MARKER"
-    exit 2
-  fi
   echo "[PlanGate] $message"
-  echo "  Warning-only mode. Create $ENFORCE_MARKER to enforce blocking."
+  echo "  Phase gate is enforced by default."
+  echo "  Marker path: $ENFORCE_MARKER"
+  exit 2
 }
 
 if [[ -n "$FILE_PATH" ]] && ! is_allowed_for_phase "$PHASE" "$FILE_PATH"; then
   if [[ "$PHASE" == "plan" ]]; then
-    warn_or_block "Plan not approved yet. Finish planning before implementing. Target: $FILE_PATH"
+    block_with_reason "Plan not approved yet. Finish planning before implementing. Target: $FILE_PATH"
   elif [[ "$PHASE" == "annotate" ]]; then
-    warn_or_block "Annotation cycle in progress. Address notes before implementing. Target: $FILE_PATH"
+    block_with_reason "Annotation cycle in progress. Address notes before implementing. Target: $FILE_PATH"
   fi
 fi
 

@@ -143,11 +143,11 @@ After review:
 
 **Step 1 — Auto-install/update hooks (mandatory):**
 
-Check if `.claude/hooks/` already exists in the project. Run the hook installer regardless
-(it will merge/update existing hooks):
+Check if `.claude/hooks/` or `.codex/hooks/` already exists in the project. Run the hook installer regardless
+(it will merge/update existing hooks on both platforms):
 
 ```bash
-bash <skill-root>/scripts/setup-hooks.sh --pm <detected-pm> --project-dir <project-dir>
+bash <skill-root>/scripts/setup-hooks.sh --pm <detected-pm> --project-dir <project-dir> --platform both
 ```
 
 Detect the package manager from the project (check for `bun.lock` → bun, `pnpm-lock.yaml` → pnpm,
@@ -155,7 +155,7 @@ Detect the package manager from the project (check for `bun.lock` → bun, `pnpm
 
 **Step 2 — Tell the user:**
 1. The docs have been updated
-2. Hooks have been installed/updated in `.claude/hooks/`
+2. Hooks have been installed/updated in both `.claude/hooks/` and `.codex/hooks/`
 3. Summarize what was changed (new/modified milestones, updated architecture sections, etc.)
 4. Suggest they review the changes in `docs/architecture.md` and `docs/plans.md`
 5. Mention they can adjust the new milestones before starting execution

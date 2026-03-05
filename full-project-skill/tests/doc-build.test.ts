@@ -78,7 +78,7 @@ describe("Source partial completeness", () => {
       const orderAbs = join(sourceDirAbs, target.orderFile);
       const partials = parseAssemblyOrder(readFileSync(orderAbs, "utf-8"));
       const listed = new Set(partials);
-      const allPartials = readdirSync(sourceDirAbs).filter((name) => name.endsWith(".partial.md"));
+      const allPartials = readdirSync(sourceDirAbs).filter((name: string) => name.endsWith(".partial.md"));
 
       for (const partial of allPartials) {
         expect(listed.has(partial)).toBe(true);

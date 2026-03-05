@@ -3,10 +3,10 @@
 # Supports Claude Code and Codex CLI platforms.
 #
 # Usage:
-#   ./scripts/setup-hooks.sh [--pm <package-manager>] [--project-dir <path>] [--platform <claude|codex>] [--dry-run] [--backup] [--replace]
+#   ./scripts/setup-hooks.sh [--pm <package-manager>] [--project-dir <path>] [--platform <claude|codex|both>] [--dry-run] [--backup] [--replace]
 #
 # Actions:
-# 1) Read the appropriate settings template for the target platform
+# 1) Read the appropriate settings template for the target platform(s)
 # 2) Strip metadata keys and substitute {{PM}}
 # 3) Write/merge hooks into <project-dir>/.<platform>/settings.json
 # 4) Copy assets/hooks/*.sh into <project-dir>/.<platform>/hooks and chmod +x
@@ -20,7 +20,7 @@ HOOK_ASSETS_DIR="$SKILL_ROOT/assets/hooks"
 # Defaults
 PM="bun"
 PROJECT_DIR="$(pwd)"
-PLATFORM="claude"
+PLATFORM="both"
 DRY_RUN=false
 BACKUP=false
 REPLACE=false
@@ -39,7 +39,7 @@ resolve_template() {
     claude) echo "$HOOK_ASSETS_DIR/settings.template.json" ;;
     codex)  echo "$HOOK_ASSETS_DIR/settings.template.codex.json" ;;
     *)
-      echo "Error: Unknown platform '$platform'. Supported: claude, codex" >&2
+      echo "Error: Unknown platform '$platform'. Supported: claude, codex, both" >&2
       exit 1
       ;;
   esac
@@ -107,6 +107,98 @@ install_hook_scripts() {
   echo "$copied_count"
 }
 
+resolve_platforms() {
+  local platform="$1"
+  case "$platform" in
+    claude|codex) echo "$platform" ;;
+    both) echo "claude codex" ;;
+    *)
+      echo "Error: Unknown platform '$platform'. Supported: claude, codex, both" >&2
+      exit 1
+      ;;
+  esac
+}
+
+install_for_platform() {
+  local platform="$1"
+  local template config_dir settings_file hooks_dir hooks_json local_runtime copied_count
+
+  template="$(resolve_template "$platform")"
+  if [[ ! -f "$template" ]]; then
+    echo "Error: Template not found at $template"
+    exit 1
+  fi
+
+  hooks_json="$(generate_hooks_json "$template")"
+  config_dir="$(resolve_config_dir "$platform" "$PROJECT_DIR")"
+  settings_file="$config_dir/settings.json"
+  hooks_dir="$config_dir/hooks"
+
+  if [[ "$DRY_RUN" == true ]]; then
+    echo "Platform: $platform"
+    echo "Generated hooks configuration (dry run):"
+    echo "$hooks_json"
+    echo ""
+    echo "Hook scripts to install:"
+    ls -1 "$HOOK_ASSETS_DIR"/*.sh 2>/dev/null | sed "s|$HOOK_ASSETS_DIR/|  - |" || true
+    echo ""
+    return
+  fi
+
+  mkdir -p "$config_dir"
+
+  if [[ -f "$settings_file" ]]; then
+    if [[ "$BACKUP" == true ]]; then
+      cp "$settings_file" "$settings_file.bak"
+      echo "Backup created: $settings_file.bak"
+    fi
+
+    local_runtime="$(pick_runtime)"
+    if [[ "$REPLACE" == true ]]; then
+      "$local_runtime" -e "
+        const fs = require('fs');
+        const existing = JSON.parse(fs.readFileSync('$settings_file', 'utf8'));
+        const hooks = JSON.parse(process.argv[1]);
+        existing.hooks = hooks;
+        fs.writeFileSync('$settings_file', JSON.stringify(existing, null, 2) + '\n');
+        console.log('Replaced hooks in existing $settings_file');
+      " "$hooks_json"
+    else
+      "$local_runtime" -e "
+        const fs = require('fs');
+        const existing = JSON.parse(fs.readFileSync('$settings_file', 'utf8'));
+        const hooks = JSON.parse(process.argv[1]);
+        existing.hooks = { ...existing.hooks, ...hooks };
+        fs.writeFileSync('$settings_file', JSON.stringify(existing, null, 2) + '\n');
+        console.log('Merged hooks into existing $settings_file');
+      " "$hooks_json"
+    fi
+  else
+    if command -v python3 >/dev/null 2>&1; then
+      echo "{\"hooks\": $hooks_json}" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+print(json.dumps(data, indent=2))
+" > "$settings_file"
+    else
+      echo "{\"hooks\": $hooks_json}" > "$settings_file"
+    fi
+    echo "Created $settings_file with hooks"
+  fi
+
+  copied_count="$(install_hook_scripts "$hooks_dir")"
+
+  echo ""
+  echo "Hooks installed successfully! (platform: $platform)"
+  echo "  - settings: $settings_file"
+  echo "  - scripts:  $hooks_dir ($copied_count files)"
+  echo ""
+  echo "To verify:"
+  echo "  cat $settings_file"
+  echo "  ls -la $hooks_dir"
+  echo ""
+}
+
 # Parse args
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -117,10 +209,11 @@ while [[ $# -gt 0 ]]; do
     --backup) BACKUP=true; shift ;;
     --replace) REPLACE=true; shift ;;
     -h|--help)
-      echo "Usage: setup-hooks.sh [--pm <package-manager>] [--project-dir <path>] [--platform <claude|codex>] [--dry-run] [--backup] [--replace]"
+      echo "Usage: setup-hooks.sh [--pm <package-manager>] [--project-dir <path>] [--platform <claude|codex|both>] [--dry-run] [--backup] [--replace]"
       echo ""
       echo "Platforms:"
-      echo "  claude  — Claude Code (default)"
+      echo "  both    — Install for Claude Code and Codex CLI (default)"
+      echo "  claude  — Claude Code only"
       echo "  codex   — Codex CLI"
       exit 0
       ;;
@@ -131,80 +224,12 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-TEMPLATE="$(resolve_template "$PLATFORM")"
-
-if [[ ! -f "$TEMPLATE" ]]; then
-  echo "Error: Template not found at $TEMPLATE"
-  exit 1
-fi
-
 if [[ ! -d "$HOOK_ASSETS_DIR" ]]; then
   echo "Error: Hook assets directory not found at $HOOK_ASSETS_DIR"
   exit 1
 fi
 
-HOOKS_JSON="$(generate_hooks_json "$TEMPLATE")"
-CONFIG_DIR="$(resolve_config_dir "$PLATFORM" "$PROJECT_DIR")"
-SETTINGS_FILE="$CONFIG_DIR/settings.json"
-HOOKS_DIR="$CONFIG_DIR/hooks"
-
-if [[ "$DRY_RUN" == true ]]; then
-  echo "Platform: $PLATFORM"
-  echo "Generated hooks configuration (dry run):"
-  echo "$HOOKS_JSON"
-  echo ""
-  echo "Hook scripts to install:"
-  ls -1 "$HOOK_ASSETS_DIR"/*.sh 2>/dev/null | sed "s|$HOOK_ASSETS_DIR/|  - |" || true
-  exit 0
-fi
-
-mkdir -p "$CONFIG_DIR"
-
-if [[ -f "$SETTINGS_FILE" ]]; then
-  if [[ "$BACKUP" == true ]]; then
-    cp "$SETTINGS_FILE" "$SETTINGS_FILE.bak"
-    echo "Backup created: $SETTINGS_FILE.bak"
-  fi
-  local_runtime="$(pick_runtime)"
-  if [[ "$REPLACE" == true ]]; then
-    "$local_runtime" -e "
-      const fs = require('fs');
-      const existing = JSON.parse(fs.readFileSync('$SETTINGS_FILE', 'utf8'));
-      const hooks = JSON.parse(process.argv[1]);
-      existing.hooks = hooks;
-      fs.writeFileSync('$SETTINGS_FILE', JSON.stringify(existing, null, 2) + '\n');
-      console.log('Replaced hooks in existing $SETTINGS_FILE');
-    " "$HOOKS_JSON"
-  else
-    "$local_runtime" -e "
-      const fs = require('fs');
-      const existing = JSON.parse(fs.readFileSync('$SETTINGS_FILE', 'utf8'));
-      const hooks = JSON.parse(process.argv[1]);
-      existing.hooks = { ...existing.hooks, ...hooks };
-      fs.writeFileSync('$SETTINGS_FILE', JSON.stringify(existing, null, 2) + '\n');
-      console.log('Merged hooks into existing $SETTINGS_FILE');
-    " "$HOOKS_JSON"
-  fi
-else
-  if command -v python3 >/dev/null 2>&1; then
-    echo "{\"hooks\": $HOOKS_JSON}" | python3 -c "
-import json, sys
-data = json.load(sys.stdin)
-print(json.dumps(data, indent=2))
-" > "$SETTINGS_FILE"
-  else
-    echo "{\"hooks\": $HOOKS_JSON}" > "$SETTINGS_FILE"
-  fi
-  echo "Created $SETTINGS_FILE with hooks"
-fi
-
-COPIED_COUNT="$(install_hook_scripts "$HOOKS_DIR")"
-
-echo ""
-echo "Hooks installed successfully! (platform: $PLATFORM)"
-echo "  - settings: $SETTINGS_FILE"
-echo "  - scripts:  $HOOKS_DIR ($COPIED_COUNT files)"
-echo ""
-echo "To verify:"
-echo "  cat $SETTINGS_FILE"
-echo "  ls -la $HOOKS_DIR"
+read -r -a PLATFORMS <<< "$(resolve_platforms "$PLATFORM")"
+for platform in "${PLATFORMS[@]}"; do
+  install_for_platform "$platform"
+done
