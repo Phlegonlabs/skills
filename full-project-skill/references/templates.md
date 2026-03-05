@@ -1,6 +1,6 @@
 # Phase 2: Document Templates
 
-After confirmation, create the `docs/` directory and generate all documents (5 files under `docs/` + `CLAUDE.md` and `AGENT.md` at repo root).
+After confirmation, create the `docs/` directory, `tasks/` directory, and generate all documents (core docs + task tracking files + AI quick references at repo root).
 
 ## File: `docs/architecture.md`
 
@@ -110,9 +110,15 @@ Structure:
 - **API Documentation Rule**: When implementing any third-party integration, use the **Context7 MCP tool**
   to fetch the latest API docs for that service before writing integration code. Do NOT rely on
   training-data knowledge of SDKs/APIs — always fetch current docs via Context7.
+  - If Context7 is unavailable, fall back to WebSearch + WebFetch for official docs.
+  - If official docs still cannot be fetched, ask the user for documentation links.
+  - If links are unavailable, proceed only with best-effort assumptions + explicit caveats, and mark
+    API-doc validation as a required pre-implementation checkpoint.
 
 ### Key Technical Decisions
 {Record important decisions made during the interview, e.g., "chose WebSocket over SSE because..."}
+{For **Standard** and **Complex** tier projects: use `docs/decisions.md` (ADR format) to track
+decisions made during implementation. See `references/decisions-template.md` for the template.}
 
 ## Hard Requirements
 - {Any constraints the user mentioned}
@@ -128,7 +134,11 @@ A repo that contains:
 - `docs/implement.md` — Execution rules
 - `docs/secrets.md` — Secrets & API keys guidance
 - `docs/documentation.md` — User-facing docs
-- `CLAUDE.md` and `AGENT.md` — AI quick reference (kept identical)
+- `docs/design.md` — Design system + page-level design spec
+- `CLAUDE.md` — AI quick reference for Claude Code
+- `AGENTS.md` — AI quick reference for agent runners (different operating focus)
+- `tasks/todo.md` — Execution sub-task tracker
+- `tasks/lessons.md` — Correction-derived prevention rules
 - `.env.example` — Environment variable template (API keys/IDs, no real secrets)
 ```
 
@@ -168,19 +178,24 @@ Scope:
 - Establish folder structure
 
 Sub-tasks:
-- [ ] 1.1 — {Atomic action, e.g., "Initialize project with {pm} init"}
-- [ ] 1.2 — {e.g., "Install and configure linter (ESLint)"}
-- [ ] 1.3 — {e.g., "Install and configure formatter (Prettier)"}
-- [ ] 1.4 — {e.g., "Set up TypeScript config (tsconfig.json)"}
-- [ ] 1.5 — {e.g., "Create folder structure per architecture.md"}
-- [ ] 1.6 — {e.g., "Add test framework and verify with a smoke test"}
-- [ ] 1.7 — {e.g., "Add dev/build/test/lint/typecheck scripts to package.json"}
+- 1.1 — {Atomic action, e.g., "Initialize project with {pm} init"}
+- 1.2 — {e.g., "Install and configure linter (ESLint)"}
+- 1.3 — {e.g., "Install and configure formatter (Prettier)"}
+- 1.4 — {e.g., "Set up TypeScript config (tsconfig.json)"}
+- 1.5 — {e.g., "Create folder structure per architecture.md"}
+- 1.6 — {e.g., "Add test framework and verify with a smoke test"}
+- 1.7 — {e.g., "Add dev/build/test/lint/typecheck scripts to package.json"}
 
 Key files/modules:
 - {list key files}
 
 Acceptance criteria:
 - {list criteria}
+
+Trade-offs considered:
+- {Alternative approach vs chosen approach: why chosen approach wins}
+- {Constraint that ruled out a simpler path}
+{Omit if no meaningful trade-offs for this milestone.}
 
 Verification:
 - {commands to run}
@@ -189,7 +204,6 @@ Verification:
 ...
 
 {Generate milestone count based on the complexity tier assigned during Phase 1:
-- Lite tier: 4-6 milestones
 - Standard tier: 7-10 milestones
 - Complex tier: 10-14 milestones
 Each feature should map to 1-3 milestones depending on complexity.
@@ -199,19 +213,20 @@ For CLI tools: place CLI Foundation (CC) as Milestone 02, right after repo scaff
 The second-to-last milestone should be polish/verification. The LAST milestone is ALWAYS the Production Readiness Gate.}
 
 {Sub-task generation rules:
-- Every milestone MUST have a "Sub-tasks" section with numbered, checkboxed items
+- Every milestone MUST have a "Sub-tasks" section with numbered items (no checkboxes)
 - Each sub-task is ONE atomic action that can be completed and verified independently
-- Use format: "- [ ] N.M — {verb phrase describing a single action}"
+- Use format: "- N.M — {verb phrase describing a single action}"
 - Target 3-8 sub-tasks per milestone depending on milestone scope
 - Sub-tasks should follow a logical implementation order within the milestone
 - Each sub-task should be small enough to complete in a single focused session
+- For milestones with non-obvious implementation choices, document trade-offs considered.
 - Common sub-task patterns per milestone type:
   - UI feature: create component → add styling → wire up state → handle edge states → add tests
   - API/data: define schema/types → implement data layer → add validation → add error handling → add tests
   - Integration: set up client/SDK → implement core integration → add error handling → add tests
   - Polish: audit UX flows → fix edge cases → optimize performance → final verification
-- When a milestone is in progress, check off sub-tasks as they are completed
-- After ALL sub-tasks are checked, mark the milestone itself as complete}
+ - Track sub-task execution progress in `tasks/todo.md` (Current Sprint / Completed)
+ - After all sub-tasks for a milestone are complete in `tasks/todo.md`, mark the milestone itself as complete in `docs/plans.md`}
 
 ### Milestone CC - CLI Foundation [ ] (CLI projects only)
 Set up the CLI entry point, argument parsing, help system, and output formatting infrastructure.
@@ -285,19 +300,19 @@ Scope:
 - Security, performance, and error handling review
 
 Sub-tasks:
-- [ ] PR.1 — Run full verification suite (`{pm} run lint`, `{pm} run typecheck`, `{pm} run test`) — zero failures
-- [ ] PR.2 — Audit for hardcoded values: no hardcoded URLs, ports, API keys, user IDs, or env-specific values in source code
-- [ ] PR.3 — Audit for prototype leftovers: no `// TODO`, no `console.log` debugging, no commented-out code blocks, no `any` types, no `@ts-ignore` without justification
-- [ ] PR.4 — Audit for mock/placeholder data: no mock data in production code paths (only allowed in test files and dev seed scripts)
-- [ ] PR.5 — Verify error handling: every async operation has error handling, every user-facing error has a meaningful message, no empty catch blocks
-- [ ] PR.6 — Verify `{pm} run build` produces a clean production build with no warnings
-- [ ] PR.7 — Verify `{pm} run dev` starts cleanly and all features work end-to-end
-- [ ] PR.8 — Verify all environment variables are documented in `.env.example` and validated at startup
-- [ ] PR.9 — Review file sizes: flag any source file over 300 lines and verify it's justified
-- [ ] PR.10 — Final documentation sync: ensure `docs/documentation.md` accurately reflects the implemented state (setup, commands, structure, troubleshooting)
-- [ ] PR.11 — Dependency security audit: run `{pm} audit` (or equivalent) and remediate high/critical vulnerabilities
-- [ ] PR.12 — (Web/GUI projects) Accessibility check: verify keyboard navigation, ARIA labels on interactive elements, sufficient color contrast
-- [ ] PR.13 — License audit: verify all production dependencies use permissive licenses (MIT/Apache/BSD) compatible with this project's distribution model
+- PR.1 — Run full verification suite (`{pm} run lint`, `{pm} run typecheck`, `{pm} run test`) — zero failures
+- PR.2 — Audit for hardcoded values: no hardcoded URLs, ports, API keys, user IDs, or env-specific values in source code
+- PR.3 — Audit for prototype leftovers: no `// TODO`, no `console.log` debugging, no commented-out code blocks, no `any` types, no `@ts-ignore` without justification
+- PR.4 — Audit for mock/placeholder data: no mock data in production code paths (only allowed in test files and dev seed scripts)
+- PR.5 — Verify error handling: every async operation has error handling, every user-facing error has a meaningful message, no empty catch blocks
+- PR.6 — Verify `{pm} run build` produces a clean production build with no warnings
+- PR.7 — Verify `{pm} run dev` starts cleanly and all features work end-to-end
+- PR.8 — Verify all environment variables are documented in `.env.example` and validated at startup
+- PR.9 — Review file sizes: flag any source file over 500 lines and verify it's justified
+- PR.10 — Final documentation sync: ensure `docs/documentation.md` accurately reflects the implemented state (setup, commands, structure, troubleshooting)
+- PR.11 — Dependency security audit: run `{pm} audit` (or equivalent) and remediate high/critical vulnerabilities
+- PR.12 — (Web/GUI projects) Accessibility check: verify keyboard navigation, ARIA labels on interactive elements, sufficient color contrast
+- PR.13 — License audit: verify all production dependencies use permissive licenses (MIT/Apache/BSD) compatible with this project's distribution model
 
 Key files/modules:
 - All source files
@@ -329,8 +344,10 @@ Verification:
 |------|--------|------------|
 | {risk} | {impact} | {mitigation} |
 
-## Implementation Notes
-{Empty section — will be filled during implementation}
+## Implementation Notes & Lessons Learned
+{Empty section — dual purpose:}
+{1. Record bug fixes, workarounds, and unexpected discoveries during implementation}
+{2. Capture lessons learned that should inform future work (also add to CLAUDE.md "Lessons & Prevention Rules")}
 ```
 
 ## File: `docs/implement.md`
@@ -348,6 +365,8 @@ Structure:
   - **No hardcoded values**: No hardcoded URLs, API keys, port numbers, user IDs, or environment-specific
     values. All configuration must come from environment variables, config files, or constants with clear naming.
   - **No committed secrets**: Never commit real secrets. Use `.env` for local secrets and provide `.env.example` when applicable.
+  - **Gitignore discipline**: Ensure `.gitignore` covers at minimum: `.env`, `node_modules/`,
+    `dist/`, `.DS_Store`. Never commit build artifacts or dependency directories.
   - **No prototype-quality code**: No `// TODO`, no `any` types, no `console.log` debugging leftovers,
     no commented-out code blocks, no placeholder implementations that "work for now."
   - **No mock data in production paths**: Mock/seed data is only acceptable in test files and dev seed scripts,
@@ -375,21 +394,43 @@ Structure:
     - **Error response format** must be standardized: agree on a single error shape
       (e.g., `{ error: string; code: string; details?: unknown }`) used by all endpoints.
       Frontend error handling must expect and parse this shape.
-  - **File size guideline**: Target under **300 lines** for most source files.
-    If a file needs to exceed this for valid reasons (e.g., framework conventions, strongly related logic),
-    keep it well-structured and document why splitting would hurt cohesion.
+  - **Code Quality Red Lines**:
+
+    | Metric | Target | Ceiling (hard limit) | Action when exceeded |
+    |--------|--------|---------------------|----------------------|
+    | File length | ≤ 500 lines | ≤ 800 lines | Must split or justify in plans.md |
+    | Function length | ≤ 25 lines | ≤ 40 lines | Extract helper or refactor |
+    | Nesting depth | ≤ 2 levels | ≤ 3 levels | Use early returns or extract |
+    | Conditional branches per function | ≤ 3 | ≤ 3 | Extract strategy or use lookup |
+
+    - **Target** = the norm you should design for. **Ceiling** = the absolute maximum before the code must be restructured.
+    - If a file legitimately needs to exceed the target (e.g., framework conventions, strongly related logic),
+      keep it well-structured, stay under the ceiling, and document the reason in plans.md.
 
 ## Execution Rules (follow strictly)
 - **Production mindset from Day 1** — every line of code you write should be production-quality from the start.
   Do NOT write "get it working first, clean up later" code. There is no cleanup phase — each milestone's output
   must be deployable as-is. If you catch yourself writing a shortcut, fix it immediately.
 - Treat plans.md as the source of truth
+- **Immutable / Mutable Layers**:
+  - **Immutable** (do NOT modify without informing the user first): `docs/architecture.md` (spec & contracts),
+    `docs/implement.md` (execution rules), test files that encode accepted behavior
+  - **Mutable** (free to modify during implementation): `src/`, config files, `docs/plans.md` (progress tracking),
+    `docs/documentation.md` (kept in sync with reality)
+  - If you need to change an immutable-layer file, **stop and tell the user** what you want to change and why.
+    Only proceed after acknowledgement.
 - If anything is ambiguous, make a reasonable decision and record it in plans.md
 - Follow `docs/secrets.md` for any secrets/API key handling (storage, redaction, output/display)
+- **Claude Code hooks compatibility**: Hook configuration in `.claude/settings.json` relies on Claude Code's
+  hook event system and JSON protocol. It is not compatible with Codex CLI hooks.
 - **Third-party API documentation**: When implementing any third-party integration (payment gateway,
   email provider, OAuth, analytics SDK, etc.), use the **Context7 MCP tool** to fetch the latest API
   docs for that service before writing any code. Do NOT rely on training-data knowledge of third-party
   SDKs — APIs change frequently and outdated implementations are a production risk.
+  - If Context7 is unavailable, fall back to WebSearch + WebFetch for official docs.
+  - If official docs still cannot be fetched, ask the user to provide API documentation links.
+  - If links are still unavailable, proceed with best-effort assumptions + explicit caveats, and
+    require API-doc validation before implementation starts.
 - **Git strategy**: Follow the git workflow chosen in the interview. If unspecified, default to trunk-based development on `main`.
   If branches are used, follow the project's naming convention (commonly: `feature/`, `fix/`, `refactor/`).
 - Implement with small, reviewable commits
@@ -420,14 +461,25 @@ Structure:
   - Never send PII in analytics payloads (document what counts as PII for this project)
   - Respect consent requirements and opt-out signals if applicable
   - Add tests for event payload building / adapter behavior
+- **Code is cheap — rewrite over patch**: When implementation hits a dead end (wrong library,
+  bad architecture, accumulating workarounds), do NOT keep patching. Instead:
+  - **Rewrite trigger**: If a module needs repeated workaround patches or no longer matches the agreed architecture,
+    delete/recreate the module and rewrite it cleanly instead of layering more fixes.
+  1. Revert the failed changes (`git stash` or `git checkout -- .`)
+  2. Record what failed and why in plans.md "Implementation Notes"
+  3. Re-plan the milestone with an alternative approach
+  4. Rewrite the affected module from scratch
+  Patching a fundamentally wrong approach always costs more than a clean rewrite.
+  When fixing bugs: write a failing test first, then delete the broken module and rewrite it —
+  never patch buggy code to make it "work."
 - Work through milestones at the **sub-task** level:
   - Start each milestone by reading its sub-task list
-  - Complete sub-tasks in order — check off each one in plans.md as you finish it
-  - Prefer **1 sub-task = 1 commit** (bundle only truly trivial sub-tasks; record bundling in plans.md)
+  - Complete sub-tasks in order — track each sub-task status in `tasks/todo.md` as you finish it
+  - **1 sub-task = 1 atomic commit** (mandatory; no bundling multiple sub-tasks into one commit)
   - Commit messages: use Conventional Commits; optionally include the milestone in the scope
     (e.g., `feat(milestone-03.2): implement user login API endpoint`)
   - If a sub-task turns out to need a fix after committing, create a separate fix commit — do NOT amend
-- After every milestone (all sub-tasks checked off):
+- After every milestone (all sub-tasks marked complete in `tasks/todo.md`):
   - Run verification commands (lint, typecheck, tests)
   - Fix all failures immediately
   - Add or update tests for the milestone's core behavior
@@ -435,11 +487,32 @@ Structure:
     `any` types, mock data in production paths, or missing error handling. Fix any issues before proceeding.
   - Mark the milestone itself as complete in plans.md
   - Create a milestone-level docs/status commit (e.g., `docs(milestone-{NN}): mark complete — {milestone title}`)
+- **Session Handoff Protocol** (when a session is ending or a new session begins):
+  - **Before ending a session**:
+    1. Check off all completed sub-tasks in `tasks/todo.md`
+    2. For any in-progress sub-task, add a brief status note (what's done, what remains)
+    3. Run verification commands (lint, typecheck, test) and record results
+    4. Note any open questions or decisions needed in plans.md "Implementation Notes"
+    5. Create a WIP commit with a clear message (e.g., `wip(milestone-{NN}): {sub-task} in progress — {status}`)
+  - **Starting a new session**:
+    1. Read `docs/implement.md` — reload execution rules
+    2. Read `docs/plans.md` — identify the current milestone
+    3. Read `tasks/todo.md` — find the active/in-progress sub-task
+    4. Read `docs/architecture.md` sections relevant to the current milestone
+    5. Confirm your understanding of the current state before writing any code
+    6. Do NOT start implementing until you've confirmed where you left off
 - If a bug is discovered:
   - Write a failing test
   - Fix the bug
   - Confirm the test passes
   - Record a note in plans.md under "Implementation Notes"
+- **TDD/BDD Workflow**:
+  - **New feature**: Write a failing test first → implement the minimum code to pass → refactor while green.
+    Not every line needs TDD, but every user-facing behavior should have a test before the sub-task is marked done.
+  - **Bug fix**: TDD is **mandatory** — write a failing test that reproduces the bug before writing the fix.
+    The fix is not complete until the test passes.
+  - **Integration tests**: Each milestone that adds a user-facing flow should include at least one integration
+    test covering the happy path end-to-end. Add edge-case integration tests for critical flows.
 
 ## Validation Requirements
 - Maintain the verification checklist in plans.md
@@ -564,95 +637,70 @@ _To be updated as implementation progresses._
 _To be updated as issues are discovered._
 ```
 
-## Files: `CLAUDE.md` + `AGENT.md` (both at project root)
+## File: `docs/design.md`
 
-Generate both files at the repository root with **identical content**:
-- `CLAUDE.md` — For Claude Code (auto-loaded when working in this project)
-- `AGENT.md` — For any other AI coding tool
-
-Both files must always stay in sync — when one is updated, the other should be updated too.
-
-This file should be concise and actionable — it's a quick-reference for the AI, not a full spec.
-The full details live in `docs/architecture.md`.
+Design specification covering both system-level tokens and page-level composition/behavior.
 
 Structure:
 ```markdown
-# {Project Name}
+# {Project Name} Design Spec
 
-{One-sentence description.}
+## Part 1: Design System
 
-## !! Execution Protocol — READ FIRST !!
+### Color System
+- Brand / primary palette
+- Neutral palette
+- Semantic colors (success / warning / error / info)
+- State tokens (hover / active / disabled / focus)
 
-**Every time you read this file, start your response with: "Context loaded."**
-Then list which docs you read (to confirm you have loaded project context).
+### Typography
+- Font families (primary, secondary, monospace if needed)
+- Type scale (display, h1-h6, body, caption)
+- Font weights and line-height rules
 
-**Before starting ANY implementation work, you MUST read all docs below — no skipping:**
+### Spacing System
+- Base spacing unit
+- Spacing scale tokens
+- Layout spacing conventions (section gap, card padding, grid gutters)
 
-1. Read `docs/implement.md` — contains non-negotiable execution rules
-2. Read `docs/plans.md` — find the current milestone to work on
-3. Read `docs/architecture.md` — understand the full project context
-If the project uses secrets/integrations or issues API keys, also read `docs/secrets.md`.
+### Component Design Rules
+- Buttons: variants / sizes / states
+- Inputs: variants / sizes / states / validation visuals
+- Navigation: variants / responsive behavior
+- Feedback components: toast / modal / banner states
+- Any domain-specific reusable components
 
-**After reading all docs, confirm by listing which docs you read.** Do NOT proceed to implementation
-until all relevant docs are loaded into context.
+## Part 2: Page-Level Design
 
-**Workflow for every task:**
-1. Check `docs/plans.md` for the next unchecked milestone
-2. Follow `docs/implement.md` rules strictly while implementing
-3. After completing a milestone:
-   - Run verification (lint, typecheck, test), fix all failures
-   - Production spot-check: no TODOs, no console.log, no `any` types, no mock data in prod paths
-   - Update `docs/plans.md` — check off the milestone, add implementation notes
-   - Update `docs/documentation.md` — keep status, setup instructions, and repo structure in sync with reality
-   - Commit with a clear message referencing the milestone
-4. Move to the next milestone — do NOT stop to ask unless truly blocked
-5. The final milestone (Production Readiness Gate) is MANDATORY — do NOT skip it. The project is not
-   done until production-readiness is verified.
+### Page: {Page Name}
+- Purpose
+- Layout description (regions, hierarchy, responsive behavior)
+- Component arrangement (major sections and key component relationships)
+- Interaction behavior (primary actions, transitions, loading/empty/error handling)
+- State changes (default, hover/focus, loading, success, failure)
+- ASCII wireframe:
+  +--------------------------------------------------+
+  | Header                                           |
+  +----------------------+---------------------------+
+  | Sidebar              | Main content              |
+  | - nav item           | - section A               |
+  | - nav item           | - section B               |
+  +----------------------+---------------------------+
 
-**NEVER skip reading `docs/implement.md` before executing. It contains critical rules about
-verification, testing, commit discipline, and bug handling that must be followed at all times.**
-
-## Key Docs
-- `docs/implement.md` — **Execution rules (MUST read before any implementation)**
-- `docs/plans.md` — Milestones and execution progress (update after each milestone)
-- `docs/architecture.md` — Project background, user journeys, components, product spec, technical architecture
-- `docs/secrets.md` — Secrets & API keys guidance
-- `docs/documentation.md` — User-facing docs (keep in sync with reality)
-
-## Tech Stack
-- {Runtime}: {e.g., Bun}
-- {Framework}: {e.g., React + Vite}
-- {Styling}: {e.g., Tailwind CSS}
-- {Database}: {e.g., PostgreSQL + Drizzle} (if applicable)
-- {Testing}: {e.g., bun test + Vitest}
-
-## Commands
-- `{pm} run dev` — Start dev server
-- `{pm} run build` — Production build
-- `{pm} run test` — Run tests
-- `{pm} run lint` — Lint
-- `{pm} run typecheck` — Type check
-
-## Project Structure
-{Brief directory layout, e.g.:}
-- `src/` — Application source
-- `src/components/` — Reusable UI components
-- `src/pages/` — Page-level components / routes
-- `docs/` — Project documentation
-
-## Coding Conventions
-- {Key conventions derived from the interview and tech stack choices}
-- {e.g., "Use server components by default, client components only when needed"}
-- {e.g., "All API routes return typed responses using shared types from src/types/"}
-- {e.g., "Components are colocated with their tests: Button.tsx + Button.test.tsx"}
-- When implementing third-party integrations, use Context7 MCP to fetch latest API docs first
-
-## Current Status
-See `docs/plans.md` for milestone progress.
+{Repeat for each page/screen in scope}
 ```
 
-Important rules for CLAUDE.md / AGENT.md:
-- Keep it under 120 lines — it's loaded into context every conversation, so brevity matters
-- Focus on what the agent needs to KNOW to work correctly, not on explaining the project to humans
-- Commands and structure should be accurate and runnable
-- Update both files together as the project evolves (e.g., new commands, changed structure)
+## File: `CLAUDE.md` (project root)
+
+Assemble from `references/partials/`.
+See ordering and conditional rules in `references/partials/_assembly-order.md`.
+
+## File: `AGENTS.md` (project root)
+
+Assemble from `references/partials-agents/`.
+See ordering and conditional rules in `references/partials-agents/_assembly-order.md`.
+
+Implementation notes:
+- `CLAUDE.md` and `AGENTS.md` are intentionally different.
+- Keep both concise and operational.
+- Reflect command and structure changes in both templates when the project evolves.

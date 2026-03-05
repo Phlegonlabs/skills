@@ -1,0 +1,78 @@
+{
+  "version": "workflow-map.v1",
+  "modeDetection": {
+    "updateModeDocs": ["docs/architecture.md", "docs/plans.md"],
+    "corruptedStatePolicy": "if_only_one_required_doc_exists_ask_user_overwrite_or_partial_update"
+  },
+  "tiers": {
+    "standard": {
+      "isDefault": true,
+      "targetQuestions": 15,
+      "baseRoundRange": [9, 13],
+      "followUpCap": 8,
+      "milestoneRange": [7, 10],
+      "reviewAgents": ["agent-2", "agent-3", "codex-review"]
+    },
+    "complex": {
+      "isDefault": false,
+      "targetQuestions": 28,
+      "baseRoundRange": [11, 16],
+      "followUpCap": 20,
+      "milestoneRange": [10, 14],
+      "reviewAgents": ["agent-1", "agent-2", "agent-3", "codex-review", "agent-2-post-codex", "agent-3-post-codex", "agent-2-recheck", "agent-3-recheck"]
+    }
+  },
+  "initPhaseOrder": [
+    "phase-1-interactive-interview",
+    "phase-2-generate-documentation",
+    "phase-2.5-multi-agent-documentation-review",
+    "phase-2.6-cross-model-review",
+    "phase-2.7-user-annotation-review",
+    "phase-3-next-steps"
+  ],
+  "updatePhaseOrder": [
+    "update-phase-1-context-loading",
+    "update-phase-1.5-update-type-classification",
+    "update-phase-2-update-interview",
+    "update-phase-3-update-documentation",
+    "update-phase-3.5-documentation-review",
+    "update-phase-3.7-user-annotation-review",
+    "update-phase-4-next-steps"
+  ],
+  "updateTypes": {
+    "new_feature": {
+      "roundRange": [3, 8],
+      "followUpCapRange": [8, 15]
+    },
+    "bug_fix": {
+      "roundRange": [1, 3],
+      "followUpCapRange": [5, 5]
+    },
+    "change": {
+      "roundRange": [2, 5],
+      "followUpCapRange": [8, 8]
+    }
+  },
+  "generatedDocuments": [
+    "docs/architecture.md",
+    "docs/plans.md",
+    "docs/implement.md",
+    "docs/secrets.md",
+    "docs/documentation.md",
+    "docs/design.md",
+    "tasks/todo.md",
+    "tasks/lessons.md",
+    "CLAUDE.md",
+    "AGENTS.md"
+  ],
+  "conditionalDocuments": [
+    {
+      "path": "docs/decisions.md",
+      "condition": "standard_or_complex_tier"
+    }
+  ],
+  "productionReadinessGate": {
+    "milestoneKey": "milestone-pr",
+    "mustBeFinalMilestone": true
+  }
+}

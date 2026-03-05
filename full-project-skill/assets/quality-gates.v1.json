@@ -1,0 +1,55 @@
+{
+  "version": "quality-gates.v1",
+  "requiredReferenceFiles": [
+    "references/interview.md",
+    "references/templates.md",
+    "references/review.md",
+    "references/decisions-template.md",
+    "references/agents-template.md",
+    "references/task-templates.md",
+    "references/tech-components.md"
+  ],
+  "requiredSkillSections": [
+    "## Mode Detection",
+    "## Complexity Tiers",
+    "### Phase 1: Interactive Interview",
+    "### Phase 2: Generate Documentation",
+    "### Phase 2.5: Multi-Agent Documentation Review",
+    "### Phase 2.6: Cross-Model Review (Mandatory)",
+    "### Phase 2.7: User Annotation Review",
+    "## Update Mode (modifying an existing project)",
+    "## Engineering Layer",
+    "### Quality Gates"
+  ],
+  "requiredPhrases": [
+    "Init mode",
+    "Update mode",
+    "Production Readiness Gate",
+    "docs/architecture.md",
+    "docs/plans.md",
+    "Codebase Pattern Scan"
+  ],
+  "requiredGeneratedDocs": [
+    "docs/architecture.md",
+    "docs/plans.md",
+    "docs/implement.md",
+    "docs/secrets.md",
+    "docs/documentation.md",
+    "docs/design.md",
+    "tasks/todo.md",
+    "tasks/lessons.md",
+    "CLAUDE.md",
+    "AGENTS.md"
+  ],
+  "conditionalGeneratedDocs": [
+    {
+      "path": "docs/decisions.md",
+      "condition": "standard_or_complex_tier"
+    }
+  ],
+  "requiredChecks": [
+    "bun run contract:check",
+    "bun run typecheck",
+    "bun run test"
+  ]
+}

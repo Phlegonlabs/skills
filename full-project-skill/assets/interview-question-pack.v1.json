@@ -1,0 +1,61 @@
+{
+  "version": "interview-question-pack.v1",
+  "init": {
+    "minRoundsByTier": {
+      "standard": 9,
+      "complex": 11
+    },
+    "rounds": [
+      {
+        "id": "2.5",
+        "title": "Market research snapshot (similar projects & references)",
+        "bucket": "research",
+        "required": true
+      },
+      {
+        "id": "2.7",
+        "title": "Project intro & candidate core flow draft",
+        "bucket": "research",
+        "required": true
+      },
+      {
+        "id": "2.8",
+        "title": "Design direction (product architecture + visual style)",
+        "bucket": "research",
+        "required": true
+      },
+      { "id": "R1", "title": "User roles & personas", "bucket": "journeys", "required": true },
+      { "id": "R2", "title": "Primary user journey", "bucket": "journeys", "required": true },
+      { "id": "R3", "title": "Secondary user journeys", "bucket": "journeys", "required": true },
+      { "id": "R4", "title": "Journey edge cases & transitions", "bucket": "journeys", "required": true },
+      { "id": "R5", "title": "Journey validation & gaps", "bucket": "journeys", "required": true },
+      { "id": "R6", "title": "Page/screen inventory", "bucket": "components", "required": true },
+      { "id": "R7", "title": "Component deep-dive", "bucket": "components", "required": true },
+      { "id": "R8", "title": "Data flow & relationships", "bucket": "components", "required": true },
+      { "id": "R9", "title": "State management & persistence", "bucket": "components", "required": true },
+      { "id": "R10", "title": "Third-party integrations & secrets", "bucket": "architecture", "required": true },
+      { "id": "R10.3", "title": "Non-functional requirements", "bucket": "architecture", "required": true },
+      { "id": "R10.5", "title": "Testing & development workflow", "bucket": "architecture", "required": true },
+      { "id": "R10.7", "title": "Tech stack finalization", "bucket": "architecture", "required": true },
+      { "id": "R11", "title": "UI component & styling approach", "bucket": "ui", "required": false },
+      { "id": "R11M", "title": "Navigation & gesture design", "bucket": "mobile", "required": false },
+      { "id": "R12M", "title": "Platform-specific behavior", "bucket": "mobile", "required": false },
+      { "id": "R13M", "title": "Offline & performance", "bucket": "mobile", "required": false },
+      { "id": "11C", "title": "CLI command structure", "bucket": "cli", "required": false },
+      { "id": "12C", "title": "CLI output formatting", "bucket": "cli", "required": false },
+      { "id": "13C", "title": "CLI error handling & conventions", "bucket": "cli", "required": false },
+      { "id": "R14", "title": "Deployment platform & infrastructure", "bucket": "deployment", "required": true }
+    ]
+  },
+  "update": {
+    "new_feature": ["F0", "F1", "F2", "F3", "F4", "F4.5", "F5", "F6", "F7", "F8"],
+    "bug_fix": ["B1", "B2", "B3"],
+    "change": ["C1", "C2", "C3", "C4", "C5"]
+  },
+  "rules": {
+    "maxQuestionsPerRound": 2,
+    "followUpRoundFormat": "Round RN.X",
+    "techStackLockRound": "R10.7",
+    "userPreferencesCheckRound": "R10.7"
+  }
+}

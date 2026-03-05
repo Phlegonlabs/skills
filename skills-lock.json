@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "skills": {
+    "project-long-task": {
+      "source": "Phlegonlabs/skills",
+      "sourceType": "github",
+      "computedHash": "9fd565a7433c259835f0ed3a59a3035ffb52732011afdb4798791cebaed26832"
+    }
+  }
+}
