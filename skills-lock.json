@@ -1,10 +1,4 @@
 {
   "version": 1,
-  "skills": {
-    "full-project-skill": {
-      "source": "Phlegonlabs/skills",
-      "sourceType": "github",
-      "computedHash": "768c5a5c2bd2c98718278398c6602b88511d7556caad9c771c976cf432fbc1f7"
-    }
-  }
+  "skills": {}
 }
