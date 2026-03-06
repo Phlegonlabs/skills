@@ -16,6 +16,7 @@ npx skills add Phlegonlabs/skills
 | [project-convert](https://skills.sh/Phlegonlabs/skills/project-convert) | Convert an existing codebase into the structured long-running workflow (self-contained skill package) |
 | [project-update](https://skills.sh/Phlegonlabs/skills/project-update) | Update an already-initialized long-running project with milestone-driven docs and execution rules (self-contained skill package) |
 | [full-project-skill](https://skills.sh/Phlegonlabs/skills/full-project-skill) | Legacy all-in-one workflow (kept for backward compatibility) |
+| [anicenttwo-proj-init](https://skills.sh/Phlegonlabs/skills/anicenttwo-proj-init) | Cross-agent project scaffolding, migration, and AI workflow repair for Claude and Codex |
 
 ## Notes
 
