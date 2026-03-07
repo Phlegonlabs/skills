@@ -1,0 +1,47 @@
+id: milestone
+required:
+  - id
+  - capability
+  - goal
+  - depends_on
+  - parallel_policy
+  - acceptance_criteria
+  - validation_commands
+  - done_when
+  - failure_policy
+  - demo_flow
+  - exit_validation
+  - execution_context
+  - tasks
+  - status
+field_types:
+  id: "string, unique across milestones"
+  capability: "string, short name for the capability this milestone delivers"
+  goal: "string, testable capability description"
+  depends_on: "list[string], milestone IDs that must complete first"
+  parallel_policy: "enum: sequential, parallel-safe"
+  acceptance_criteria: "list[string], conditions that must be true when milestone is done"
+  validation_commands: "list[string], shell commands to verify the milestone"
+  done_when: "string, single sentence describing the done condition"
+  failure_policy: "enum: block-next, retry-once, manual-review"
+  demo_flow: "string, how to demonstrate the capability to a user"
+  exit_validation: "string, profile name from validation/profiles.yaml"
+  execution_context: "enum: milestone-worktree, branch-only"
+  worktree_ref: "optional string, canonical worktree path when execution_context=milestone-worktree"
+  branch_ref: "optional string, canonical branch name for the milestone"
+  tasks: "list[string], task IDs belonging to this milestone"
+  status: "enum: pending, ready, in_progress, blocked, complete"
+  source: "optional enum: original, follow_up"
+  introduced_in_revision: "optional integer, first plan.change_log.revision that introduced this milestone"
+status: [pending, ready, in_progress, blocked, complete]
+gates:
+  - capability-not-filetype
+  - milestone-tasks-reference-top-level-task-ids
+  - milestone-exit-validation-required
+  - milestone-stop-and-fix
+notes:
+  - explicit user-driven additions are appended as follow_up milestones, never merged into historical completed milestones
+  - automatic execution is still commit-granular at the task level; milestone runners chain task commits rather than batching one commit per milestone
+use:
+  - harnass-os/documents/plans/<slug>.yaml
+  - harnass-os/documents/validation/profiles.yaml

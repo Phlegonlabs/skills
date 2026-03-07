@@ -1,0 +1,121 @@
+id: bootstrap-shape
+version:
+  spec_version: 0.7.0
+  canonical_source: ../shared/contracts/target-documents-layout.yaml
+  template_manifest: ../shared/templates/target-repo/manifest.yaml
+bootstrap_engine: ../../scripts/bootstrap_target_repo.py
+default_overwrite_policy: create-or-merge
+default_report_path: harnass-os/documents/runs/history/bootstrap-<mode>.yaml
+root_files:
+  - AGENTS.md
+  - CLAUDE.md
+  - Plan.md
+  - Implement.md
+  - Deploy.md
+  - Audit.md
+  - Documentation.md
+dirs:
+  - harnass-os/documents/design
+  - harnass-os/documents/routes
+  - harnass-os/documents/intake
+  - harnass-os/documents/intake/change-requests
+  - harnass-os/documents/intake/re-plan-requests
+  - harnass-os/documents/inventory
+  - harnass-os/documents/plans
+  - harnass-os/documents/runtime
+  - harnass-os/documents/release
+  - harnass-os/documents/audit
+  - harnass-os/documents/audit/browser
+  - harnass-os/documents/audit/browser/history
+  - harnass-os/documents/audit/history
+  - harnass-os/documents/audit/findings
+  - harnass-os/documents/runs
+  - harnass-os/documents/runs/history
+  - harnass-os/documents/scenarios
+  - harnass-os/documents/status
+  - harnass-os/documents/orchestrator
+  - harnass-os/documents/handoffs
+  - harnass-os/documents/decisions
+  - harnass-os/documents/deploy
+  - harnass-os/documents/validation
+  - harnass-os/documents/validation/history
+  - harnass-os/documents/waivers
+  - harnass-os/hooks
+  - harnass-os/scripts
+route_files:
+  - harnass-os/documents/routes/router.yaml
+  - harnass-os/documents/routes/load-order.yaml
+seed_files:
+  - harnass-os/AGENTS.md
+  - harnass-os/CLAUDE.md
+  - harnass-os/Plan.md
+  - harnass-os/Implement.md
+  - harnass-os/Deploy.md
+  - harnass-os/Audit.md
+  - harnass-os/Documentation.md
+  - harnass-os/documents/intake/request.yaml
+  - harnass-os/documents/intake/change-requests/current.yaml
+  - harnass-os/documents/intake/re-plan-requests/current.yaml
+  - harnass-os/documents/design/wireframe.md
+  - harnass-os/documents/design/design.md
+  - harnass-os/documents/inventory/current-state.yaml
+  - harnass-os/documents/runtime/cloudflare.yaml
+  - harnass-os/documents/release/current.yaml
+  - harnass-os/documents/audit/current.yaml
+  - harnass-os/documents/audit/browser/current.yaml
+  - harnass-os/documents/runs/current.yaml
+  - harnass-os/documents/status/current.yaml
+  - harnass-os/documents/orchestrator/current.yaml
+  - harnass-os/documents/decisions/index.yaml
+  - harnass-os/documents/decisions/adr-template.md
+  - harnass-os/documents/validation/design-review.yaml
+  - harnass-os/documents/validation/profiles.yaml
+  - harnass-os/documents/deploy/current.yaml
+  - harnass-os/scripts/harnass_yaml.py
+  - harnass-os/scripts/executor.py
+  - harnass-os/scripts/harnass.py
+guard_files:
+  - harnass-os/hooks/pre-commit or stack-equivalent
+  - harnass-os/hooks/commit-msg or stack-equivalent
+  - harnass-os/hooks/pre-push or stack-equivalent
+  - harnass-os/scripts/harnass_yaml.py or stack-equivalent
+  - harnass-os/scripts/agent-guard.py or stack-equivalent
+  - harnass-os/scripts/orchestrator.py or stack-equivalent
+  - harnass-os/scripts/executor.py or stack-equivalent
+  - harnass-os/scripts/harnass.py or stack-equivalent
+materialize:
+  - template-backed-root-runbooks
+  - template-backed-design-doc-stack
+  - template-backed-route-stack
+  - template-backed-state-stack
+  - template-backed-runtime-stack
+  - template-backed-release-stack
+  - template-backed-audit-stack
+  - template-backed-decisions-stack
+  - template-backed-design-validation-stack
+  - template-backed-deployment-stack
+  - template-backed-hook-stack
+  - template-backed-guard-entry
+use:
+  - ../shared/contracts/target-documents-layout.yaml
+  - ../shared/templates/target-repo/manifest.yaml
+gates:
+  - harnass-os-root-required
+  - root-entrypoints-materialized
+  - canonical-runbooks-materialized
+  - intake-layer-required
+  - re-plan-queue-required
+  - route-stack-required
+  - design-doc-layer-required
+  - state-stack-required
+  - runtime-layer-required
+  - release-layer-required
+  - audit-layer-required
+  - decisions-layer-required
+  - design-validation-layer-required
+  - deployment-layer-required
+  - frontend-design-routing-required-for-ui
+  - hook-stack-required
+  - guard-layer-required
+  - templates-backed-scaffold
+  - placeholders-allowed-inside-templates-only

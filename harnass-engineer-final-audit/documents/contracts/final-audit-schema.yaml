@@ -1,0 +1,64 @@
+id: final-audit
+out: harnass-os/documents/audit/current.yaml
+required:
+  - audit_id
+  - plan_id
+  - release_ref
+  - deploy_ref
+  - target_environment
+  - scope_modules
+  - status
+  - summary
+  - blocking_findings
+  - non_blocking_findings
+  - follow_up_required
+  - executed_checks
+  - manual_checks
+  - skipped_checks
+  - smoke_failures
+  - module_results
+optional:
+  - follow_up_plan_ref
+  - browser_report_ref
+  - started_at
+  - completed_at
+  - duration
+status: [pending, running, failed, passed]
+finding_required:
+  - id
+  - severity
+  - module_id
+  - description
+  - blocking_this_release
+finding_optional:
+  - remediation_steps
+  - affected_surface
+  - reproduction_steps
+finding_field_types:
+  id: "string, unique within the audit"
+  severity: "enum: critical, high, medium, low, info"
+  module_id: "string, references a module from scope_modules"
+  description: "string, what was found"
+  blocking_this_release: "boolean, true if this finding must be resolved before release signoff"
+  remediation_steps: "list[string], suggested fix actions"
+  affected_surface: "string, which part of the app is affected"
+  reproduction_steps: "list[string], how to reproduce the finding"
+module_result_required:
+  - module_id
+  - applicable
+  - smoke_required
+  - smoke_status
+  - deep_audit_status
+  - checks_run
+  - manual_checks
+  - findings
+  - blocking
+  - evidence_refs
+  - browser_evidence_refs
+  - network_assertions
+  - console_assertions
+gates:
+  - post-production-audit-required-for-release-signoff
+  - no-waiver-for-final-audit
+  - failed-audit-requires-remediation-plan
+  - ui-projects-require-browser-audit-evidence

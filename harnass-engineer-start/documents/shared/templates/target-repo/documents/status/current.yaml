@@ -1,0 +1,14 @@
+plan_id: <fill>
+plan_revision: <fill>
+active_run: <fill>
+current_milestone: <fill>
+active_milestone_worktree: <fill>
+active_milestone_branch: <fill>
+active_source_branch: <fill>
+milestone_merge_status: idle
+completed: []
+next: <fill>
+known_issues: []
+follow_ups: []
+decision_notes: []
+deployment_notes: []

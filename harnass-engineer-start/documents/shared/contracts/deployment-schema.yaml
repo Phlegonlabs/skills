@@ -1,0 +1,53 @@
+id: deployment
+out: harnass-os/documents/deploy/current.yaml
+required:
+  - provider
+  - surface
+  - project
+  - runtime_ref
+  - release_ref
+  - post_deploy_audit_required
+  - preview_environment
+  - production_environment
+  - build_command
+  - preview_deploy_command
+  - production_deploy_command
+  - preview_validation
+  - production_validation
+  - smoke_checks
+  - smoke_command_refs
+  - rollback_strategy
+  - rollback_command
+  - status
+status: [draft, preview_ready, preview_validated, preview-passed, preview-failed, production_ready, deployed, production-passed, production-failed, rollback_required]
+gates:
+  - deployment-route-required-before-release
+  - runtime-doc-required-before-release
+  - preview-required-before-production
+  - release-doc-required-before-production
+  - rollback-required-for-production
+  - post-deploy-final-audit-required
+discover:
+  description: >
+    The deploy template includes a discover section with stack-specific detection
+    and auto-fill logic. During planning, the agent reads wrangler.toml and
+    package.json to detect the deployment surface and fills commands accordingly.
+  supported_surfaces:
+    - cloudflare_pages
+    - cloudflare_workers
+    - vercel
+    - vercel_edge
+    - aws_amplify
+    - fly_io
+    - railway
+    - docker
+    - static_site
+  detection_sources:
+    - wrangler.toml
+    - vercel.json
+    - fly.toml
+    - Dockerfile
+    - railway.json
+    - amplify.yml
+    - package.json
+
