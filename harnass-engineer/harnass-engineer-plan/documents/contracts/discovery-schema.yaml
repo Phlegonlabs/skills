@@ -1,0 +1,21 @@
+id: discovery
+cover:
+  - web search for market tech stack validation
+  - frontend framework and runtime
+  - backend services and APIs
+  - app and service entrypoints
+  - package manager and project commands
+  - design system or component patterns
+  - design artifact sources and ui planning requirements
+  - auth and permissions
+  - data and storage
+  - CI or release flow
+  - runtime provider config and bindings
+  - deployment targets
+  - preview, production, and rollback command facts
+  - release process and promotion rules
+  - prior architectural or product decisions
+  - observability and runtime tooling
+  - testing and linting
+write: harnass-os/documents/inventory/current-state.yaml
+source_of_truth: harnass-os/documents/inventory/current-state.yaml once scaffold exists

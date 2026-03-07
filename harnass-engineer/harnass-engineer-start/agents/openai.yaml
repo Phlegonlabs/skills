@@ -1,0 +1,4 @@
+interface:
+  display_name: "Harness Engineer Start"
+  short_description: "Scaffold repo operating systems"
+  default_prompt: "Use $harnass-engineer-start to scaffold or retrofit the repo operating system before planning."

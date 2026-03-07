@@ -1,0 +1,9 @@
+id: run-deploy-first
+steps:
+  - id: detect-missing-production-deploy
+    action: "Output to user that release has not been deployed to production yet — direct to Deploy.md and deploy/current.yaml"
+    verify: "the next action is explicit and references Deploy.md and deploy/current.yaml"
+gates:
+  - no-final-audit-before-production-deploy
+emit:
+  - chat-only-blocker

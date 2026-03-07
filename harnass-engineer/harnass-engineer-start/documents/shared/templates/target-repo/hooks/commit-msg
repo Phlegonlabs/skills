@@ -1,0 +1,9 @@
+#!/bin/sh
+set -eu
+
+# Bootstrap window: skip guard when no plans exist yet
+if [ ! -d "harnass-os/documents/plans" ] || [ -z "$(ls -A harnass-os/documents/plans/ 2>/dev/null)" ]; then
+  exit 0
+fi
+
+python harnass-os/scripts/agent-guard.py check-commit-context "$1"

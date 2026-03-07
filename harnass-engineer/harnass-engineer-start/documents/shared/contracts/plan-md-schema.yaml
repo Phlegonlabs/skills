@@ -1,0 +1,30 @@
+id: plan-md
+out: Plan.md
+sections:
+  - bootstrap_gate
+  - intake_route
+  - discovery_route
+  - question_route
+  - frontend_design_skill_route
+  - design_docs_route
+  - design_validation
+  - decision_route
+  - plan_output
+  - deployment_route
+  - final_audit_route
+  - review_gate
+  - long_run_state
+sequence:
+  - confirm target repo scaffold exists
+  - read intake and inventory sources
+  - discover repo reality before asking the user
+  - capture entrypoints and project commands during discovery
+  - ask only unresolved questions
+  - invoke frontend-design for ui-facing work
+  - create wireframe.md and design.md during planning
+  - define design validation for ui-facing work
+  - record major decisions when design, runtime, or release direction changes
+  - write plan YAML with execution-ready tasks before execution
+  - define deployment route for release-affecting work
+  - require post-production final audit before release signoff
+  - self-review and approve before handoff to implementation

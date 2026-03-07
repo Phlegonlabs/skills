@@ -1,0 +1,12 @@
+request_id: <fill>
+user_goal: <fill>
+project_name: <fill>
+project_idea: <fill>
+app_type: <fill>
+constraints:
+  - <fill>
+requested_changes:
+  - <fill>
+signals:
+  - repo_bootstrap
+initial_horizon: undecided

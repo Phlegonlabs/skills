@@ -1,0 +1,15 @@
+id: wireframe-md
+out: harnass-os/documents/design/wireframe.md
+sections:
+  - context
+  - page_inventory
+  - route_map
+  - key_flows
+  - page_layouts
+  - responsive_notes
+  - open_questions
+sequence:
+  - call frontend-design with intake, inventory, and current stack facts
+  - define low-fidelity page structure before implementation planning
+  - cover primary and blocking alternate flows
+

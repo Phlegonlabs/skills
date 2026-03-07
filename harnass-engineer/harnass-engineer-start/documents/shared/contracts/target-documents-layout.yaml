@@ -1,0 +1,315 @@
+id: target-repo
+summary: Canonical bootstrap-ready target repository shape for both source skills and dist bundles.
+version:
+  spec_version: 0.7.0
+  status: draft
+  applies_to:
+    - harnass-engineer-start
+    - harnass-engineer-plan
+    - harnass-engineer-final-audit
+  changes:
+    - move managed scaffold under harnass-os
+    - keep thin root entrypoint stubs for discovery
+    - materialize hook files and default guard entry inside harnass-os
+    - require worktree and document-sync gates before execution
+    - add design validation as a first-class planning gate
+    - add deployment and Cloudflare release route
+    - add design, runtime, release, and decisions layers
+    - require frontend-design skill routing for ui-facing work
+    - add market_context web search during research phase
+    - add adaptive question depth by task horizon
+    - add milestone-tasks.md tracker generation and updates
+    - add planning and execution visibility directives
+    - add post-task atomic workflow sequence
+    - add post-production final audit route and release signoff gate
+    - split additive follow-up requests from structural re-plan requests
+    - require manual triage for ambiguous routing and manual approval for re-plan execution
+root: .
+os_root: harnass-os
+dirs:
+  - harnass-os/documents/design
+  - harnass-os/documents/routes
+  - harnass-os/documents/intake
+  - harnass-os/documents/intake/change-requests
+  - harnass-os/documents/intake/re-plan-requests
+  - harnass-os/documents/inventory
+  - harnass-os/documents/plans
+  - harnass-os/documents/runtime
+  - harnass-os/documents/release
+  - harnass-os/documents/audit
+  - harnass-os/documents/audit/history
+  - harnass-os/documents/audit/findings
+  - harnass-os/documents/runs
+  - harnass-os/documents/runs/history
+  - harnass-os/documents/scenarios
+  - harnass-os/documents/status
+  - harnass-os/documents/orchestrator
+  - harnass-os/documents/handoffs
+  - harnass-os/documents/deploy
+  - harnass-os/documents/decisions
+  - harnass-os/documents/validation
+  - harnass-os/documents/validation/history
+  - harnass-os/documents/waivers
+  - harnass-os/hooks
+  - harnass-os/scripts
+root_entrypoints:
+  AGENTS.md:
+    purpose: thin repo-root stub that points to the canonical Harnass OS agent entry
+    template: ../templates/target-repo/root-stubs/AGENTS.md
+  CLAUDE.md:
+    purpose: thin repo-root stub that points to the canonical Harnass OS alternate entry
+    template: ../templates/target-repo/root-stubs/CLAUDE.md
+  Plan.md:
+    purpose: thin repo-root stub that points to the canonical Harnass OS planning runbook
+    template: ../templates/target-repo/root-stubs/Plan.md
+    use: ./plan-md-schema.yaml
+  Implement.md:
+    purpose: thin repo-root stub that points to the canonical Harnass OS implementation runbook
+    template: ../templates/target-repo/root-stubs/Implement.md
+    use: ./implement-md-schema.yaml
+  Deploy.md:
+    purpose: thin repo-root stub that points to the canonical Harnass OS deploy runbook
+    template: ../templates/target-repo/root-stubs/Deploy.md
+    use: ./deploy-md-schema.yaml
+  Audit.md:
+    purpose: thin repo-root stub that points to the canonical Harnass OS final audit runbook
+    template: ../templates/target-repo/root-stubs/Audit.md
+    use: ./audit-md-schema.yaml
+  Documentation.md:
+    purpose: thin repo-root stub that points to the canonical Harnass OS documentation runbook
+    template: ../templates/target-repo/root-stubs/Documentation.md
+    use: ./documentation-md-schema.yaml
+canonical_runbooks:
+  AGENTS.md:
+    path: harnass-os/AGENTS.md
+    purpose: canonical repo entry and execution guard summary
+    template: ../templates/target-repo/root/AGENTS.md
+  CLAUDE.md:
+    path: harnass-os/CLAUDE.md
+    purpose: canonical alternate entry with the same route and safety rules
+    template: ../templates/target-repo/root/CLAUDE.md
+  Plan.md:
+    path: harnass-os/Plan.md
+    purpose: canonical planning runbook for intake, discovery, review, and approval
+    template: ../templates/target-repo/root/Plan.md
+    use: ./plan-md-schema.yaml
+  Implement.md:
+    path: harnass-os/Implement.md
+    purpose: canonical execution runbook for approved plan delivery
+    template: ../templates/target-repo/root/Implement.md
+    use: ./implement-md-schema.yaml
+  Deploy.md:
+    path: harnass-os/Deploy.md
+    purpose: canonical preview, production, and rollback runbook
+    template: ../templates/target-repo/root/Deploy.md
+    use: ./deploy-md-schema.yaml
+  Audit.md:
+    path: harnass-os/Audit.md
+    purpose: canonical post-production final audit and release signoff runbook
+    template: ../templates/target-repo/root/Audit.md
+    use: ./audit-md-schema.yaml
+  Documentation.md:
+    path: harnass-os/Documentation.md
+    purpose: canonical status, run log, and handoff update runbook
+    template: ../templates/target-repo/root/Documentation.md
+    use: ./documentation-md-schema.yaml
+route_stack:
+  router:
+    path: harnass-os/documents/routes/router.yaml
+    template: ../templates/target-repo/documents/routes/router.yaml
+  load_order:
+    path: harnass-os/documents/routes/load-order.yaml
+    template: ../templates/target-repo/documents/routes/load-order.yaml
+design_files:
+  wireframe:
+    path: harnass-os/documents/design/wireframe.md
+    template: ../templates/target-repo/documents/design/wireframe.md
+    use: ./wireframe-md-schema.yaml
+  design:
+    path: harnass-os/documents/design/design.md
+    template: ../templates/target-repo/documents/design/design.md
+    use: ./design-md-schema.yaml
+  frontend_design_integration:
+    use: ./frontend-design-skill-schema.yaml
+state_files:
+  intake:
+    path: harnass-os/documents/intake/request.yaml
+    template: ../templates/target-repo/documents/intake/request.yaml
+    use: ./intake-schema.yaml
+  change_request_queue:
+    path: harnass-os/documents/intake/change-requests/current.yaml
+    template: ../templates/target-repo/documents/intake/change-requests/current.yaml
+    use: ./change-request-queue-schema.yaml
+  re_plan_request_queue:
+    path: harnass-os/documents/intake/re-plan-requests/current.yaml
+    template: ../templates/target-repo/documents/intake/re-plan-requests/current.yaml
+    use: ./re-plan-request-queue-schema.yaml
+  inventory:
+    path: harnass-os/documents/inventory/current-state.yaml
+    template: ../templates/target-repo/documents/inventory/current-state.yaml
+    use: ./inventory-schema.yaml
+  run_ledger:
+    path: harnass-os/documents/runs/current.yaml
+    template: ../templates/target-repo/documents/runs/current.yaml
+    use: ./run-ledger-schema.yaml
+  status:
+    path: harnass-os/documents/status/current.yaml
+    template: ../templates/target-repo/documents/status/current.yaml
+    use: ./documentation-log-schema.yaml
+  orchestrator:
+    path: harnass-os/documents/orchestrator/current.yaml
+    template: ../templates/target-repo/documents/orchestrator/current.yaml
+    use: ./orchestrator-state-schema.yaml
+  design_validation:
+    path: harnass-os/documents/validation/design-review.yaml
+    template: ../templates/target-repo/documents/validation/design-review.yaml
+    use: ./design-validation-schema.yaml
+  validation:
+    path: harnass-os/documents/validation/profiles.yaml
+    template: ../templates/target-repo/documents/validation/profiles.yaml
+    use: ./validation-schema.yaml
+  milestone_tasks:
+    path: harnass-os/documents/plans/milestone-tasks.md
+    use: ./milestone-tasks-md-schema.yaml
+    generated_by: orchestrator-plan-projection
+    updated_by: orchestrator-tick
+    optional: true
+  deployment:
+    path: harnass-os/documents/deploy/current.yaml
+    template: ../templates/target-repo/documents/deploy/current.yaml
+    use: ./deployment-schema.yaml
+  waivers:
+    path: harnass-os/documents/waivers/active.yaml
+    template: ../templates/target-repo/documents/waivers/active.yaml
+    use: ./gate-waiver-schema.yaml
+  version_file:
+    path: harnass-os/documents/.harnass-version.yaml
+    template: ../templates/target-repo/documents/.harnass-version.yaml
+    use: ./version-handshake-schema.yaml
+runtime_files:
+  cloudflare:
+    path: harnass-os/documents/runtime/cloudflare.yaml
+    template: ../templates/target-repo/documents/runtime/cloudflare.yaml
+    use: ./runtime-cloudflare-schema.yaml
+release_files:
+  current:
+    path: harnass-os/documents/release/current.yaml
+    template: ../templates/target-repo/documents/release/current.yaml
+    use: ./release-schema.yaml
+audit_files:
+  current:
+    path: harnass-os/documents/audit/current.yaml
+    template: ../templates/target-repo/documents/audit/current.yaml
+    use: ./final-audit-schema.yaml
+decision_files:
+  index:
+    path: harnass-os/documents/decisions/index.yaml
+    template: ../templates/target-repo/documents/decisions/index.yaml
+    use: ./decision-index-schema.yaml
+  adr_template:
+    path: harnass-os/documents/decisions/adr-template.md
+    template: ../templates/target-repo/documents/decisions/adr-template.md
+    use: ./adr-md-schema.yaml
+engineering_stack:
+  hooks:
+    use: ./hook-policy.yaml
+    files:
+      - path: harnass-os/hooks/pre-commit
+        template: ../templates/target-repo/hooks/pre-commit
+      - path: harnass-os/hooks/commit-msg
+        template: ../templates/target-repo/hooks/commit-msg
+      - path: harnass-os/hooks/pre-push
+        template: ../templates/target-repo/hooks/pre-push
+  guard:
+    path: harnass-os/scripts/agent-guard.py
+    template: ../templates/target-repo/scripts/agent-guard.py
+    use: ./agent-guard-schema.yaml
+  yaml_support:
+    path: harnass-os/scripts/harnass_yaml.py
+    template: ../templates/target-repo/scripts/harnass_yaml.py
+    purpose: shared yaml parser and scalar helpers used by guard and orchestrator
+  orchestrator:
+    path: harnass-os/scripts/orchestrator.py
+    template: ../templates/target-repo/scripts/orchestrator.py
+    use: ./orchestrator-state-schema.yaml
+  executor:
+    path: harnass-os/scripts/executor.py
+    template: ../templates/target-repo/scripts/executor.py
+    purpose: hybrid execution runner for task, deploy, and final-audit automation
+  cli:
+    path: harnass-os/scripts/harnass.py
+    template: ../templates/target-repo/scripts/harnass.py
+    purpose: thin wrapper for common guard and orchestrator commands
+  worktree:
+    use: ./worktree-protocol.yaml
+materialization:
+  template_manifest: ../templates/target-repo/manifest.yaml
+  required_generated_files:
+    - AGENTS.md
+    - CLAUDE.md
+    - Plan.md
+    - Implement.md
+    - Deploy.md
+    - Audit.md
+    - Documentation.md
+    - harnass-os/AGENTS.md
+    - harnass-os/CLAUDE.md
+    - harnass-os/Plan.md
+    - harnass-os/Implement.md
+    - harnass-os/Deploy.md
+    - harnass-os/Audit.md
+    - harnass-os/Documentation.md
+    - harnass-os/documents/design/wireframe.md
+    - harnass-os/documents/design/design.md
+    - harnass-os/documents/routes/router.yaml
+    - harnass-os/documents/routes/load-order.yaml
+    - harnass-os/documents/intake/request.yaml
+    - harnass-os/documents/intake/change-requests/current.yaml
+    - harnass-os/documents/intake/re-plan-requests/current.yaml
+    - harnass-os/documents/inventory/current-state.yaml
+    - harnass-os/documents/runtime/cloudflare.yaml
+    - harnass-os/documents/release/current.yaml
+    - harnass-os/documents/audit/current.yaml
+    - harnass-os/documents/runs/current.yaml
+    - harnass-os/documents/status/current.yaml
+    - harnass-os/documents/orchestrator/current.yaml
+    - harnass-os/documents/decisions/index.yaml
+    - harnass-os/documents/decisions/adr-template.md
+    - harnass-os/documents/validation/design-review.yaml
+    - harnass-os/documents/validation/profiles.yaml
+    - harnass-os/documents/deploy/current.yaml
+    - harnass-os/hooks/pre-commit
+    - harnass-os/hooks/commit-msg
+    - harnass-os/hooks/pre-push
+    - harnass-os/scripts/harnass_yaml.py
+    - harnass-os/scripts/agent-guard.py
+    - harnass-os/scripts/orchestrator.py
+    - harnass-os/scripts/executor.py
+    - harnass-os/scripts/harnass.py
+    - harnass-os/documents/.harnass-version.yaml
+    - harnass-os/documents/waivers/active.yaml
+gates:
+  - harnass-os-root-required
+  - root-entrypoints-materialized
+  - canonical-runbooks-materialized
+  - intake-layer-required
+  - re-plan-queue-required
+  - route-stack-required
+  - design-doc-layer-required
+  - state-stack-required
+  - runtime-layer-required
+  - release-layer-required
+  - audit-layer-required
+  - decisions-layer-required
+  - design-validation-layer-required
+  - deployment-layer-required
+  - frontend-design-routing-required-for-ui
+  - hook-stack-required
+  - guard-layer-required
+  - worktree-protocol-required
+  - templates-backed-scaffold
+  - placeholders-allowed-inside-templates-only
+  - release-signoff-after-final-audit
+
+
+

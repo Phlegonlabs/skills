@@ -1,0 +1,50 @@
+id: implementation-plan
+out: harnass-os/documents/plans/<slug>.yaml
+required:
+  - id
+  - intake_ref
+  - goal
+  - current_state_ref
+  - task_horizon
+  - agent_topology
+  - release_affecting
+  - decision_sensitive
+  - user_decisions
+  - milestones
+  - tasks
+  - global_validation
+  - completion_criteria
+  - review
+  - change_log
+  - execution_ready
+  - status
+conditional_required:
+  ui_facing:
+    - design_validation_ref
+    - wireframe_ref
+    - design_ref
+    - frontend_design_skill_required
+  release_affecting:
+    - deployment_ref
+    - runtime_ref
+    - release_ref
+  decision_sensitive:
+    - decision_refs
+status: [draft, in_self_review, approved, in_execution, blocked, complete]
+review_required:
+  - state
+  - reviewer
+  - checklist
+  - blocking_findings
+  - approved_for_execution
+change_log_required:
+  - revision
+  - entries
+execution_ready:
+  - self_review_passed
+  - horizon_confirmed
+  - task_docs_synced
+  - tasks_have_entrypoints
+  - tasks_have_implementation_steps
+  - tasks_have_validation_commands
+

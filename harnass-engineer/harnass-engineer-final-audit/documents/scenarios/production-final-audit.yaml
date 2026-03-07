@@ -1,0 +1,91 @@
+id: production-final-audit
+steps:
+  - id: verify-production-ready
+    action: "Read deploy, release, runtime, status, and current audit state to confirm production deployment exists"
+    tool: Read
+    targets:
+      - harnass-os/documents/deploy/current.yaml
+      - harnass-os/documents/release/current.yaml
+      - harnass-os/documents/runtime/<provider>.yaml
+      - harnass-os/documents/status/current.yaml
+      - harnass-os/documents/audit/current.yaml
+    verify: "production deployment is recorded and post_deploy_audit_required is true"
+
+  - id: inspect-repo-and-surface
+    action: "Inspect repo reality, validation history, integration flows, and deployed surface to identify stack, public pages, APIs, runtime, auth, content, and blockchain footprints"
+    tool: Read
+    verify: "the agent can state which audit modules apply and which do not"
+
+  - id: select-audit-modules
+    action: "Select adaptive audit modules from app type, repo shape, and detected stack"
+    tool: Read
+    schema_ref: ../contracts/module-selection-schema.yaml
+    output: "ordered module list with applicability, smoke_required, and rationale"
+    verify: "non-applicable modules are explicitly skipped"
+
+  - id: run-module-smoke-checks
+    action: "Run smoke checks first for modules that require live-path verification; use chrome-devtools for browser journeys when UI is present"
+    tool: Bash
+    applies_to:
+      - frontend-experience
+      - backend-runtime
+      - api-contract
+      - frontend-backend-integration
+      - seo
+      - performance-observability
+      - deploy-runtime-consistency
+      - blockchain-contract-audit
+    verify: "smoke failures are recorded before deep audit begins"
+
+  - id: run-deep-audit
+    action: "Audit all applicable modules, combining executable checks, validation history evidence, and structured manual review"
+    tool: Read
+    verify: "every applicable module has a status, findings, blocking flag, and evidence refs"
+
+  - id: write-current-audit
+    action: "Write harnass-os/documents/audit/current.yaml with machine-readable status"
+    tool: Edit
+    target: harnass-os/documents/audit/current.yaml
+    verify: "current audit status, modules, smoke_failures, and findings are fully populated"
+
+  - id: append-audit-history
+    action: "Archive the completed audit under harnass-os/documents/audit/history/<audit-id>.yaml"
+    tool: Write
+    verify: "history file exists and references the current audit id"
+
+  - id: write-findings-report
+    action: "Write a human-readable findings report under harnass-os/documents/audit/findings/<audit-id>.md"
+    tool: Write
+    verify: "report includes summary, blocking findings, non-blocking findings, skipped modules, and next steps"
+
+  - id: update-release-signoff
+    action: "Update release and status documents based on the audit result"
+    tool: Edit
+    targets:
+      - harnass-os/documents/release/current.yaml
+      - harnass-os/documents/status/current.yaml
+    fill:
+      when_passed:
+        release.final_audit_ref: harnass-os/documents/audit/current.yaml
+        release.final_audit_status: passed
+        release.status: complete
+      when_failed:
+        release.final_audit_ref: harnass-os/documents/audit/current.yaml
+        release.final_audit_status: failed
+        release.status: audit_failed
+    verify: "release.final_audit_status is set; release status becomes complete only when audit passes"
+
+  - id: route-remediation-when-failed
+    condition: "audit.status == failed"
+    action: "Output remediation requirement to user — name the blocking findings and direct back through planning"
+    verify: "the failure path names the remediation planning requirement and does not waive findings"
+
+gates:
+  - no-waiver-for-final-audit
+  - no-release-signoff-without-final-audit-pass
+  - blockchain-detection-expands-audit-scope
+emit:
+  - harnass-os/documents/audit/current.yaml
+  - harnass-os/documents/audit/history/<audit-id>.yaml
+  - harnass-os/documents/audit/findings/<audit-id>.md
+  - target.release-signoff-updated

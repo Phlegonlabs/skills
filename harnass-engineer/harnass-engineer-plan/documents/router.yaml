@@ -1,0 +1,53 @@
+id: plan
+pick:
+  no-bootstrap-layer: research-read-only-draft
+  bootstrap-ready: research-and-plan
+  incompatible-scaffold-version: warn-and-continue
+load:
+  - ../../harnass-engineer-start/documents/shared/routes/default-sequence.yaml
+  - ./routes/load-discipline.yaml
+  - harnass-os/documents/.harnass-version.yaml
+  - harnass-os/documents/orchestrator/current.yaml
+  - harnass-os/documents/routes/router.yaml
+  - harnass-os/documents/routes/load-order.yaml
+  - harnass-os/documents/validation/profiles.yaml
+scenarios:
+  research-read-only-draft:
+    local:
+      - ./scenarios/research-read-only-draft.yaml
+      - ./contracts/discovery-schema.yaml
+      - ./contracts/question-set.yaml
+  research-and-plan:
+    local:
+      - ./scenarios/research-and-plan.yaml
+      - ./contracts/discovery-schema.yaml
+      - ./contracts/question-set.yaml
+      - ./contracts/plan-schema.yaml
+      - ./contracts/task-schema.yaml
+      - ./contracts/worktree-protocol.yaml
+      - ./contracts/frontend-design-interface.yaml
+      - ./contracts/milestone-schema.yaml
+      - ./contracts/milestone-tasks-md-schema.yaml
+  warn-and-continue:
+    local:
+      - ./scenarios/warn-and-continue.yaml
+      - ./contracts/discovery-schema.yaml
+      - ./contracts/question-set.yaml
+      - ./contracts/plan-schema.yaml
+      - ./contracts/task-schema.yaml
+      - ./contracts/milestone-schema.yaml
+      - ./contracts/worktree-protocol.yaml
+      - ./contracts/frontend-design-interface.yaml
+emit:
+  - target.read-only-draft-summary when scaffold missing
+  - target.inventory-updated
+  - target.design-docs-updated
+  - target.design-validation-updated
+  - target.plan-draft-written
+  - target.review-updated
+  - target.plan-approved
+  - target.long-run-state-updated
+  - target.runtime-route-updated
+  - target.release-route-updated
+  - target.decisions-updated
+  - target.deployment-route-updated

@@ -1,0 +1,315 @@
+id: implement
+execution_visibility:
+  directive: behavioral
+  rule: "Announce the current path (single_task/long_run), step name, and task ID before executing each step. This is informational — it does not gate execution."
+  format: "[single_task|long_run] step-id (task:<task-id>) — action summary"
+entry:
+  - approved-plan-only
+  - self-review-pass-required
+  - execution-ready-required
+steps:
+  - id: check-execution-ready
+    action: "Verify the plan is approved and all execution prerequisites are met"
+    tool: Bash
+    command: "python harnass-os/scripts/agent-guard.py check-execution-ready"
+    verify: "exit code 0 — plan is approved, self-review passed, task docs synced"
+    on_failure: "stop — return to plan phase to fix missing prerequisites"
+
+  - id: load-approved-plan
+    action: "Read the approved plan to understand milestones, tasks, and dependencies"
+    tool: Read
+    targets:
+      - "harnass-os/documents/plans/<slug>.yaml"
+      - "harnass-os/documents/inventory/current-state.yaml"
+      - "harnass-os/documents/validation/profiles.yaml"
+    output: "loaded plan with milestones, top-level tasks, dependency graph, validation profiles"
+    verify: "plan.status == approved and plan.execution_ready.self_review_passed == true"
+
+  - id: route-by-task-horizon
+    action: "Choose single_task or long_run path based on plan.task_horizon"
+    logic: |
+      If plan.task_horizon == single_task: follow single_task path
+      If plan.task_horizon == long_run: follow long_run path
+    verify: "path selected matches plan.task_horizon"
+
+single_task:
+  - id: pick-approved-task
+    action: "Select the next pending task whose dependencies are all committed"
+    tool: Read
+    target: "harnass-os/documents/plans/<slug>.yaml"
+    logic: |
+      Find first task in plan.tasks where:
+        task.status == pending
+        AND all task.depends_on have status == committed
+    output: "selected task ID and full task definition"
+    verify: "selected task exists and all dependencies are committed"
+
+  - id: confirm-scope-and-deps
+    action: "Verify task write_scope does not conflict with any in-progress task"
+    tool: Read
+    target: "harnass-os/documents/plans/<slug>.yaml"
+    check: "no other task with status in_progress has overlapping write_scope"
+    verify: "write_scope is clear for this task"
+
+  - id: enter-worktree
+    action: "Create a git branch or worktree for this task"
+    tool: Bash
+    commands:
+      worktree_mode: |
+        git worktree add ../task-${task_id} -b task/${task_id}
+        cd ../task-${task_id}
+      branch_mode: |
+        git checkout -b task/${task_id}
+    condition: "use worktree_mode if task.worktree_required == true, else branch_mode"
+    verify: "git branch shows task/${task_id} as current branch"
+
+  - id: implement-replacement-first
+    action: "Follow the task's implementation_steps to build the solution"
+    tool: "varies per step — Read, Write, Edit, Bash as specified in implementation_steps"
+    process: |
+      For each step in task.implementation_steps:
+        1. Read the step's action, tool, and targets
+        2. Execute using the specified tool
+        3. Verify the step's output exists or command succeeded
+    entrypoints_first: "always read task.entrypoints before writing any code"
+    rewrite_policy: "replacement-first — write complete new files, do not patch"
+    verify: "all implementation_steps completed and outputs exist"
+
+  - id: full-review-before-validation
+    action: "Review all changed files against task goal, write scope, and implementation steps before running validation"
+    tool: Read
+    targets: "all files in task.write_scope"
+    checklist:
+      - "every file in write_scope was created or modified"
+      - "changes align with task.goal"
+      - "no unintended side effects outside write_scope"
+      - "code follows patterns discovered in entrypoints"
+    verify: "review checklist passes — no blocking issues found"
+    on_finding: "fix issues before proceeding to validation"
+
+  - id: run-validation
+    action: "Execute the task's validation_commands in sequence"
+    tool: Bash
+    commands: "from task.validation_commands"
+    profile_ref: "task.validation_profile from harnass-os/documents/validation/profiles.yaml"
+    verify: "all validation commands exit 0"
+    on_failure: "proceed to repair-on-failure"
+
+  - id: repair-on-failure
+    action: "Fix validation failures and re-run validation"
+    condition: "run-validation failed"
+    tool: "Read error output, Edit code to fix, re-run validation"
+    max_retries: 3
+    verify: "validation passes after repair"
+    on_exhausted: "stop — report failure to user"
+
+  - id: commit-on-pass
+    action: "Stage changed files and commit with task context"
+    atomic_workflow: "post-task workflow: review -> validate -> repair -> commit -> handoff -> plan-update -> tracker-update"
+    tool: Bash
+    commands:
+      - "git add ${task.write_scope files}"
+      - |
+        git commit -m "$(cat <<'EOF'
+        ${task.goal}
+
+        task:${task.id} plan:${plan.id}
+
+        Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+        EOF
+        )"
+    verify: "commit succeeds and includes task:<id> in message (checked by commit-msg hook)"
+
+  - id: write-handoff
+    action: "Create the handoff document for this task"
+    tool: Write
+    output: "harnass-os/documents/handoffs/${task.id}.yaml"
+    content:
+      plan_id: "${plan.id}"
+      plan_revision: "${plan.change_log.revision}"
+      task_id: "${task.id}"
+      milestone_id: "${task.milestone_id}"
+      branch_or_worktree: "task/${task.id}"
+      write_scope: "${task.write_scope}"
+      changed_surfaces: "derived from task.validation_profile"
+      validations_passed: ["${task.validation_profile}"]
+      commit_ref: "HEAD task:${task.id}"
+      next_owner: lead
+      remaining_risks: "any known risks or follow-ups"
+    verify: "handoff file exists with all required fields per handoff-schema.yaml"
+
+  - id: update-plan
+    action: "Update the task status to committed in the plan"
+    tool: Edit
+    target: "harnass-os/documents/plans/<slug>.yaml"
+    update: "set task.status = committed for the completed task"
+    verify: "task status is committed in plan file"
+
+  - id: update-milestone-tasks-md
+    action: "Update the milestone task tracker with completed task status"
+    tool: Edit
+    target: "harnass-os/documents/plans/milestone-tasks.md"
+    update: "change task status icon from [ ] to [x] for the committed task, update last_updated timestamp"
+    condition: "harnass-os/documents/plans/milestone-tasks.md exists"
+    verify: "task row shows [x] status icon"
+
+  - id: return-to-lead
+    action: "Report completion and return control"
+    output: "task ${task.id} committed and handed off"
+    verify: "python harnass-os/scripts/agent-guard.py check-handoff-ready exits 0"
+
+long_run:
+  - id: load-active-run
+    action: "Read the run ledger and status to understand current progress"
+    tool: Read
+    targets:
+      - "harnass-os/documents/runs/current.yaml"
+      - "harnass-os/documents/status/current.yaml"
+    output: "current milestone, current task, validation history"
+    verify: "run status is active"
+
+  - id: pick-approved-task
+    action: "Select next pending task from current milestone"
+    tool: Read
+    target: "harnass-os/documents/plans/<slug>.yaml"
+    logic: |
+      Find the first task ID in current_milestone.tasks, then load the matching task from plan.tasks where:
+        task.status == pending
+        AND all task.depends_on have status == committed
+    output: "selected task ID"
+    verify: "task exists and dependencies are met"
+
+  - id: confirm-scope-and-deps
+    action: "Verify write_scope is clear for parallel safety"
+    tool: Read
+    target: "harnass-os/documents/plans/<slug>.yaml"
+    check: "no in_progress task has overlapping write_scope"
+    verify: "write_scope is clear"
+
+  - id: enter-worktree
+    action: "Create branch or worktree for this task"
+    tool: Bash
+    commands:
+      worktree_mode: |
+        git worktree add ../task-${task_id} -b task/${task_id}
+        cd ../task-${task_id}
+      branch_mode: |
+        git checkout -b task/${task_id}
+    verify: "on correct branch"
+
+  - id: implement-replacement-first
+    action: "Execute implementation_steps from the task definition"
+    tool: "varies per step"
+    entrypoints_first: true
+    rewrite_policy: replacement-first
+    verify: "all steps completed"
+
+  - id: full-review-before-validation
+    action: "Review all changed files against task goal, write scope, and implementation steps before running validation"
+    tool: Read
+    targets: "all files in task.write_scope"
+    checklist:
+      - "every file in write_scope was created or modified"
+      - "changes align with task.goal"
+      - "no unintended side effects outside write_scope"
+      - "code follows patterns discovered in entrypoints"
+    verify: "review checklist passes — no blocking issues found"
+    on_finding: "fix issues before proceeding to validation"
+
+  - id: run-validation
+    action: "Run task.validation_commands"
+    tool: Bash
+    commands: "from task.validation_commands"
+    verify: "all exit 0"
+    on_failure: "repair-on-failure"
+
+  - id: repair-on-failure
+    condition: "validation failed"
+    action: "Fix and re-validate"
+    max_retries: 3
+    verify: "passes after repair"
+
+  - id: update-run-ledger
+    action: "Update the run ledger with task completion and validation results"
+    tool: Edit
+    target: "harnass-os/documents/runs/current.yaml"
+    updates:
+      - "add to validation_history: {task_id, profile, result, timestamp}"
+      - "update current_task to next task or null if milestone complete"
+      - "update current_milestone if milestone is complete"
+    verify: "run ledger reflects current state"
+
+  - id: update-documentation-log
+    action: "Update status document with progress"
+    tool: Edit
+    target: "harnass-os/documents/status/current.yaml"
+    updates:
+      - "add task to completed list"
+      - "update next to next pending task"
+    verify: "status document reflects current state"
+
+  - id: commit-on-pass
+    action: "Commit with task context"
+    atomic_workflow: "post-task workflow: review -> validate -> repair -> commit -> handoff -> plan-update -> tracker-update"
+    tool: Bash
+    commands:
+      - "git add ${task.write_scope files} harnass-os/documents/runs/current.yaml harnass-os/documents/status/current.yaml"
+      - |
+        git commit -m "$(cat <<'EOF'
+        ${task.goal}
+
+        task:${task.id} plan:${plan.id}
+
+        Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+        EOF
+        )"
+    verify: "commit succeeds with task context"
+
+  - id: write-handoff
+    action: "Create handoff for this task"
+    tool: Write
+    output: "harnass-os/documents/handoffs/${task.id}.yaml"
+    content:
+      plan_id: "${plan.id}"
+      plan_revision: "${plan.change_log.revision}"
+      task_id: "${task.id}"
+      milestone_id: "${current_milestone}"
+      branch_or_worktree: "task/${task.id}"
+      write_scope: "${task.write_scope}"
+      changed_surfaces: "derived from validation_profile"
+      validations_passed: ["${task.validation_profile}"]
+      commit_ref: "HEAD task:${task.id}"
+      next_owner: lead
+      remaining_risks: []
+      run_id: "${run.run_id}"
+    verify: "handoff file exists with all required fields"
+
+  - id: update-plan
+    action: "Mark task as committed in plan"
+    tool: Edit
+    target: "harnass-os/documents/plans/<slug>.yaml"
+    update: "task.status = committed"
+    verify: "status updated"
+
+  - id: update-milestone-tasks-md
+    action: "Update the milestone task tracker with completed task status"
+    tool: Edit
+    target: "harnass-os/documents/plans/milestone-tasks.md"
+    update: "change task status icon from [ ] to [x] for the committed task, update last_updated timestamp"
+    condition: "harnass-os/documents/plans/milestone-tasks.md exists"
+    verify: "task row shows [x] status icon"
+
+  - id: return-to-lead
+    action: "Return control — lead picks next task or advances milestone"
+    verify: "python harnass-os/scripts/agent-guard.py check-handoff-ready exits 0"
+
+gates:
+  - one-task-per-worker
+  - one-commit-per-task
+  - no-validation-no-commit
+  - plan-review-before-execution
+  - repair-before-advance
+  - change-log-before-task-shape-change
+  - no-handoff-no-next-task
+  - milestone-exit-validation-required
+

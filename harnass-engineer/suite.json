@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "skills": [
+    {
+      "name": "harnass-engineer-start",
+      "source": "harnass-engineer-start"
+    },
+    {
+      "name": "harnass-engineer-plan",
+      "source": "harnass-engineer-plan"
+    },
+    {
+      "name": "harnass-engineer-final-audit",
+      "source": "harnass-engineer-final-audit"
+    }
+  ]
+}

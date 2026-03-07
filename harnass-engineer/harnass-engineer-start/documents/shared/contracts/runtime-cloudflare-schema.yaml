@@ -1,0 +1,18 @@
+id: runtime-cloudflare
+extends: runtime
+out: harnass-os/documents/runtime/cloudflare.yaml
+required:
+  - provider
+  - surface
+  - account_id_source
+  - project_name
+  - wrangler_config_path
+  - domains
+  - bindings
+  - preview_environment
+  - production_environment
+  - migration_sensitive_resources
+gates:
+  - cloudflare-release-needs-runtime-doc
+  - runtime-doc-must-match-deploy-surface
+

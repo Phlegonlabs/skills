@@ -1,0 +1,37 @@
+id: change-request-queue
+write: harnass-os/documents/intake/change-requests/current.yaml
+required:
+  - requests
+request_fields:
+  request_id: "string, stable durable request identifier"
+  created_at: "UTC timestamp, ISO 8601"
+  source: "enum: user"
+  routing_decision: "enum: follow_up"
+  mode: "enum: continue_current_milestone, new_task, modify, scope_extend"
+  summary: "string, concise user-visible request summary"
+  details: "string, fuller request context"
+  target_plan_id: "string|null, active plan this request applies to"
+  auto_approve: "boolean, only true for explicit user-sourced requests"
+  status: "enum: pending, applied, superseded"
+optional_fields:
+  routing_reason: "string, short explanation for why the request stays in the follow-up lane"
+  read_scope: "list[string], files or directories the follow-up work must inspect"
+  write_scope: "list[string], files the follow-up work is expected to touch"
+  validation_commands: "list[string], commands to run for the generated follow-up task"
+  tasks: "list[task-like mappings], explicit auto-generated task blueprints"
+  applied_at: "UTC timestamp when orchestrator applied the request"
+  applied_in_revision: "integer, plan.change_log.revision created by the orchestrator"
+  applied_milestone_id: "string, follow-up milestone ID created from the request"
+  applied_task_ids: "list[string], generated task IDs"
+status: [pending, applied, superseded]
+rules:
+  - this queue stores only requests already classified as follow_up
+  - requests classified as re_plan or needs_human_triage must be written to the re-plan request queue instead
+  - only source=user requests may be auto-approved
+  - pending requests must be durable and replay-safe
+  - applied requests remain in the queue as history
+  - explicit user requests always create a follow-up milestone
+use:
+  - harnass-os/documents/intake/change-requests/current.yaml
+  - harnass-os/documents/intake/re-plan-requests/current.yaml
+  - harnass-os/documents/plans/<slug>.yaml

@@ -1,0 +1,149 @@
+id: retrofit-bootstrap
+in:
+  - existing-repo
+  - missing-agent-layer
+steps:
+  - id: inspect-current-shape
+    action: "Read existing repo structure and key config files to understand what exists"
+    tool: Bash
+    command: "ls -la && find . -maxdepth 3 -type f -not -path './.git/*' | head -60"
+    additional_reads:
+      - file: package.json
+        extract: [name, scripts, dependencies, devDependencies]
+        tool: Read
+      - file: tsconfig.json
+        extract: [compilerOptions.strict, compilerOptions.target, compilerOptions.paths]
+        tool: Read
+      - file: wrangler.toml
+        extract: [name, main, pages_build_output_dir, compatibility_date, bindings]
+        tool: Read
+      - file: .env.example
+        extract: [required environment variable names]
+        tool: Read
+    output: "mental model of existing repo — frameworks, entry points, commands, config"
+    verify: "agent can describe repo shape including frontend/backend/config"
+
+  - id: classify-bootstrap-mode
+    action: "Determine that this is a retrofit (code exists, agent layer missing)"
+    tool: Bash
+    command: "test ! -f harnass-os/documents/routes/router.yaml && echo 'retrofit-needed'"
+    verify: "harnass-os/documents/ directory does not yet exist or is incomplete"
+
+  - id: run-bootstrap-engine
+    action: "Run the bootstrap script, which creates agent layer files without touching existing code"
+    tool: Bash
+    command: "python scripts/bootstrap_target_repo.py . --mode retrofit --overwrite-policy create-or-merge"
+    output:
+      materialized: "all 40 template files materialized alongside existing code"
+      version_stamp:
+        - harnass-os/documents/.harnass-version.yaml
+    verify:
+      - "all template files exist"
+      - "no existing source files were modified or deleted"
+      - "manifest.yaml template list matches materialized files"
+
+  - id: configure-git-hooks
+    action: "Make hooks executable and configure git to use the hooks directory"
+    tool: Bash
+    commands:
+      - "git config core.hooksPath harnass-os/hooks"
+    verify: "git config core.hooksPath returns 'harnass-os/hooks'"
+    note: "Hook scripts use #!/bin/sh and are executed by Git's own shell (Git Bash on Windows). No chmod needed — git respects core.hooksPath regardless of file permissions on Windows."
+
+  - id: pre-fill-inventory
+    action: "Auto-fill inventory fields from discovered project files"
+    tool: Read
+    targets:
+      - package.json
+      - tsconfig.json
+      - wrangler.toml
+    fill_target: harnass-os/documents/inventory/current-state.yaml
+    fill_rules:
+      - "frontend.package_manager: detect from lock file (package-lock.json=npm, pnpm-lock.yaml=pnpm, yarn.lock=yarn)"
+      - "frontend.frameworks: detect from dependencies (react, vue, svelte, next, nuxt, etc.)"
+      - "frontend.dev_command: from package.json scripts.dev"
+      - "frontend.build_command: from package.json scripts.build"
+      - "frontend.test_command: from package.json scripts.test"
+      - "backend.runtime: detect from wrangler.toml (workers) or package.json (node)"
+      - "runtime.config_source: wrangler.toml if exists"
+      - "deployment.surfaces: from wrangler.toml type (pages/workers)"
+    verify: "harnass-os/documents/inventory/current-state.yaml has fewer <fill> placeholders than the template"
+
+  - id: write-bootstrap-report
+    action: "Create a bootstrap report documenting the retrofit"
+    tool: Write
+    output: harnass-os/documents/runs/history/bootstrap-retrofit.yaml
+    content_template:
+      plan_id: bootstrap
+      plan_revision: 0
+      task_id: bootstrap-retrofit
+      milestone_id: scaffold
+      branch_or_worktree: main
+      write_scope: ["harnass-os/documents/", "harnass-os/hooks/", "harnass-os/scripts/", "AGENTS.md", "CLAUDE.md", "Plan.md", "Implement.md", "Deploy.md", "Documentation.md"]
+      changed_surfaces: [scaffold]
+      validations_passed: [bootstrap-gates]
+      commit_ref: "HEAD bootstrap"
+      next_owner: plan
+      remaining_risks:
+        - "Existing code conventions may differ from scaffold assumptions"
+        - "CI/CD integration with hooks may need manual setup"
+    verify: "harnass-os/documents/runs/history/bootstrap-retrofit.yaml exists with all required fields"
+
+  - id: run-bootstrap-gates
+    action: "Verify all 40 bootstrap gate checks pass"
+    tool: Bash
+    commands:
+      - "test -f AGENTS.md"
+      - "test -f CLAUDE.md"
+      - "test -f Plan.md"
+      - "test -f Implement.md"
+      - "test -f Deploy.md"
+      - "test -f Documentation.md"
+      - "test -f harnass-os/AGENTS.md"
+      - "test -f harnass-os/CLAUDE.md"
+      - "test -f harnass-os/Plan.md"
+      - "test -f harnass-os/Implement.md"
+      - "test -f harnass-os/Deploy.md"
+      - "test -f harnass-os/Documentation.md"
+      - "test -f harnass-os/documents/design/wireframe.md"
+      - "test -f harnass-os/documents/design/design.md"
+      - "test -f harnass-os/documents/routes/router.yaml"
+      - "test -f harnass-os/documents/routes/load-order.yaml"
+      - "test -f harnass-os/documents/intake/request.yaml"
+      - "test -f harnass-os/documents/intake/change-requests/current.yaml"
+      - "test -f harnass-os/documents/intake/re-plan-requests/current.yaml"
+      - "test -f harnass-os/documents/inventory/current-state.yaml"
+      - "test -f harnass-os/documents/runs/current.yaml"
+      - "test -f harnass-os/documents/status/current.yaml"
+      - "test -f harnass-os/documents/orchestrator/current.yaml"
+      - "test -f harnass-os/documents/runtime/cloudflare.yaml"
+      - "test -f harnass-os/documents/release/current.yaml"
+      - "test -f harnass-os/documents/decisions/index.yaml"
+      - "test -f harnass-os/documents/validation/design-review.yaml"
+      - "test -f harnass-os/documents/validation/profiles.yaml"
+      - "test -f harnass-os/documents/deploy/current.yaml"
+      - "test -f harnass-os/hooks/pre-commit"
+      - "test -f harnass-os/hooks/commit-msg"
+      - "test -f harnass-os/hooks/pre-push"
+      - "test -f harnass-os/scripts/agent-guard.py"
+      - "test -f harnass-os/scripts/orchestrator.py"
+      - "test -f harnass-os/documents/.harnass-version.yaml"
+      - "test -f harnass-os/documents/waivers/active.yaml"
+      - "test -f Audit.md"
+      - "test -f harnass-os/Audit.md"
+      - "test -f harnass-os/documents/audit/current.yaml"
+      - "test -f harnass-os/documents/decisions/adr-template.md"
+    gate_ref: ../contracts/bootstrap-checks.yaml
+    verify: "all file existence checks pass — scaffold is complete"
+
+gates:
+  - no-product-redesign
+  - no-deep-architecture-planning
+need:
+  - runtime-startup
+emit:
+  - scaffold-ready
+  - plan-ready
+  - target-spec-v0.5.0-ready
+handoff: harnass-os/documents/runs/history/bootstrap-retrofit.yaml
+

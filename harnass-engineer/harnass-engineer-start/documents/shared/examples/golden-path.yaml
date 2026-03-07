@@ -1,0 +1,518 @@
+id: golden-path-example
+version: 0.5.0
+description: >
+  Complete stack-agnostic reference showing every harness file populated.
+  All stack-specific values use ${variable} placeholders.
+  See common_stacks at the bottom for concrete defaults per language/framework.
+
+# ---------------------------------------------------------------------------
+# 1. Intake
+# ---------------------------------------------------------------------------
+intake_example:
+  file: harnass-os/documents/intake/request.yaml
+  content:
+    request_id: req-2024-001
+    user_goal: "Add a dashboard page that displays analytics charts and a data table"
+    project_name: my-project
+    project_idea: "Internal analytics dashboard with real-time data visualization"
+    constraints:
+      - "Must use existing auth system"
+      - "Deploy to Cloudflare Pages"
+    requested_changes:
+      - "New /dashboard route with chart components"
+      - "API endpoint for analytics data"
+    signals:
+      - multi_surface_change
+    initial_horizon: single_task
+
+# ---------------------------------------------------------------------------
+# 2. Inventory (current-state)
+# ---------------------------------------------------------------------------
+inventory_example:
+  file: harnass-os/documents/inventory/current-state.yaml
+  content:
+    app_type: web
+    repo_shape:
+      summary: "${framework} monorepo with ${package_manager}"
+    frontend:
+      frameworks: ["${framework}"]
+      package_manager: "${package_manager}"
+      ui_runtime: "${ui_runtime}"
+      app_entrypoints: ["${app_entry}"]
+      dev_command: "${dev_command}"
+      build_command: "${build_command}"
+      test_command: "${test_command}"
+    backend:
+      services: ["${api_service}"]
+      api_style: "${api_style}"
+      runtime: "${backend_runtime}"
+      service_entrypoints: ["${service_entry}"]
+      dev_command: "${backend_dev_command}"
+      test_command: "${backend_test_command}"
+    design_system:
+      source_of_truth: "${design_system_source}"
+      component_library: "${component_library}"
+      styling_model: "${styling_model}"
+    design_docs:
+      wireframe_source: harnass-os/documents/design/wireframe.md
+      design_source: harnass-os/documents/design/design.md
+      frontend_design_skill: frontend-design
+    design_validation:
+      artifact_source: browser-screenshot
+      review_method: visual-diff
+      responsive_breakpoints: [375, 768, 1024, 1440]
+      state_coverage: [loading, empty, error, populated]
+    runtime:
+      provider: cloudflare
+      config_source: wrangler.toml
+      bindings_model: "${bindings_model}"
+    release_process:
+      preview_gate: cloudflare-preview
+      production_gate: cloudflare-production
+      rollback_gate: redeploy-previous-sha
+    decision_history:
+      adr_source: harnass-os/documents/decisions/
+      last_major_decision: none
+    auth:
+      summary: "${auth_summary}"
+    data:
+      summary: "${data_summary}"
+    ci_cd:
+      summary: "${ci_cd_summary}"
+    deployment:
+      provider: cloudflare
+      surfaces: ["${deploy_surface}"]
+      preview_strategy: branch-deploy
+      production_strategy: main-merge
+      rollback_strategy: redeploy-previous-sha
+      preview_command: "${preview_deploy_command}"
+      production_command: "${production_deploy_command}"
+    testing:
+      summary: "${testing_summary}"
+    observability:
+      summary: "${observability_summary}"
+    market_context:
+      search_performed: true
+      search_queries:
+        - "${framework} production readiness 2025"
+        - "${framework} vs alternatives for web"
+      findings:
+        - "${framework} is stable and widely adopted for new projects"
+        - "${styling_model} remains the dominant utility-first CSS framework"
+      recommended_stack_changes: []
+      status: search-complete
+    current_constraints:
+      - "${constraint_1}"
+    ui_facing: true
+
+# ---------------------------------------------------------------------------
+# 3. Plan
+# ---------------------------------------------------------------------------
+plan_example:
+  file: "harnass-os/documents/plans/add-dashboard.yaml"
+  content:
+    id: add-dashboard
+    intake_ref: harnass-os/documents/intake/request.yaml
+    goal: "Add analytics dashboard with charts and data table"
+    current_state_ref: harnass-os/documents/inventory/current-state.yaml
+    task_horizon: single_task
+    agent_topology: solo
+    release_affecting: false
+    decision_sensitive: false
+    wireframe_ref: harnass-os/documents/design/wireframe.md
+    design_ref: harnass-os/documents/design/design.md
+    frontend_design_skill_required: true
+    design_validation_ref: harnass-os/documents/validation/design-review.yaml
+    user_decisions:
+      - question: "Chart library preference?"
+        answer: "Use recharts"
+    milestones:
+      - id: m1-dashboard-mvp
+        goal: "Dashboard page renders with chart and table"
+        tasks: [t1-api-endpoint, t2-dashboard-page, t3-integration-wiring]
+        exit_validation: milestone-integration
+        gate: all-tasks-committed-and-validated
+    global_validation:
+      profiles: [static-js, runtime-startup, ui-path]
+    completion_criteria:
+      - "Dashboard accessible at /dashboard"
+      - "Charts render analytics data from API"
+      - "Data table shows paginated results"
+    review:
+      state: completed
+      reviewer: self
+      checklist:
+        - "All tasks have write_scope defined"
+        - "All tasks have validation_profile assigned"
+        - "All tasks have implementation_steps with concrete actions"
+        - "All tasks have entrypoints listing files to read first"
+        - "No write_scope overlaps between concurrent tasks"
+        - "UI tasks reference wireframe and design docs"
+        - "Milestone exit validation covers full integration"
+      blocking_findings: []
+      approved_for_execution: true
+    change_log:
+      revision: 1
+      entries:
+        - "v1: initial plan created from intake"
+    execution_ready:
+      self_review_passed: true
+      horizon_confirmed: true
+      task_docs_synced: true
+      tasks_have_entrypoints: true
+      tasks_have_implementation_steps: true
+      tasks_have_validation_commands: true
+    status: approved
+
+    tasks:
+      - id: t1-api-endpoint
+        goal: "Create GET /api/analytics endpoint returning chart + table data"
+        depends_on: []
+        read_scope:
+          - "src/api/"
+          - "src/lib/db.${ext}"
+        write_scope:
+          - "src/api/analytics.${ext}"
+          - "src/api/analytics.test.${ext}"
+        entrypoints:
+          - "src/api/ — read existing API patterns and middleware"
+          - "src/lib/db.${ext} — read database query patterns"
+          - "wrangler.toml — read bindings for D1/KV if applicable"
+        agent_role: solo
+        worktree_required: false
+        implementation_strategy: rewrite-by-replacement
+        implementation_steps:
+          - step: "Read src/api/ to understand existing route patterns and middleware"
+            action: read
+            tool: Read
+            targets: ["src/api/"]
+          - step: "Create analytics endpoint with mock data matching chart schema"
+            action: create
+            tool: Write
+            output: "src/api/analytics.${ext}"
+          - step: "Write unit test for the endpoint"
+            action: create
+            tool: Write
+            output: "src/api/analytics.test.${ext}"
+          - step: "Run backend tests"
+            action: validate
+            tool: Bash
+            command: "${test_command}"
+        rewrite_policy: replacement-first
+        validation_profile: backend-contract
+        validation_commands:
+          - "${test_command}"
+          - "${lint_command}"
+          - "${typecheck_command}"
+        artifacts_updated:
+          - "src/api/analytics.${ext}"
+        done_definition: "GET /api/analytics returns 200 with valid JSON shape"
+        commit_required: true
+        handoff_output: harnass-os/documents/handoffs/t1-api-endpoint.yaml
+        status: pending
+
+      - id: t2-dashboard-page
+        goal: "Create /dashboard page with chart and data table components"
+        depends_on: [t1-api-endpoint]
+        read_scope:
+          - "src/pages/"
+          - "src/components/"
+          - "harnass-os/documents/design/wireframe.md"
+          - "harnass-os/documents/design/design.md"
+        write_scope:
+          - "src/pages/dashboard.${ext}"
+          - "src/components/AnalyticsChart.${ext}"
+          - "src/components/DataTable.${ext}"
+        entrypoints:
+          - "harnass-os/documents/design/wireframe.md — read wireframe for layout structure"
+          - "harnass-os/documents/design/design.md — read design spec for styling/interactions"
+          - "src/pages/ — read existing page patterns for consistency"
+          - "src/components/ — read existing component patterns"
+        agent_role: solo
+        worktree_required: false
+        implementation_strategy: rewrite-by-replacement
+        implementation_steps:
+          - step: "Read wireframe and design docs for dashboard layout"
+            action: read
+            tool: Read
+            targets: ["harnass-os/documents/design/wireframe.md", "harnass-os/documents/design/design.md"]
+          - step: "Read existing page and component patterns"
+            action: read
+            tool: Read
+            targets: ["src/pages/", "src/components/"]
+          - step: "Create AnalyticsChart component following design spec"
+            action: create
+            tool: Write
+            output: "src/components/AnalyticsChart.${ext}"
+          - step: "Create DataTable component following design spec"
+            action: create
+            tool: Write
+            output: "src/components/DataTable.${ext}"
+          - step: "Create dashboard page composing both components"
+            action: create
+            tool: Write
+            output: "src/pages/dashboard.${ext}"
+          - step: "Run lint and typecheck"
+            action: validate
+            tool: Bash
+            command: "${lint_command} && ${typecheck_command}"
+          - step: "Start dev server and screenshot /dashboard"
+            action: validate
+            tool: Bash
+            command: "${dev_command} & sleep 3 && curl -sf http://localhost:${dev_port}/dashboard"
+        rewrite_policy: replacement-first
+        validation_profile: ui-path
+        wireframe_ref: harnass-os/documents/design/wireframe.md
+        design_ref: harnass-os/documents/design/design.md
+        validation_commands:
+          - "${lint_command}"
+          - "${typecheck_command}"
+          - "${dev_command} &"
+          - "sleep 3 && curl -sf http://localhost:${dev_port}/dashboard || exit 1"
+          - "kill %1"
+        artifacts_updated:
+          - "src/pages/dashboard.${ext}"
+          - "src/components/AnalyticsChart.${ext}"
+          - "src/components/DataTable.${ext}"
+        done_definition: "Dashboard page renders at /dashboard with chart and table visible"
+        commit_required: true
+        handoff_output: harnass-os/documents/handoffs/t2-dashboard-page.yaml
+        status: pending
+
+      - id: t3-integration-wiring
+        goal: "Wire dashboard page to live API endpoint"
+        depends_on: [t1-api-endpoint, t2-dashboard-page]
+        read_scope:
+          - "src/pages/dashboard.${ext}"
+          - "src/api/analytics.${ext}"
+        write_scope:
+          - "src/pages/dashboard.${ext}"
+          - "src/lib/api-client.${ext}"
+        entrypoints:
+          - "src/pages/dashboard.${ext} — read to understand current data fetching"
+          - "src/api/analytics.${ext} — read to understand response shape"
+        agent_role: solo
+        worktree_required: false
+        implementation_strategy: rewrite-by-replacement
+        implementation_steps:
+          - step: "Read dashboard page and API endpoint to understand data contract"
+            action: read
+            tool: Read
+            targets: ["src/pages/dashboard.${ext}", "src/api/analytics.${ext}"]
+          - step: "Create or update API client with analytics fetch function"
+            action: create
+            tool: Write
+            output: "src/lib/api-client.${ext}"
+          - step: "Update dashboard page to use live data from API"
+            action: edit
+            tool: Edit
+            target: "src/pages/dashboard.${ext}"
+          - step: "Run full validation suite"
+            action: validate
+            tool: Bash
+            command: "${lint_command} && ${typecheck_command} && ${test_command}"
+          - step: "Start dev server and verify end-to-end data flow"
+            action: validate
+            tool: Bash
+            command: "${dev_command} & sleep 3 && curl -sf http://localhost:${dev_port}/api/analytics && curl -sf http://localhost:${dev_port}/dashboard"
+        rewrite_policy: replacement-first
+        validation_profile: milestone-integration
+        validation_commands:
+          - "${lint_command}"
+          - "${typecheck_command}"
+          - "${test_command}"
+          - "${build_command}"
+          - "${dev_command} & sleep 3 && curl -sf http://localhost:${dev_port}/dashboard || exit 1"
+          - "kill %1"
+        artifacts_updated:
+          - "src/pages/dashboard.${ext}"
+          - "src/lib/api-client.${ext}"
+        done_definition: "Dashboard displays live data from analytics API"
+        commit_required: true
+        handoff_output: harnass-os/documents/handoffs/t3-integration-wiring.yaml
+        status: pending
+
+# ---------------------------------------------------------------------------
+# 5. Handoff
+# ---------------------------------------------------------------------------
+handoff_example:
+  file: harnass-os/documents/handoffs/t1-api-endpoint.yaml
+  content:
+    plan_id: add-dashboard
+    plan_revision: 1
+    task_id: t1-api-endpoint
+    milestone_id: m1-dashboard-mvp
+    branch_or_worktree: task/t1-api-endpoint
+    write_scope:
+      - "src/api/analytics.${ext}"
+      - "src/api/analytics.test.${ext}"
+    changed_surfaces:
+      - backend-api
+    validations_passed:
+      - backend-contract
+    commit_ref: "HEAD task:${task_id}"
+    next_owner: lead
+    remaining_risks:
+      - "Mock data needs replacement with real DB queries"
+
+# ---------------------------------------------------------------------------
+# 6. Deploy
+# ---------------------------------------------------------------------------
+deploy_example:
+  file: harnass-os/documents/deploy/current.yaml
+  content:
+    provider: cloudflare
+    surface: pages
+    project: my-project
+    runtime_ref: harnass-os/documents/runtime/cloudflare.yaml
+    release_ref: harnass-os/documents/release/current.yaml
+    preview_environment:
+      name: preview
+      url: "https://preview.my-project.pages.dev"
+    production_environment:
+      name: production
+      url: "https://my-project.pages.dev"
+    build_command: "${build_command}"
+    preview_deploy_command: "npx wrangler pages deploy ${build_output_dir} --project-name ${project_name} --branch preview"
+    production_deploy_command: "npx wrangler pages deploy ${build_output_dir} --project-name ${project_name} --branch main"
+    preview_validation:
+      profile: cloudflare-preview
+      status: pending
+    production_validation:
+      profile: cloudflare-production
+      status: pending
+    smoke_checks:
+      - "GET / returns 200"
+      - "GET /dashboard returns 200"
+      - "GET /api/analytics returns valid JSON"
+    smoke_command_refs:
+      - "curl -sf ${preview_url}/ || exit 1"
+      - "curl -sf ${preview_url}/dashboard || exit 1"
+      - "curl -sf ${preview_url}/api/analytics | head -c 1 | grep '{' || exit 1"
+    rollback_strategy: redeploy-previous-sha
+    rollback_command: "npx wrangler pages deploy ${build_output_dir} --project-name ${project_name} --branch main --commit-hash ${previous_stable_sha}"
+    status: draft
+
+# ---------------------------------------------------------------------------
+# 7. Common Stacks Lookup
+# ---------------------------------------------------------------------------
+common_stacks:
+  node_nextjs:
+    package_manager: npm
+    framework: next
+    ext: tsx
+    ui_runtime: react
+    app_entry: src/app/page.tsx
+    dev_command: "npm run dev"
+    dev_port: 3000
+    build_command: "npm run build"
+    test_command: "npm test"
+    lint_command: "npm run lint"
+    typecheck_command: "npx tsc --noEmit"
+    build_output_dir: ".next"
+    deploy_surface: pages
+    api_style: app-router-api-routes
+    styling_model: tailwind
+
+  node_vite_react:
+    package_manager: pnpm
+    framework: vite-react
+    ext: tsx
+    ui_runtime: react
+    app_entry: src/main.tsx
+    dev_command: "pnpm dev"
+    dev_port: 5173
+    build_command: "pnpm build"
+    test_command: "pnpm test"
+    lint_command: "pnpm lint"
+    typecheck_command: "pnpm exec tsc --noEmit"
+    build_output_dir: dist
+    deploy_surface: pages
+    api_style: separate-api-worker
+    styling_model: tailwind
+
+  python_fastapi:
+    package_manager: pip
+    framework: fastapi
+    ext: py
+    ui_runtime: none
+    app_entry: src/main.py
+    dev_command: "uvicorn src.main:app --reload"
+    dev_port: 8000
+    build_command: "echo 'no build step'"
+    test_command: "pytest"
+    lint_command: "ruff check ."
+    typecheck_command: "mypy src/"
+    build_output_dir: "."
+    deploy_surface: workers
+    api_style: rest
+    styling_model: none
+
+  go_http:
+    package_manager: go
+    framework: net/http
+    ext: go
+    ui_runtime: none
+    app_entry: cmd/server/main.go
+    dev_command: "go run cmd/server/main.go"
+    dev_port: 8080
+    build_command: "go build -o bin/server cmd/server/main.go"
+    test_command: "go test ./..."
+    lint_command: "golangci-lint run"
+    typecheck_command: "go vet ./..."
+    build_output_dir: bin
+    deploy_surface: workers
+    api_style: rest
+    styling_model: none
+
+  rust_axum:
+    package_manager: cargo
+    framework: axum
+    ext: rs
+    ui_runtime: none
+    app_entry: src/main.rs
+    dev_command: "cargo watch -x run"
+    dev_port: 3000
+    build_command: "cargo build --release"
+    test_command: "cargo test"
+    lint_command: "cargo clippy -- -D warnings"
+    typecheck_command: "cargo check"
+    build_output_dir: target/release
+    deploy_surface: workers
+    api_style: rest
+    styling_model: none
+
+# ---------------------------------------------------------------------------
+# 8. Full Lifecycle Summary
+# ---------------------------------------------------------------------------
+lifecycle:
+  start:
+    scenario: greenfield-start OR retrofit-bootstrap
+    output: 27 scaffold files materialized in target repo
+    verify: "python harnass-os/scripts/agent-guard.py check-plan-gate (expected to fail — no plan yet)"
+
+  plan:
+    scenario: research-and-plan
+    steps:
+      - "Read intake → discover project → web search market stacks → fill inventory"
+      - "Classify initial horizon → adaptive question depth"
+      - "Call frontend-design if ui_facing"
+      - "Build milestones → build atomic tasks → self-review"
+      - "Approve plan → generate milestone-tasks.md"
+    output: "harnass-os/documents/plans/<slug>.yaml with status: approved + harnass-os/documents/plans/milestone-tasks.md"
+    verify: "python harnass-os/scripts/agent-guard.py check-execution-ready"
+
+  implement:
+    scenario: implement
+    steps:
+      - "For each task: read entrypoints → follow implementation_steps → run validation_commands → commit → write handoff"
+    output: "One commit per task + harnass-os/documents/handoffs/<task-id>.yaml"
+    verify: "python harnass-os/scripts/agent-guard.py check-handoff-ready"
+
+  deploy:
+    steps:
+      - "Fill harnass-os/documents/deploy/current.yaml from inventory discovery"
+      - "Run preview deploy → smoke check → promote to production"
+    output: "deploy/current.yaml status: deployed"
+    verify: "python harnass-os/scripts/agent-guard.py check-deployment-ready"
+

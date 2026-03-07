@@ -1,0 +1,29 @@
+id: implement-md
+out: Implement.md
+sections:
+  - plan_route
+  - execution_gate
+  - horizon_route
+  - design_route
+  - task_pickup
+  - worktree_rules
+  - validation_before_commit
+  - plan_change_rule
+  - handoff_rule
+  - release_handoff_rule
+  - next_task_rule
+  - long_run_status_route
+sequence:
+  - read Plan.md and guard state
+  - confirm plan review and execution readiness
+  - route by task_horizon
+  - load design docs for ui-facing work
+  - pick approved task
+  - confirm write scope and dependencies
+  - enter isolated worktree
+  - implement with replacement-first strategy
+  - run task validation profile
+  - repair before advancing on failure
+  - commit immediately on pass
+  - update plan, handoff, and status documents
+  - route release work through Deploy.md

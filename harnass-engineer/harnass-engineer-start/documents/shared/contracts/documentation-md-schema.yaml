@@ -1,0 +1,20 @@
+id: documentation-md
+out: Documentation.md
+sections:
+  - status_route
+  - run_ledger_route
+  - deploy_route
+  - audit_route
+  - handoff_route
+  - decision_log_rule
+  - adr_route
+  - known_issues_rule
+  - update_timing
+sequence:
+  - update status after every validated task
+  - update run ledger during long-run execution
+  - update deployment state during preview, production, and rollback
+  - update audit state before final release signoff
+  - write a handoff before advancing the next task
+  - update decision index when a new adr is created
+  - record decision notes and known issues while context is fresh

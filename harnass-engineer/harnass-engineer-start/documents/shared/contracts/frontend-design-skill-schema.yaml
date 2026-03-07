@@ -1,0 +1,29 @@
+id: frontend-design-skill
+skill_name: frontend-design
+required:
+  - skill_name
+  - planning_inputs
+  - planning_outputs
+  - execution_inputs
+  - execution_expectations
+  - failure_policy
+planning_inputs:
+  - harnass-os/documents/intake/request.yaml
+  - harnass-os/documents/inventory/current-state.yaml
+  - design-system facts from discovery
+planning_outputs:
+  - harnass-os/documents/design/wireframe.md
+  - harnass-os/documents/design/design.md
+execution_inputs:
+  - harnass-os/documents/design/wireframe.md
+  - harnass-os/documents/design/design.md
+execution_expectations:
+  - ui execution reads and follows the generated design docs
+  - ui execution re-invokes frontend-design only when the docs are stale or explicitly revised
+failure_policy:
+  - if frontend-design is unavailable, block ui-facing planning and execution
+gates:
+  - no-ui-plan-without-frontend-design
+  - no-ui-implementation-without-design-docs
+  - block-when-frontend-design-skill-unavailable
+

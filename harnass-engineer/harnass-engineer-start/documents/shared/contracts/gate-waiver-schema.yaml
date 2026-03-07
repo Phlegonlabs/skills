@@ -1,0 +1,25 @@
+id: gate-waiver
+out: harnass-os/documents/waivers/active.yaml
+required:
+  - waiver_id
+  - gate_id
+  - scope
+  - reason
+  - approved_by
+  - created_at
+  - expires_at
+  - plan_revision
+  - status
+scope_values: [bootstrap, planning, hook, guard]
+status_values: [active, expired, revoked]
+rules:
+  - "Waivers are scoped to a specific gate_id and scope"
+  - "Waivers expire when plan_revision changes"
+  - "Waivers always print warnings to stderr — never silent"
+  - "Waivers require a reason and approved_by"
+  - "expired or revoked waivers are ignored"
+gates:
+  - waiver-requires-reason
+  - waiver-requires-approved-by
+  - waiver-never-silent
+

@@ -1,0 +1,19 @@
+provider: cloudflare
+surface: <fill>
+account_id_source: <fill>
+project_name: <fill>
+wrangler_config_path: <fill>
+domains:
+  production: <fill>
+  preview_pattern: <fill>
+bindings:
+  env: []
+  storage: []
+preview_environment:
+  name: preview
+  bindings: []
+production_environment:
+  name: production
+  bindings: []
+migration_sensitive_resources:
+  - <fill>

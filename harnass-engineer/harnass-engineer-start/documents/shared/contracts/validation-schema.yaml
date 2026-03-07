@@ -1,0 +1,15 @@
+id: validation
+required:
+  - id
+  - layers
+  - tools
+  - pass
+  - failure_policy
+layers: [design, static, unit_or_integration, runtime, ui, observability, deployment]
+gates:
+  - touched-surface-selects-layers
+  - ui-plan-needs-design-validation
+  - ui-work-needs-wireframe-and-design-docs
+  - ui-needs-ui-validation
+  - runtime-wiring-needs-runtime-validation
+  - deployment-needs-preview-and-smoke-validation

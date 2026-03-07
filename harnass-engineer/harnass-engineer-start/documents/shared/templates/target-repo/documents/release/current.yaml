@@ -1,0 +1,16 @@
+plan_id: <fill>
+deployment_ref: harnass-os/documents/deploy/current.yaml
+runtime_ref: <fill>
+preview_url: <fill>
+production_url: <fill>
+preview_status: pending
+preview_acceptance:
+  - <fill>
+production_gate: pending
+production_revision: <fill>
+rollback_target: <fill>
+release_notes: <fill>
+final_audit_ref: harnass-os/documents/audit/current.yaml
+final_audit_status: pending
+status: draft
+

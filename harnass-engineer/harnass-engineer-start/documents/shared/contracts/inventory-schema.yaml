@@ -1,0 +1,37 @@
+id: inventory
+out: harnass-os/documents/inventory/current-state.yaml
+top_level_fields: [app_type, ui_facing]
+app_type_values: [web, cli, mobile-ios, mobile-android, desktop, api-only, unknown]
+ui_facing_values: [true, false]
+sections:
+  - repo_shape
+  - frontend
+  - backend
+  - design_system
+  - design_docs
+  - design_validation
+  - runtime
+  - release_process
+  - decision_history
+  - auth
+  - data
+  - ci_cd
+  - deployment
+  - testing
+  - observability
+  - current_constraints
+frontend_fields: [frameworks, package_manager, ui_runtime, app_entrypoints, dev_command, build_command, test_command, lint_command, typecheck_command]
+backend_fields: [services, api_style, runtime, service_entrypoints, dev_command, test_command, lint_command, typecheck_command]
+design_system_fields: [source_of_truth, component_library, styling_model]
+design_docs_fields: [wireframe_source, design_source, frontend_design_skill]
+design_validation_fields: [artifact_source, review_method, responsive_breakpoints, state_coverage]
+runtime_fields: [provider, config_source, bindings_model]
+release_process_fields: [preview_gate, production_gate, rollback_gate]
+decision_history_fields: [adr_source, last_major_decision]
+market_context:
+  optional: true
+  fields: [search_performed, search_queries, findings, recommended_stack_changes, status]
+  status_values: [search-complete, search-skipped-offline, not-applicable]
+deployment_fields: [provider, surfaces, preview_strategy, production_strategy, rollback_strategy, preview_command, production_command, preview_url, production_url]
+testing_fields: [summary, dev_port, ui_test_path, integration_flows, post_deploy_smoke_paths]
+

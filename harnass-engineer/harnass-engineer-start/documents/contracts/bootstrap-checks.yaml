@@ -1,0 +1,30 @@
+id: bootstrap-gates
+must:
+  - bootstrap-engine-available
+  - documents-root-created
+  - root-runbooks-created
+  - intake-skeleton-created
+  - design-doc-skeleton-created
+  - route-stack-created
+  - runtime-skeleton-created
+  - release-skeleton-created
+  - run-and-status-skeletons-created
+  - decisions-skeleton-created
+  - design-validation-skeleton-created
+  - deployment-skeleton-created
+  - plan-route-created
+  - implement-runbook-created
+  - deploy-runbook-created
+  - documentation-route-created
+  - validation-skeleton-created
+  - hooks-materialized
+  - guard-entry-materialized
+  - bootstrap-report-written
+  - template-manifest-loaded
+  - guard-contract-wired
+  - hook-policy-wired
+  - worktree-protocol-present
+  - version-stamp-created
+  - waiver-skeleton-created
+  - audit-skeleton-created
+block_on_fail: true

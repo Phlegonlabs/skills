@@ -1,0 +1,4 @@
+interface:
+  display_name: "Harness Engineer Final Audit"
+  short_description: "Run post-production final audits"
+  default_prompt: "Use $harnass-engineer-final-audit to run a post-production final audit across frontend, backend, integration, security, content, SEO, blockchain, and release health."

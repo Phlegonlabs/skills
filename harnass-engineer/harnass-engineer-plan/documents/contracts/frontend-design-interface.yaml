@@ -1,0 +1,20 @@
+id: frontend-design-interface
+skill_name: frontend-design
+input:
+  required:
+    - user_goal
+    - project_context
+  optional:
+    - constraints
+  sources:
+    user_goal: "harnass-os/documents/intake/request.yaml user_goal"
+    project_context: "harnass-os/documents/inventory/current-state.yaml"
+    constraints: "harnass-os/documents/intake/request.yaml constraints"
+output:
+  required:
+    - harnass-os/documents/design/wireframe.md
+    - harnass-os/documents/design/design.md
+  verify:
+    wireframe: "contains at least one screen/flow"
+    design: "contains component specs and styling rules"
+gate: block-planning-if-unavailable-for-ui-facing

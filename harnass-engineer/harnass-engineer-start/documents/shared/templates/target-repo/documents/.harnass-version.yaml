@@ -1,0 +1,5 @@
+scaffold_spec_version: 0.7.0
+template_set: target-repo-v2
+bootstrapped_by: harnass-engineer-start
+bootstrapped_at: <fill>
+min_compatible_plan_version: 0.7.0

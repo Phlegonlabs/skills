@@ -1,0 +1,17 @@
+id: handoff
+out: harnass-os/documents/handoffs/<task-id>.yaml
+required:
+  - plan_id
+  - plan_revision
+  - task_id
+  - milestone_id
+  - branch_or_worktree
+  - write_scope
+  - changed_surfaces
+  - validations_passed
+  - commit_ref
+  - next_owner
+  - remaining_risks
+optional:
+  - run_id
+

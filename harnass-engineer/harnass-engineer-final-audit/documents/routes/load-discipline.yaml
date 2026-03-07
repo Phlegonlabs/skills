@@ -1,0 +1,7 @@
+id: load
+rules:
+  - router-first
+  - scenario-second
+  - contracts-on-demand
+  - repo-files-over-chat
+  - production-docs-before-audit-summary

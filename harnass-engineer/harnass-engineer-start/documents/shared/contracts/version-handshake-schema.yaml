@@ -1,0 +1,16 @@
+id: version-handshake
+out: harnass-os/documents/.harnass-version.yaml
+required:
+  - scaffold_spec_version
+  - template_set
+  - bootstrapped_by
+  - bootstrapped_at
+  - min_compatible_plan_version
+check_rule: >
+  Plan skill reads .harnass-version.yaml at startup.
+  If scaffold_spec_version < min_compatible_plan_version, warn and continue.
+  If .harnass-version.yaml is missing, warn (not error) — allows migration from pre-handshake repos.
+gates:
+  - version-stamp-present-after-bootstrap
+  - version-compatibility-checked-before-plan
+

@@ -1,0 +1,173 @@
+id: greenfield-start
+in:
+  - empty-or-light-repo
+steps:
+  - id: inspect-target-root
+    action: "Read the target repo root to understand existing files and structure"
+    tool: Bash
+    command: "ls -la && find . -maxdepth 2 -type f | head -40"
+    output: mental model of repo shape (empty, light scaffold, or has some code)
+    verify: "agent confirms repo is empty or has minimal files"
+
+  - id: classify-bootstrap-mode
+    action: "Determine bootstrap mode based on repo contents"
+    tool: Read
+    targets:
+      - package.json (if exists)
+      - wrangler.toml (if exists)
+      - README.md (if exists)
+    output: "classification as greenfield (empty) or light-scaffold (some files exist)"
+    verify: "agent selects greenfield-start scenario (this one)"
+
+  - id: run-bootstrap-engine
+    action: "Run the bootstrap script to materialize all 40 template files"
+    tool: Bash
+    command: "python scripts/bootstrap_target_repo.py . --mode greenfield --overwrite-policy create-or-merge"
+    output:
+      root_entrypoints:
+        - AGENTS.md
+        - CLAUDE.md
+        - Plan.md
+        - Implement.md
+        - Deploy.md
+        - Documentation.md
+        - Audit.md
+      canonical_runbooks:
+        - harnass-os/AGENTS.md
+        - harnass-os/CLAUDE.md
+        - harnass-os/Plan.md
+        - harnass-os/Implement.md
+        - harnass-os/Deploy.md
+        - harnass-os/Documentation.md
+        - harnass-os/Audit.md
+      design_docs:
+        - harnass-os/documents/design/wireframe.md
+        - harnass-os/documents/design/design.md
+      route_stack:
+        - harnass-os/documents/routes/router.yaml
+        - harnass-os/documents/routes/load-order.yaml
+      state_stack:
+        - harnass-os/documents/intake/request.yaml
+        - harnass-os/documents/intake/change-requests/current.yaml
+        - harnass-os/documents/intake/re-plan-requests/current.yaml
+        - harnass-os/documents/inventory/current-state.yaml
+        - harnass-os/documents/runs/current.yaml
+        - harnass-os/documents/status/current.yaml
+        - harnass-os/documents/orchestrator/current.yaml
+      runtime_stack:
+        - harnass-os/documents/runtime/cloudflare.yaml
+      release_stack:
+        - harnass-os/documents/release/current.yaml
+      decisions_stack:
+        - harnass-os/documents/decisions/index.yaml
+        - harnass-os/documents/decisions/adr-template.md
+      validation_stack:
+        - harnass-os/documents/validation/design-review.yaml
+        - harnass-os/documents/validation/profiles.yaml
+      deployment_stack:
+        - harnass-os/documents/deploy/current.yaml
+      hook_stack:
+        - harnass-os/hooks/pre-commit
+        - harnass-os/hooks/commit-msg
+        - harnass-os/hooks/pre-push
+      guard_entry:
+        - harnass-os/scripts/agent-guard.py
+        - harnass-os/scripts/orchestrator.py
+      version_stamp:
+        - harnass-os/documents/.harnass-version.yaml
+      waiver_stack:
+        - harnass-os/documents/waivers/active.yaml
+      audit_stack:
+        - harnass-os/documents/audit/current.yaml
+    verify:
+      - "all 40 template files exist in target repo"
+      - "manifest.yaml template list matches materialized files"
+
+  - id: ensure-git-repo
+    action: "Initialize a git repository if the target root is not already one"
+    tool: Bash
+    command: "git rev-parse --git-dir >/dev/null 2>&1 || git init"
+    verify: "git rev-parse --git-dir exits 0"
+
+  - id: configure-git-hooks
+    action: "Make hooks executable and configure git to use the hooks directory"
+    tool: Bash
+    commands:
+      - "git config core.hooksPath harnass-os/hooks"
+    verify: "git config core.hooksPath returns 'harnass-os/hooks'"
+    note: "Hook scripts use #!/bin/sh and are executed by Git's own shell (Git Bash on Windows). No chmod needed — git respects core.hooksPath regardless of file permissions on Windows. The generated hooks allow the initial bootstrap commit before the first plan file exists."
+
+  - id: write-bootstrap-report
+    action: "Create a bootstrap report documenting what was scaffolded"
+    tool: Write
+    output: harnass-os/documents/runs/history/bootstrap-greenfield.yaml
+    content_template:
+      plan_id: bootstrap
+      plan_revision: 0
+      task_id: bootstrap-greenfield
+      milestone_id: scaffold
+      branch_or_worktree: main
+      write_scope: ["harnass-os/documents/", "harnass-os/hooks/", "harnass-os/scripts/", "AGENTS.md", "CLAUDE.md", "Plan.md", "Implement.md", "Deploy.md", "Documentation.md"]
+      changed_surfaces: [scaffold]
+      validations_passed: [bootstrap-gates]
+      commit_ref: "HEAD bootstrap"
+      next_owner: plan
+      remaining_risks: []
+    verify: "harnass-os/documents/runs/history/bootstrap-greenfield.yaml exists and has all required fields"
+
+  - id: run-bootstrap-gates
+    action: "Verify all 40 bootstrap gate checks pass"
+    tool: Bash
+    commands:
+      - "test -f AGENTS.md"
+      - "test -f CLAUDE.md"
+      - "test -f Plan.md"
+      - "test -f Implement.md"
+      - "test -f Deploy.md"
+      - "test -f Documentation.md"
+      - "test -f harnass-os/AGENTS.md"
+      - "test -f harnass-os/CLAUDE.md"
+      - "test -f harnass-os/Plan.md"
+      - "test -f harnass-os/Implement.md"
+      - "test -f harnass-os/Deploy.md"
+      - "test -f harnass-os/Documentation.md"
+      - "test -f harnass-os/documents/design/wireframe.md"
+      - "test -f harnass-os/documents/design/design.md"
+      - "test -f harnass-os/documents/routes/router.yaml"
+      - "test -f harnass-os/documents/routes/load-order.yaml"
+      - "test -f harnass-os/documents/intake/request.yaml"
+      - "test -f harnass-os/documents/intake/change-requests/current.yaml"
+      - "test -f harnass-os/documents/intake/re-plan-requests/current.yaml"
+      - "test -f harnass-os/documents/inventory/current-state.yaml"
+      - "test -f harnass-os/documents/runs/current.yaml"
+      - "test -f harnass-os/documents/status/current.yaml"
+      - "test -f harnass-os/documents/orchestrator/current.yaml"
+      - "test -f harnass-os/documents/runtime/cloudflare.yaml"
+      - "test -f harnass-os/documents/release/current.yaml"
+      - "test -f harnass-os/documents/decisions/index.yaml"
+      - "test -f harnass-os/documents/validation/design-review.yaml"
+      - "test -f harnass-os/documents/validation/profiles.yaml"
+      - "test -f harnass-os/documents/deploy/current.yaml"
+      - "test -f harnass-os/hooks/pre-commit"
+      - "test -f harnass-os/hooks/commit-msg"
+      - "test -f harnass-os/hooks/pre-push"
+      - "test -f harnass-os/scripts/agent-guard.py"
+      - "test -f harnass-os/scripts/orchestrator.py"
+      - "test -f harnass-os/documents/.harnass-version.yaml"
+      - "test -f harnass-os/documents/waivers/active.yaml"
+      - "test -f Audit.md"
+      - "test -f harnass-os/Audit.md"
+      - "test -f harnass-os/documents/audit/current.yaml"
+      - "test -f harnass-os/documents/decisions/adr-template.md"
+    gate_ref: ../contracts/bootstrap-checks.yaml
+    verify: "all file existence checks pass — scaffold is complete"
+
+need:
+  - runtime-startup
+emit:
+  - scaffold-ready
+  - plan-ready
+  - implementation-ready
+  - target-spec-v0.5.0-ready
+handoff: harnass-os/documents/runs/history/bootstrap-greenfield.yaml
+

@@ -1,0 +1,56 @@
+id: research-read-only-draft
+planning_visibility:
+  directive: behavioral
+  rule: "Announce the current phase and step name before executing each step. This is informational — it does not gate execution."
+  format: "[Phase N] step-id — action summary"
+steps:
+  - id: warn-missing-bootstrap
+    action: "Output warning to user in chat that the start-generated scaffold is missing and planning will remain read-only"
+    output: "warning that `harnass-os/...` is missing and `START` must run before approved planning artifacts can be written"
+    verify: "user sees a clear warning and next action"
+
+  - id: scan-repo-and-docs
+    action: "Research existing project structure — frameworks, package manager, commands, entry points, styling"
+    tool: Read
+    read_files:
+      - file: package.json
+        extract: [name, scripts.dev, scripts.build, scripts.test, scripts.lint, dependencies, devDependencies]
+      - file: tsconfig.json
+        extract: [compilerOptions.strict, compilerOptions.target, compilerOptions.paths, include]
+      - file: wrangler.toml
+        extract: [name, main, pages_build_output_dir, compatibility_date, vars, kv_namespaces, d1_databases, r2_buckets]
+      - file: .env.example
+        extract: [all variable names]
+      - file: Cargo.toml
+        extract: [package.name, dependencies]
+      - file: go.mod
+        extract: [module, require]
+      - file: pyproject.toml
+        extract: [project.name, project.dependencies]
+      - file: requirements.txt
+        extract: [all package names]
+    output: "research findings — what exists, what stack, what patterns"
+    verify: "agent has a clear picture of the repo or confirms it is empty (greenfield)"
+
+  - id: capture-intake-and-preferences
+    action: "Ask the user the same intake, scope, and preference questions needed to shape a draft plan"
+    tool: AskUserQuestion
+    output: "chat-captured product, scope, and stack decisions for the read-only draft"
+    verify: "enough answers exist to summarize a realistic draft"
+
+  - id: summarize-read-only-draft
+    action: "Summarize the proposed milestones, tasks, design considerations, risks, and next actions in chat output only"
+    constraints:
+      - "Do not create any `harnass-os/...` files"
+      - "Do not approve the plan"
+      - "Do not call `frontend-design` or generate design docs"
+      - "End with a concrete instruction to run `harnass-engineer-start` first"
+    output: "message-only draft plan and bootstrap instruction"
+    verify: "the response is clearly labeled as a read-only draft and includes the bootstrap next step"
+
+gates:
+  - no-harnass-os-writes-without-bootstrap
+  - no-ui-design-doc-generation-without-bootstrap
+  - no-plan-approval-without-bootstrap
+emit:
+  - chat-only-draft
