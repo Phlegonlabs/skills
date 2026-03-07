@@ -1,10 +1,11 @@
 id: target-load-order
-version: 0.7.0
+version: 0.8.0
 phases:
   bootstrap:
-    - harnass-os/AGENTS.md
-    - harnass-os/CLAUDE.md
-    - harnass-os/Plan.md
+    - AGENTS.md
+    - CLAUDE.md
+    - Plan.md
+    - Architecture.md
     - harnass-os/Implement.md
     - harnass-os/Deploy.md
     - harnass-os/Audit.md
@@ -73,5 +74,3 @@ rules:
   - preview-before-production
   - production-deploy-before-final-audit
   - final-audit-before-release-signoff
-
-

@@ -34,7 +34,7 @@ steps:
     tool: Bash
     command: "python scripts/bootstrap_target_repo.py . --mode retrofit --overwrite-policy create-or-merge"
     output:
-      materialized: "all 40 template files materialized alongside existing code"
+      materialized: "all template files materialized alongside existing code"
       version_stamp:
         - harnass-os/documents/.harnass-version.yaml
     verify:
@@ -79,7 +79,7 @@ steps:
       task_id: bootstrap-retrofit
       milestone_id: scaffold
       branch_or_worktree: main
-      write_scope: ["harnass-os/documents/", "harnass-os/hooks/", "harnass-os/scripts/", "AGENTS.md", "CLAUDE.md", "Plan.md", "Implement.md", "Deploy.md", "Documentation.md"]
+      write_scope: ["harnass-os/", "AGENTS.md", "CLAUDE.md", "Plan.md", "Architecture.md"]
       changed_surfaces: [scaffold]
       validations_passed: [bootstrap-gates]
       commit_ref: "HEAD bootstrap"
@@ -90,20 +90,17 @@ steps:
     verify: "harnass-os/documents/runs/history/bootstrap-retrofit.yaml exists with all required fields"
 
   - id: run-bootstrap-gates
-    action: "Verify all 40 bootstrap gate checks pass"
+    action: "Verify all bootstrap gate checks pass"
     tool: Bash
     commands:
+      - "test -f .gitignore"
       - "test -f AGENTS.md"
       - "test -f CLAUDE.md"
       - "test -f Plan.md"
-      - "test -f Implement.md"
-      - "test -f Deploy.md"
-      - "test -f Documentation.md"
-      - "test -f harnass-os/AGENTS.md"
-      - "test -f harnass-os/CLAUDE.md"
-      - "test -f harnass-os/Plan.md"
+      - "test -f Architecture.md"
       - "test -f harnass-os/Implement.md"
       - "test -f harnass-os/Deploy.md"
+      - "test -f harnass-os/Audit.md"
       - "test -f harnass-os/Documentation.md"
       - "test -f harnass-os/documents/design/wireframe.md"
       - "test -f harnass-os/documents/design/design.md"
@@ -119,6 +116,7 @@ steps:
       - "test -f harnass-os/documents/runtime/cloudflare.yaml"
       - "test -f harnass-os/documents/release/current.yaml"
       - "test -f harnass-os/documents/decisions/index.yaml"
+      - "test -f harnass-os/documents/decisions/adr-template.md"
       - "test -f harnass-os/documents/validation/design-review.yaml"
       - "test -f harnass-os/documents/validation/profiles.yaml"
       - "test -f harnass-os/documents/deploy/current.yaml"
@@ -129,10 +127,8 @@ steps:
       - "test -f harnass-os/scripts/orchestrator.py"
       - "test -f harnass-os/documents/.harnass-version.yaml"
       - "test -f harnass-os/documents/waivers/active.yaml"
-      - "test -f Audit.md"
-      - "test -f harnass-os/Audit.md"
       - "test -f harnass-os/documents/audit/current.yaml"
-      - "test -f harnass-os/documents/decisions/adr-template.md"
+      - "test -f harnass-os/documents/audit/browser/current.yaml"
     gate_ref: ../contracts/bootstrap-checks.yaml
     verify: "all file existence checks pass — scaffold is complete"
 
@@ -144,6 +140,5 @@ need:
 emit:
   - scaffold-ready
   - plan-ready
-  - target-spec-v0.5.0-ready
+  - target-spec-v0.8.0-ready
 handoff: harnass-os/documents/runs/history/bootstrap-retrofit.yaml
-

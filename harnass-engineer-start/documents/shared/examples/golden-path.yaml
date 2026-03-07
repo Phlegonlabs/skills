@@ -1,5 +1,5 @@
 id: golden-path-example
-version: 0.5.0
+version: 0.8.0
 description: >
   Complete stack-agnostic reference showing every harness file populated.
   All stack-specific values use ${variable} placeholders.

@@ -1,7 +1,7 @@
 # Implementation Route
 
 ## plan_route
-- Read `Plan.md` and the approved `harnass-os/documents/plans/<slug>.yaml`.
+- Read root `Plan.md` and the approved `harnass-os/documents/plans/<slug>.yaml`.
 
 ## execution_gate
 - Confirm self-review passed and `execution_ready` is true before edits.

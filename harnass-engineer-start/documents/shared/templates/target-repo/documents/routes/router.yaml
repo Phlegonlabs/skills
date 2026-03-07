@@ -1,5 +1,5 @@
 id: target-repo-router
-version: 0.7.0
+version: 0.8.0
 flow:
   - intake
   - inventory
@@ -21,9 +21,9 @@ gates:
 routes:
   intake:
     read:
-      - harnass-os/AGENTS.md
-      - harnass-os/CLAUDE.md
-      - harnass-os/Plan.md
+      - AGENTS.md
+      - CLAUDE.md
+      - Plan.md
       - harnass-os/documents/intake/request.yaml
   inventory:
     read:
@@ -31,7 +31,7 @@ routes:
       - harnass-os/documents/validation/profiles.yaml
   plan:
     read:
-      - harnass-os/Plan.md
+      - Plan.md
       - harnass-os/documents/intake/request.yaml
       - harnass-os/documents/inventory/current-state.yaml
       - harnass-os/documents/orchestrator/current.yaml
@@ -60,7 +60,7 @@ routes:
       guard_command: "python harnass-os/scripts/agent-guard.py check-design-sync"
   design_validation:
     read:
-      - harnass-os/Plan.md
+      - Plan.md
       - harnass-os/documents/design/wireframe.md
       - harnass-os/documents/design/design.md
       - harnass-os/documents/validation/design-review.yaml
@@ -125,5 +125,3 @@ routes:
     gate:
       condition: "deploy.post_deploy_audit_required == true AND deploy.status in [deployed, rollback_required]"
       guard_command: "python harnass-os/scripts/agent-guard.py check-release-signoff"
-
-

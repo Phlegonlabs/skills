@@ -1,69 +1,41 @@
 id: target-repo-template-set
 version:
-  spec_version: 0.7.0
-  template_set: target-repo-v2
+  spec_version: 0.8.0
+  template_set: target-repo-v3
   owner: shared canonical target repo spec
 templates:
+  # ── Root entrypoints ─────────────────────────────────────────────────
+  - output: .gitignore
+    template: ./root/.gitignore
+    contract: ../../contracts/target-documents-layout.yaml
+    write_mode: merge_block
+    managed_marker: root::.gitignore
+    conflict_policy: preserve-user-content
   - output: AGENTS.md
-    template: ./root-stubs/AGENTS.md
+    template: ./root/AGENTS.md
     contract: ../../contracts/target-documents-layout.yaml
     write_mode: merge_block
     managed_marker: root::AGENTS.md
     conflict_policy: preserve-user-content
   - output: CLAUDE.md
-    template: ./root-stubs/CLAUDE.md
+    template: ./root/CLAUDE.md
     contract: ../../contracts/target-documents-layout.yaml
     write_mode: merge_block
     managed_marker: root::CLAUDE.md
     conflict_policy: preserve-user-content
   - output: Plan.md
-    template: ./root-stubs/Plan.md
+    template: ./root/Plan.md
     contract: ../../contracts/plan-md-schema.yaml
     write_mode: merge_block
     managed_marker: root::Plan.md
     conflict_policy: preserve-user-content
-  - output: Implement.md
-    template: ./root-stubs/Implement.md
-    contract: ../../contracts/implement-md-schema.yaml
-    write_mode: merge_block
-    managed_marker: root::Implement.md
-    conflict_policy: preserve-user-content
-  - output: Deploy.md
-    template: ./root-stubs/Deploy.md
-    contract: ../../contracts/deploy-md-schema.yaml
-    write_mode: merge_block
-    managed_marker: root::Deploy.md
-    conflict_policy: preserve-user-content
-  - output: Audit.md
-    template: ./root-stubs/Audit.md
-    contract: ../../contracts/audit-md-schema.yaml
-    write_mode: merge_block
-    managed_marker: root::Audit.md
-    conflict_policy: preserve-user-content
-  - output: Documentation.md
-    template: ./root-stubs/Documentation.md
-    contract: ../../contracts/documentation-md-schema.yaml
-    write_mode: merge_block
-    managed_marker: root::Documentation.md
-    conflict_policy: preserve-user-content
-  - output: harnass-os/AGENTS.md
-    template: ./root/AGENTS.md
+  - output: Architecture.md
+    template: ./root/Architecture.md
     contract: ../../contracts/target-documents-layout.yaml
     write_mode: merge_block
-    managed_marker: harnass-os::AGENTS.md
+    managed_marker: root::Architecture.md
     conflict_policy: preserve-user-content
-  - output: harnass-os/CLAUDE.md
-    template: ./root/CLAUDE.md
-    contract: ../../contracts/target-documents-layout.yaml
-    write_mode: merge_block
-    managed_marker: harnass-os::CLAUDE.md
-    conflict_policy: preserve-user-content
-  - output: harnass-os/Plan.md
-    template: ./root/Plan.md
-    contract: ../../contracts/plan-md-schema.yaml
-    write_mode: merge_block
-    managed_marker: harnass-os::Plan.md
-    conflict_policy: preserve-user-content
+  # ── harnass-os runbooks (4 files) ───────────────────────────────────
   - output: harnass-os/Implement.md
     template: ./root/Implement.md
     contract: ../../contracts/implement-md-schema.yaml
@@ -88,6 +60,7 @@ templates:
     write_mode: merge_block
     managed_marker: harnass-os::Documentation.md
     conflict_policy: preserve-user-content
+  # ── Design docs ─────────────────────────────────────────────────────
   - output: harnass-os/documents/design/wireframe.md
     template: ./documents/design/wireframe.md
     contract: ../../contracts/wireframe-md-schema.yaml
@@ -98,6 +71,7 @@ templates:
     contract: ../../contracts/design-md-schema.yaml
     write_mode: replace_owned
     conflict_policy: replace-managed-path
+  # ── Route stack ─────────────────────────────────────────────────────
   - output: harnass-os/documents/routes/router.yaml
     template: ./documents/routes/router.yaml
     contract: ../../contracts/target-documents-layout.yaml
@@ -108,6 +82,7 @@ templates:
     contract: ../../contracts/target-documents-layout.yaml
     write_mode: replace_owned
     conflict_policy: replace-managed-path
+  # ── State stack ─────────────────────────────────────────────────────
   - output: harnass-os/documents/intake/request.yaml
     template: ./documents/intake/request.yaml
     contract: ../../contracts/intake-schema.yaml
@@ -145,16 +120,19 @@ templates:
     contract: ../../contracts/orchestrator-state-schema.yaml
     write_mode: replace_owned
     conflict_policy: replace-managed-path
+  # ── Runtime stack ───────────────────────────────────────────────────
   - output: harnass-os/documents/runtime/cloudflare.yaml
     template: ./documents/runtime/cloudflare.yaml
     contract: ../../contracts/runtime-cloudflare-schema.yaml
     write_mode: replace_owned
     conflict_policy: replace-managed-path
+  # ── Release stack ───────────────────────────────────────────────────
   - output: harnass-os/documents/release/current.yaml
     template: ./documents/release/current.yaml
     contract: ../../contracts/release-schema.yaml
     write_mode: replace_owned
     conflict_policy: replace-managed-path
+  # ── Audit stack ─────────────────────────────────────────────────────
   - output: harnass-os/documents/audit/current.yaml
     template: ./documents/audit/current.yaml
     contract: ../../contracts/final-audit-schema.yaml
@@ -165,6 +143,7 @@ templates:
     contract: ../../contracts/audit-browser-report-schema.yaml
     write_mode: replace_owned
     conflict_policy: replace-managed-path
+  # ── Decisions stack ─────────────────────────────────────────────────
   - output: harnass-os/documents/decisions/index.yaml
     template: ./documents/decisions/index.yaml
     contract: ../../contracts/decision-index-schema.yaml
@@ -175,6 +154,7 @@ templates:
     contract: ../../contracts/adr-md-schema.yaml
     write_mode: replace_owned
     conflict_policy: replace-managed-path
+  # ── Validation stack ────────────────────────────────────────────────
   - output: harnass-os/documents/validation/design-review.yaml
     template: ./documents/validation/design-review.yaml
     contract: ../../contracts/design-validation-schema.yaml
@@ -185,11 +165,13 @@ templates:
     contract: ../../contracts/validation-schema.yaml
     write_mode: replace_owned
     conflict_policy: replace-managed-path
+  # ── Deployment stack ────────────────────────────────────────────────
   - output: harnass-os/documents/deploy/current.yaml
     template: ./documents/deploy/current.yaml
     contract: ../../contracts/deployment-schema.yaml
     write_mode: replace_owned
     conflict_policy: replace-managed-path
+  # ── Hook stack ──────────────────────────────────────────────────────
   - output: harnass-os/hooks/pre-commit
     template: ./hooks/pre-commit
     contract: ../../contracts/hook-policy.yaml
@@ -205,6 +187,7 @@ templates:
     contract: ../../contracts/hook-policy.yaml
     write_mode: replace_owned
     conflict_policy: replace-managed-path
+  # ── Scripts ─────────────────────────────────────────────────────────
   - output: harnass-os/scripts/harnass_yaml.py
     template: ./scripts/harnass_yaml.py
     contract: ../../contracts/target-documents-layout.yaml
@@ -230,6 +213,7 @@ templates:
     contract: ../../contracts/target-documents-layout.yaml
     write_mode: replace_owned
     conflict_policy: replace-managed-path
+  # ── Version and waivers ─────────────────────────────────────────────
   - output: harnass-os/documents/.harnass-version.yaml
     template: ./documents/.harnass-version.yaml
     contract: ../../contracts/version-handshake-schema.yaml

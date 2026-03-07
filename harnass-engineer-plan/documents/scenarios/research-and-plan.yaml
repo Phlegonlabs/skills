@@ -608,18 +608,42 @@ steps:
       - "python harnass-os/scripts/agent-guard.py check-execution-ready exits 0"
 
   - id: generate-milestone-tasks-md
-    action: "Generate the human-readable milestone task tracker from the approved plan"
+    action: "Generate the detailed human-readable milestone task tracker from the approved plan"
     tool: Write
     output: "harnass-os/documents/plans/milestone-tasks.md"
     content_rules:
       - "header: # Milestone Tasks"
-      - "meta block: plan_id, task_horizon, generated_at"
-      - "for each milestone: ## <milestone.id> — <milestone.goal>"
-      - "task table with columns: status_icon | task_id | goal | depends_on | validation_profile"
+      - "meta block: plan_id, task_horizon, agent_topology, total_milestones, total_tasks, generated_at, last_updated"
+      - "for each milestone: ## <milestone.id> — <milestone.capability>"
+      - "milestone meta: goal, depends_on, parallel_policy, execution_context, status"
+      - "milestone acceptance criteria as bullet list"
+      - "milestone validation commands as bullet list"
+      - "milestone done_when line"
+      - "summary task table with columns: status_icon | task_id | goal | depends_on | validation_profile"
       - "all tasks start with [ ] (pending)"
+      - "for each task: ### <task.id> — <task.goal>"
+      - "task detail: status, depends_on, write_scope (bullets), entrypoints (bullets with reason)"
+      - "task implementation_steps as numbered list with step, action, tool"
+      - "task validation_commands in a code block"
+      - "task done_definition"
       - "footer with generation note"
     schema_ref: ../contracts/milestone-tasks-md-schema.yaml
-    verify: "harnass-os/documents/plans/milestone-tasks.md exists and contains one row per task"
+    verify: "harnass-os/documents/plans/milestone-tasks.md exists and contains one detail section per task"
+
+  - id: begin-implementation
+    action: "Immediately enter the implement phase — do not wait for user input"
+    next_scenario: ../../harnass-engineer-start/documents/shared/scenarios/implement.yaml
+    behavior: |
+      After plan approval and milestone-tasks.md generation, proceed directly into
+      the implement scenario without pausing. Read harnass-os/Implement.md, load the
+      approved plan, and pick the first ready task. The user has already approved the
+      plan — no further confirmation is needed to start execution.
+    tool: Read
+    targets:
+      - harnass-os/Implement.md
+      - "harnass-os/documents/plans/<slug>.yaml"
+      - harnass-os/documents/orchestrator/current.yaml
+    verify: "implementation phase has started — first task is being picked"
 
 gates:
   enforcement: behavioral

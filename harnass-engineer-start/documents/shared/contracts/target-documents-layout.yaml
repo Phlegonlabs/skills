@@ -1,7 +1,7 @@
 id: target-repo
 summary: Canonical bootstrap-ready target repository shape for both source skills and dist bundles.
 version:
-  spec_version: 0.7.0
+  spec_version: 0.8.0
   status: draft
   applies_to:
     - harnass-engineer-start
@@ -9,7 +9,10 @@ version:
     - harnass-engineer-final-audit
   changes:
     - move managed scaffold under harnass-os
-    - keep thin root entrypoint stubs for discovery
+    - root keeps only AGENTS.md, CLAUDE.md, Plan.md, Architecture.md
+    - harnass-os keeps Implement.md, Deploy.md, Audit.md, Documentation.md
+    - remove duplicate root-stubs layer
+    - add Architecture.md as project structure and lifecycle overview
     - materialize hook files and default guard entry inside harnass-os
     - require worktree and document-sync gates before execution
     - add design validation as a first-class planning gate
@@ -55,64 +58,41 @@ dirs:
   - harnass-os/hooks
   - harnass-os/scripts
 root_entrypoints:
+  .gitignore:
+    purpose: default ignores for env, dependencies, build output, and harnass-os scaffold
+    template: ../templates/target-repo/root/.gitignore
   AGENTS.md:
-    purpose: thin repo-root stub that points to the canonical Harnass OS agent entry
-    template: ../templates/target-repo/root-stubs/AGENTS.md
-  CLAUDE.md:
-    purpose: thin repo-root stub that points to the canonical Harnass OS alternate entry
-    template: ../templates/target-repo/root-stubs/CLAUDE.md
-  Plan.md:
-    purpose: thin repo-root stub that points to the canonical Harnass OS planning runbook
-    template: ../templates/target-repo/root-stubs/Plan.md
-    use: ./plan-md-schema.yaml
-  Implement.md:
-    purpose: thin repo-root stub that points to the canonical Harnass OS implementation runbook
-    template: ../templates/target-repo/root-stubs/Implement.md
-    use: ./implement-md-schema.yaml
-  Deploy.md:
-    purpose: thin repo-root stub that points to the canonical Harnass OS deploy runbook
-    template: ../templates/target-repo/root-stubs/Deploy.md
-    use: ./deploy-md-schema.yaml
-  Audit.md:
-    purpose: thin repo-root stub that points to the canonical Harnass OS final audit runbook
-    template: ../templates/target-repo/root-stubs/Audit.md
-    use: ./audit-md-schema.yaml
-  Documentation.md:
-    purpose: thin repo-root stub that points to the canonical Harnass OS documentation runbook
-    template: ../templates/target-repo/root-stubs/Documentation.md
-    use: ./documentation-md-schema.yaml
-canonical_runbooks:
-  AGENTS.md:
-    path: harnass-os/AGENTS.md
-    purpose: canonical repo entry and execution guard summary
+    purpose: agent entry with routing rules and red-line defaults
     template: ../templates/target-repo/root/AGENTS.md
   CLAUDE.md:
-    path: harnass-os/CLAUDE.md
-    purpose: canonical alternate entry with the same route and safety rules
+    purpose: alternate agent entry with read order and routing
     template: ../templates/target-repo/root/CLAUDE.md
   Plan.md:
-    path: harnass-os/Plan.md
-    purpose: canonical planning runbook for intake, discovery, review, and approval
+    purpose: planning runbook for intake, discovery, review, and approval
     template: ../templates/target-repo/root/Plan.md
     use: ./plan-md-schema.yaml
+  Architecture.md:
+    purpose: project structure and lifecycle overview
+    template: ../templates/target-repo/root/Architecture.md
+canonical_runbooks:
   Implement.md:
     path: harnass-os/Implement.md
-    purpose: canonical execution runbook for approved plan delivery
+    purpose: execution runbook for approved plan delivery
     template: ../templates/target-repo/root/Implement.md
     use: ./implement-md-schema.yaml
   Deploy.md:
     path: harnass-os/Deploy.md
-    purpose: canonical preview, production, and rollback runbook
+    purpose: preview, production, and rollback runbook
     template: ../templates/target-repo/root/Deploy.md
     use: ./deploy-md-schema.yaml
   Audit.md:
     path: harnass-os/Audit.md
-    purpose: canonical post-production final audit and release signoff runbook
+    purpose: post-production final audit and release signoff runbook
     template: ../templates/target-repo/root/Audit.md
     use: ./audit-md-schema.yaml
   Documentation.md:
     path: harnass-os/Documentation.md
-    purpose: canonical status, run log, and handoff update runbook
+    purpose: status, run log, and handoff update runbook
     template: ../templates/target-repo/root/Documentation.md
     use: ./documentation-md-schema.yaml
 route_stack:
@@ -251,16 +231,11 @@ engineering_stack:
 materialization:
   template_manifest: ../templates/target-repo/manifest.yaml
   required_generated_files:
+    - .gitignore
     - AGENTS.md
     - CLAUDE.md
     - Plan.md
-    - Implement.md
-    - Deploy.md
-    - Audit.md
-    - Documentation.md
-    - harnass-os/AGENTS.md
-    - harnass-os/CLAUDE.md
-    - harnass-os/Plan.md
+    - Architecture.md
     - harnass-os/Implement.md
     - harnass-os/Deploy.md
     - harnass-os/Audit.md
@@ -317,6 +292,3 @@ gates:
   - templates-backed-scaffold
   - placeholders-allowed-inside-templates-only
   - release-signoff-after-final-audit
-
-
-

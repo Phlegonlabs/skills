@@ -10,10 +10,7 @@ docking:
     - AGENTS.md
     - CLAUDE.md
     - Plan.md
-    - Implement.md
-    - Deploy.md
-    - Audit.md
-    - Documentation.md
+    - Architecture.md
   requires_phase: null
   emits_to_phase: plan
 ---
@@ -31,8 +28,9 @@ Do:
 - own the canonical scaffold source inside this skill's `documents/shared/`
 - materialize target repo templates from the canonical spec
 - run `scripts/bootstrap_target_repo.py . --mode auto --overwrite-policy create-or-merge`
-- emit thin root entry stubs for `Plan.md`, `Implement.md`, `Deploy.md`, `Audit.md`, `Documentation.md`, `AGENTS.md`, and `CLAUDE.md`
-- emit canonical runbooks, intake, design, runtime, release, audit, run, status, decision, design validation, deploy, route, and handoff skeletons under `harnass-os/`
+- emit root entry files: `AGENTS.md`, `CLAUDE.md`, `Plan.md`, `Architecture.md`
+- emit canonical runbooks under `harnass-os/`: `Implement.md`, `Deploy.md`, `Audit.md`, `Documentation.md`
+- emit canonical intake, design, runtime, release, audit, run, status, decision, design validation, deploy, route, and handoff skeletons under `harnass-os/documents/`
 - emit browser-audit report scaffolding under `harnass-os/documents/audit/browser/`
 - write the mandatory route for the external `frontend-design` skill on ui-facing work
 - wire the post-production final audit route and release-signoff gates

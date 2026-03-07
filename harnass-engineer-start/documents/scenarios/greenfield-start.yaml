@@ -20,26 +20,21 @@ steps:
     verify: "agent selects greenfield-start scenario (this one)"
 
   - id: run-bootstrap-engine
-    action: "Run the bootstrap script to materialize all 40 template files"
+    action: "Run the bootstrap script to materialize all template files"
     tool: Bash
     command: "python scripts/bootstrap_target_repo.py . --mode greenfield --overwrite-policy create-or-merge"
     output:
       root_entrypoints:
+        - .gitignore
         - AGENTS.md
         - CLAUDE.md
         - Plan.md
-        - Implement.md
-        - Deploy.md
-        - Documentation.md
-        - Audit.md
-      canonical_runbooks:
-        - harnass-os/AGENTS.md
-        - harnass-os/CLAUDE.md
-        - harnass-os/Plan.md
+        - Architecture.md
+      harnass_os_runbooks:
         - harnass-os/Implement.md
         - harnass-os/Deploy.md
-        - harnass-os/Documentation.md
         - harnass-os/Audit.md
+        - harnass-os/Documentation.md
       design_docs:
         - harnass-os/documents/design/wireframe.md
         - harnass-os/documents/design/design.md
@@ -80,7 +75,7 @@ steps:
       audit_stack:
         - harnass-os/documents/audit/current.yaml
     verify:
-      - "all 40 template files exist in target repo"
+      - "all template files exist in target repo"
       - "manifest.yaml template list matches materialized files"
 
   - id: ensure-git-repo
@@ -107,7 +102,7 @@ steps:
       task_id: bootstrap-greenfield
       milestone_id: scaffold
       branch_or_worktree: main
-      write_scope: ["harnass-os/documents/", "harnass-os/hooks/", "harnass-os/scripts/", "AGENTS.md", "CLAUDE.md", "Plan.md", "Implement.md", "Deploy.md", "Documentation.md"]
+      write_scope: ["harnass-os/", "AGENTS.md", "CLAUDE.md", "Plan.md", "Architecture.md"]
       changed_surfaces: [scaffold]
       validations_passed: [bootstrap-gates]
       commit_ref: "HEAD bootstrap"
@@ -116,20 +111,17 @@ steps:
     verify: "harnass-os/documents/runs/history/bootstrap-greenfield.yaml exists and has all required fields"
 
   - id: run-bootstrap-gates
-    action: "Verify all 40 bootstrap gate checks pass"
+    action: "Verify all bootstrap gate checks pass"
     tool: Bash
     commands:
+      - "test -f .gitignore"
       - "test -f AGENTS.md"
       - "test -f CLAUDE.md"
       - "test -f Plan.md"
-      - "test -f Implement.md"
-      - "test -f Deploy.md"
-      - "test -f Documentation.md"
-      - "test -f harnass-os/AGENTS.md"
-      - "test -f harnass-os/CLAUDE.md"
-      - "test -f harnass-os/Plan.md"
+      - "test -f Architecture.md"
       - "test -f harnass-os/Implement.md"
       - "test -f harnass-os/Deploy.md"
+      - "test -f harnass-os/Audit.md"
       - "test -f harnass-os/Documentation.md"
       - "test -f harnass-os/documents/design/wireframe.md"
       - "test -f harnass-os/documents/design/design.md"
@@ -145,6 +137,7 @@ steps:
       - "test -f harnass-os/documents/runtime/cloudflare.yaml"
       - "test -f harnass-os/documents/release/current.yaml"
       - "test -f harnass-os/documents/decisions/index.yaml"
+      - "test -f harnass-os/documents/decisions/adr-template.md"
       - "test -f harnass-os/documents/validation/design-review.yaml"
       - "test -f harnass-os/documents/validation/profiles.yaml"
       - "test -f harnass-os/documents/deploy/current.yaml"
@@ -155,10 +148,8 @@ steps:
       - "test -f harnass-os/scripts/orchestrator.py"
       - "test -f harnass-os/documents/.harnass-version.yaml"
       - "test -f harnass-os/documents/waivers/active.yaml"
-      - "test -f Audit.md"
-      - "test -f harnass-os/Audit.md"
       - "test -f harnass-os/documents/audit/current.yaml"
-      - "test -f harnass-os/documents/decisions/adr-template.md"
+      - "test -f harnass-os/documents/audit/browser/current.yaml"
     gate_ref: ../contracts/bootstrap-checks.yaml
     verify: "all file existence checks pass — scaffold is complete"
 
@@ -168,6 +159,5 @@ emit:
   - scaffold-ready
   - plan-ready
   - implementation-ready
-  - target-spec-v0.5.0-ready
+  - target-spec-v0.8.0-ready
 handoff: harnass-os/documents/runs/history/bootstrap-greenfield.yaml
-
