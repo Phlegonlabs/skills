@@ -88,3 +88,19 @@ Every applicable module should carry `evidence_refs` that point to validation hi
   - inspect auth, ownership, pausing, upgrades, settlement, and fund movement
   - inspect reentrancy, arithmetic edge cases, init flow, state machine correctness, oracle dependence, and signature validation
   - verify frontend transaction shaping matches contract expectations
+
+### chrome-extension-permissions
+- Scope: declared permissions in manifest.json.
+- Checks: minimal permissions, no wildcard host permissions without justification, storage usage reviewed, sensitive APIs (identity, webNavigation) documented.
+
+### chrome-extension-mv3-compliance
+- Scope: MV3 architecture rules.
+- Checks: no `eval()` or remote scripts, service worker lifecycle handled (onInstall/onActivate), Content-Security-Policy in manifest, background page replaced by service worker.
+
+### oss-release-hygiene
+- Scope: release artifact quality.
+- Checks: LICENSE file present, CHANGELOG.md updated for this version, version in package.json/Cargo.toml matches git tag, CONTRIBUTING.md present, README reflects current API.
+
+### oss-publishing-readiness
+- Scope: registry publish configuration.
+- Checks: `files` / `include` field in manifest (no source leaks), `.npmignore` or `.gitignore` correct, `main`/`exports`/`types` fields set, registry auth source documented in runtime YAML, `npm pack --dry-run` (or equivalent) passes.

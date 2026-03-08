@@ -71,7 +71,7 @@ TRACKED_CHANGE_TARGETS = (
     ".env.example",
 )
 BOOTSTRAP_SENTINELS = (
-    OS_ROOT / "Plan.md",
+    REPO_ROOT / "Architecture.md",
     DOCS / "routes" / "router.yaml",
     STATUS_FILE,
     GUARD_FILE,
@@ -1594,6 +1594,15 @@ def print_summary(state: dict[str, object]) -> None:
     print(" ".join(parts))
 
 
+def command_sync_tracker() -> int:
+    previous = load_orchestrator_state()
+    context = inspect_repo_state(previous)
+    projection_changes = sync_projection_documents(context)
+    if projection_changes:
+        stage_files(projection_changes)
+    return 0
+
+
 def command_tick(stage: bool) -> int:
     previous = load_orchestrator_state()
     context = inspect_repo_state(previous)
@@ -1653,6 +1662,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     )
 
     subparsers.add_parser("show", help="Print the current orchestrator state.")
+    subparsers.add_parser("sync-tracker", help="Sync milestone-tasks.md and status projection.")
     return parser.parse_args(argv)
 
 
@@ -1663,6 +1673,8 @@ def main(argv: list[str]) -> int:
             return command_tick(stage=bool(args.stage))
         if args.command == "show":
             return command_show()
+        if args.command == "sync-tracker":
+            return command_sync_tracker()
         return fail(f"unknown command: {args.command}", 2)
     except OrchestratorFailure as exc:
         return fail(str(exc), exc.code)

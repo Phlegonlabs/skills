@@ -23,7 +23,7 @@ routes:
     read:
       - AGENTS.md
       - CLAUDE.md
-      - Plan.md
+      - Architecture.md
       - harnass-os/documents/intake/request.yaml
   inventory:
     read:
@@ -31,7 +31,6 @@ routes:
       - harnass-os/documents/validation/profiles.yaml
   plan:
     read:
-      - Plan.md
       - harnass-os/documents/intake/request.yaml
       - harnass-os/documents/inventory/current-state.yaml
       - harnass-os/documents/orchestrator/current.yaml
@@ -60,7 +59,6 @@ routes:
       guard_command: "python harnass-os/scripts/agent-guard.py check-design-sync"
   design_validation:
     read:
-      - Plan.md
       - harnass-os/documents/design/wireframe.md
       - harnass-os/documents/design/design.md
       - harnass-os/documents/validation/design-review.yaml
@@ -125,3 +123,12 @@ routes:
     gate:
       condition: "deploy.post_deploy_audit_required == true AND deploy.status in [deployed, rollback_required]"
       guard_command: "python harnass-os/scripts/agent-guard.py check-release-signoff"
+rules:
+  - router-first
+  - runbook-before-phase
+  - current-state-before-new-questions
+  - approved-plan-before-code
+  - design-docs-before-ui-code
+  - preview-before-production
+  - production-deploy-before-final-audit
+  - final-audit-before-release-signoff

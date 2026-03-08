@@ -373,6 +373,7 @@ def update_status(
     active_branch: str | None = None,
     active_source_branch: str | None = None,
     merge_status: str | None = None,
+    blocking_task_id: str | None = None,
 ) -> None:
     status = read_optional_yaml(STATUS_FILE)
     completed = set(as_string_list(status.get("completed")))
@@ -396,6 +397,9 @@ def update_status(
         status["active_source_branch"] = active_source_branch
     if merge_status is not None:
         status["milestone_merge_status"] = merge_status
+    if blocking_task_id is not None:
+        status["blocking_task_id"] = blocking_task_id
+        status["blocking_reason"] = task_map[blocking_task_id].get("blocked_reason", "validation-failed")
     status["completed"] = sorted(completed)
     status["next"] = next_task
     status.setdefault("known_issues", [])
@@ -678,11 +682,12 @@ def command_run_task(args: argparse.Namespace) -> int:
             "commands": results,
         },
     )
-    update_run(plan, milestone_id, task_id, evidence_ref)
     if not passed:
         task["status"] = "blocked"
+        task["blocked_reason"] = f"validation failed; evidence: {evidence_ref}"
         write_yaml(plan_path, plan)
-        update_status(plan, task_id, milestone_id)
+        update_run(plan, milestone_id, task_id, evidence_ref)
+        update_status(plan, task_id, milestone_id, blocking_task_id=task_id)
         raise ExecutorFailure(f"task validation failed for {task_id}; see {evidence_ref}", 1)
 
     task["status"] = "validated"
@@ -691,8 +696,12 @@ def command_run_task(args: argparse.Namespace) -> int:
         task["status"] = "committed"
     update_task_statuses(plan, milestone_id, task_id, task["status"])
     write_yaml(plan_path, plan)
+    update_run(plan, milestone_id, task_id, evidence_ref)
     if not args.no_commit:
         commit_all(f"task:{task_id} {non_placeholder_string(task.get('goal')) or 'validated task'}")
+        result = shell("python harnass-os/scripts/orchestrator.py sync-tracker")
+        if result.returncode != 0:
+            print(f"sync-tracker failed (non-blocking): {result.stderr}", file=sys.stderr)
     return 0
 
 
@@ -747,12 +756,15 @@ def command_run_milestone(args: argparse.Namespace) -> int:
             history = as_list(worktree_run.get("validation_history"))
             history.append(evidence_ref)
             worktree_run["validation_history"] = history
+            write_yaml(worktree_plan_path, refreshed)
             write_yaml(worktree_root / "harnass-os/documents/status/current.yaml", worktree_status)
             write_yaml(worktree_root / "harnass-os/documents/runs/current.yaml", worktree_run)
-            write_yaml(worktree_plan_path, refreshed)
             if not args.no_commit:
                 commit_all(f"task:milestone-{milestone_id} record milestone exit validation", repo_root=worktree_root)
                 merge_back_milestone(worktree_root, branch_ref, source_branch, milestone_id)
+                result = shell("python harnass-os/scripts/orchestrator.py sync-tracker")
+                if result.returncode != 0:
+                    print(f"sync-tracker failed (non-blocking): {result.stderr}", file=sys.stderr)
         elif not args.no_commit:
             raise ExecutorFailure(
                 f"milestone {milestone_id} did not reach all committed tasks before exit validation",
@@ -764,6 +776,16 @@ def command_run_milestone(args: argparse.Namespace) -> int:
         worktree_run = read_optional_yaml(worktree_root / "harnass-os/documents/runs/current.yaml")
         worktree_status["milestone_merge_status"] = "blocked"
         worktree_run["milestone_merge_status"] = "blocked"
+        try:
+            worktree_plan = read_yaml(worktree_plan_path)
+            for m in plan_milestones(worktree_plan):
+                if str(m.get("id", "")) == milestone_id:
+                    m["status"] = "blocked"
+                    m["blocked_reason"] = "milestone exit validation failed"
+                    break
+            write_yaml(worktree_plan_path, worktree_plan)
+        except Exception:
+            pass
         write_yaml(worktree_root / "harnass-os/documents/status/current.yaml", worktree_status)
         write_yaml(worktree_root / "harnass-os/documents/runs/current.yaml", worktree_run)
         raise

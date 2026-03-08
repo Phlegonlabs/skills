@@ -28,6 +28,10 @@ must:
   - validation commands per task
   - commit rule per task
   - handoff output per task
+  - features (F-{N} id, must|should|could|wont priority, description, acceptance_criteria)
+  - quality_requirements (Q-{N} id, category, description, measurable target)
+  - architecture_pattern (selected pattern + one-sentence justification)
+  - quality_mapping (list: q_id → architectural decision + rationale)
 use:
   - harnass-os/documents/intake/request.yaml
   - harnass-os/documents/inventory/current-state.yaml

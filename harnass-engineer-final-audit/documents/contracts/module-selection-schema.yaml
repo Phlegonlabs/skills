@@ -17,6 +17,10 @@ modules:
   - ci-cd-release-hygiene
   - documentation-signoff
   - blockchain-contract-audit
+  - chrome-extension-permissions
+  - chrome-extension-mv3-compliance
+  - oss-release-hygiene
+  - oss-publishing-readiness
 blockchain_detection:
   repo-detected-only: true
   detect_from:
@@ -74,6 +78,18 @@ applicability_rules:
     applies_always: true
   blockchain-contract-audit:
     applies_when: "blockchain_tooling_detected"
+  chrome-extension-permissions:
+    applies_when: "app_type == chrome-extension"
+    description: "Verify all declared permissions are justified and minimal (principle of least privilege)"
+  chrome-extension-mv3-compliance:
+    applies_when: "app_type == chrome-extension"
+    description: "Check MV3 rules: no remote code execution, service worker lifecycle, CSP compliance"
+  oss-release-hygiene:
+    applies_when: "app_type == open-source-library"
+    description: "LICENSE present, CHANGELOG updated, version bumped, CONTRIBUTING.md exists, README current"
+  oss-publishing-readiness:
+    applies_when: "app_type == open-source-library"
+    description: "package.json/Cargo.toml publish fields correct, .npmignore/.gitignore, registry auth configured"
 smoke_required_modules:
   - frontend-experience
   - backend-runtime
@@ -83,6 +99,7 @@ smoke_required_modules:
   - performance-observability
   - deploy-runtime-consistency
   - blockchain-contract-audit
+  - oss-publishing-readiness
 smoke_to_deep_rule: "if smoke_status == failed, skip deep audit for that module and mark deep_audit_status as skipped"
 skipped_check_required:
   - module_id

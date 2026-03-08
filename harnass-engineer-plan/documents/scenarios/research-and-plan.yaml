@@ -89,11 +89,35 @@ steps:
       - "list of entry point files"
     verify: "package manager identified or marked unknown; commands discovered or marked unknown"
 
+  # ── Phase 1.5: BA discovery — problem framing (long_run only) ─────────
+  - id: discover-and-frame
+    condition: "initial_horizon == long_run"
+    action: "从仓库研究推断问题域，生成方案方向 — 不提问，为 capture-intake 准备上下文"
+    tool: inline
+    derive:
+      problem_statement: "who + what pain point + why matters（从 README、已有代码、请求推断）"
+      solution_directions:
+        count: 2-3
+        each: "{name, one-line hypothesis, key_capabilities: [3-5条], trade_offs: [优/劣]}"
+      recommended_direction: "基于仓库信号推荐其中一个，附理由"
+    output: in-context only（在 capture-intake 里呈现给用户）
+    on_skip: "initial_horizon == single_task — 直接进 capture-intake，不呈现方案框架"
+    verify: "long_run: problem_statement 非空；至少 2 个 solution_directions"
+
   # ── Phase 2: Ask user — intake + preferences ──────────────────────────
   - id: capture-intake
     action: "Ask user for project name, idea, and what they want to build"
     tool: AskUserQuestion
+    present_first:  # long_run only — show BA analysis from discover-and-frame before asking
+      condition: "initial_horizon == long_run"
+      items:
+        - "问题陈述（来自 discover-and-frame.problem_statement）"
+        - "方案选项列表（numbered，附 trade_offs）"
+        - "推荐方向及理由"
     questions:
+      - key: chosen_direction
+        prompt: "以上描述准确吗？你倾向于哪个方向？（或描述自己的方向）"
+        required_when: "initial_horizon == long_run"
       - key: project_name
         prompt: "What is the project name?"
         required: true
@@ -147,7 +171,7 @@ steps:
       - key: app_type
         prompt: "What type of application is this?"
         required: true
-        options: [web, cli, mobile-ios, mobile-android, desktop, api-only]
+        options: [web, cli, mobile-ios, mobile-android, desktop, api-only, chrome-extension, open-source-library]
       - key: frontend_framework
         prompt: "Frontend framework preference? (based on research: list what was found or suggest options)"
         required_when: "app_type in [web, mobile-ios, mobile-android, desktop]"
@@ -167,7 +191,7 @@ steps:
       - key: runtime_target
         prompt: "Where will this run?"
         required: true
-        examples: [cloudflare-workers, cloudflare-pages, vercel, node, deno, browser-only, local-cli]
+        examples: [cloudflare-workers, cloudflare-pages, vercel, node, deno, browser-only, local-cli, chrome-extension-local, npm-registry, crates-io, pypi]
     output: "user preferences captured — app type, frameworks, package manager, styling, runtime"
     then:
       tool: Edit
@@ -207,6 +231,32 @@ steps:
     output: "user decisions on scope, features, constraints, and rollout"
     verify: "ship-first-capability and out-of-scope-v1 answered"
 
+  - id: ask-chrome-extension-specifics
+    condition: "app_type == chrome-extension"
+    action: "Ask Chrome extension specific questions from question-set chrome-extension group"
+    tool: AskUserQuestion
+    questions_from: "question-set.yaml groups.chrome-extension"
+    output: "extension config captured: manifest_version, permissions, content_scripts, background_worker, popup, target_browsers, cws_publish"
+    then:
+      tool: Edit
+      target: harnass-os/documents/intake/request.yaml
+      fill:
+        chrome_extension: "all answered fields from above"
+    verify: "manifest_version and permissions answered; cws_publish captured"
+
+  - id: ask-oss-library-specifics
+    condition: "app_type == open-source-library"
+    action: "Ask OSS library specific questions from question-set oss-library group"
+    tool: AskUserQuestion
+    questions_from: "question-set.yaml groups.oss-library"
+    output: "library config captured: registry, license, semver_policy, changelog_format, contributor_docs, ci_publish"
+    then:
+      tool: Edit
+      target: harnass-os/documents/intake/request.yaml
+      fill:
+        oss_library: "all answered fields from above"
+    verify: "registry and license answered; semver_policy captured"
+
   - id: web-search-market-stacks
     action: "Search the web for current market status of detected frameworks and tools to validate tech stack choices"
     tool: WebSearch
@@ -237,7 +287,7 @@ steps:
     target: harnass-os/documents/inventory/current-state.yaml
     fill_from:
       repo_shape.summary: "from scan — e.g. 'Greenfield Hono app on Cloudflare Workers' or 'Existing Next.js 14 app with App Router'"
-      ui_facing: "true if app_type in [web, mobile-ios, mobile-android, desktop], false if cli or api-only"
+      ui_facing: "true if app_type in [web, mobile-ios, mobile-android, desktop, chrome-extension], false if cli, api-only, or open-source-library"
       app_type: "from user answer — web, cli, mobile-ios, mobile-android, desktop, api-only"
       frontend.frameworks: "from user preference or detected from package.json dependencies"
       frontend.package_manager: "from user preference or detected from lock file"
@@ -325,6 +375,29 @@ steps:
       - change_log
       - execution_ready
       - status
+      - features
+      - quality_requirements
+      - architecture_pattern
+      - quality_mapping
+    fill_rules:
+      features: |
+        从 chosen_direction.key_capabilities + user_goal + requested_changes + ship-first-capability 派生。
+        格式: {id: F-{N}, priority: must|should|could|wont, description: 一句话, acceptance_criteria: [可测试条件]}
+        MoSCoW: must=MVP必须, should=重要不阻塞, could=余量才做, wont=out-of-scope-v1
+      quality_requirements: |
+        从 runtime_target, app_type, constraints, chosen_direction.trade_offs 推断。
+        格式: {id: Q-{N}, category: performance|security|scalability|reliability|usability|maintainability,
+               description: 一句话, target: 可量化指标或"inferred"}
+        web/api 项目必须包含至少1个 performance + 1个 security 条目。
+      architecture_pattern: |
+        serverless  → runtime_target in [cloudflare-workers/pages, vercel]
+        monolith    → tasks≤3, single deployable
+        modular_monolith → tasks 4-10, module boundaries needed
+        microservices → tasks>10, independent scaling
+        格式: "{pattern}: {一句理由}"
+      quality_mapping: |
+        每条 Q-{N} 映射到具体架构决策。
+        格式: [{q_id, decision, rationale}]
     conditional_required_fields:
       ui_facing:
         - design_validation_ref
@@ -389,6 +462,7 @@ steps:
       - "each milestone has exit_validation referencing a validation profile"
       - "default execution_context is milestone-worktree with worktree_ref ../milestone-<id> and branch_ref milestone/<id>"
       - "milestones are ordered by dependency (earlier milestones first)"
+      - "每个 milestone 包含 satisfies_features: [F-N, ...] 列出该 milestone 满足的 feature ID"
     verify: "at least one milestone exists and every milestone satisfies milestone-schema.yaml"
 
   - id: attach-milestone-gates
@@ -476,12 +550,27 @@ steps:
       - harnass-os/documents/plans/<slug>.yaml
       - harnass-os/documents/runtime/<provider>.yaml
       - harnass-os/documents/release/current.yaml
+    runtime_file_routing:
+      cloudflare: "harnass-os/documents/runtime/cloudflare.yaml"
+      chrome-extension: "harnass-os/documents/runtime/chrome-extension.yaml"
+      open-source-library: "harnass-os/documents/runtime/open-source-library.yaml"
+      default: "harnass-os/documents/runtime/${runtime.provider}.yaml"
     fill_from_inventory:
       - "plan.release_affecting: true"
-      - "plan.runtime_ref: harnass-os/documents/runtime/<provider>.yaml"
+      - "plan.runtime_ref: harnass-os/documents/runtime/<provider>.yaml (resolved via runtime_file_routing)"
       - "plan.release_ref: harnass-os/documents/release/current.yaml"
       - "runtime fields from inventory.runtime"
       - "release plan_id from plan.id"
+    fill_chrome_extension_runtime:
+      condition: "app_type == chrome-extension"
+      from: "intake.chrome_extension answers"
+      fields: [manifest_version, permissions, host_permissions, content_scripts,
+               background_worker, popup_path, target_browsers, publishing.*]
+    fill_oss_library_runtime:
+      condition: "app_type == open-source-library"
+      from: "intake.oss_library answers"
+      fields: [registry, license, semver_policy, changelog_format, publish_command,
+               tag_format, publishing.registry_auth_source, publishing.release_approval_owner]
     verify: "plan.release_affecting is true, plan.runtime_ref and plan.release_ref are set, and runtime/release docs have plan references"
 
   - id: attach-deployment-route-when-release-affecting
@@ -498,6 +587,20 @@ steps:
       - "production_deploy_command from deploy template discover section"
       - "smoke_command_refs from key routes"
       - "rollback_command from deploy template discover section"
+    deploy_commands_by_type:
+      chrome-extension:
+        build_command: "from package.json scripts.build"
+        package_command: "zip -r extension.zip dist/"
+        upload_command: "chrome-webstore-upload or manual CWS dashboard"
+        rollback_command: "revert to previous version in CWS dashboard"
+        preview_command: "Load unpacked from dist/ in chrome://extensions"
+      open-source-library:
+        build_command: "from package.json scripts.build or Cargo build or equivalent"
+        pre_publish_checks: "from intake.pre_publish_checks"
+        publish_command: "npm publish / cargo publish / pip publish"
+        tag_command: "git tag v${version} && git push --tags"
+        rollback_command: "npm deprecate / cargo yank"
+        changelog_update: "update CHANGELOG.md before publish"
     verify: "plan.deployment_ref is set and deploy/current.yaml has no <fill> in command fields"
 
   - id: self-review-plan
@@ -517,6 +620,9 @@ steps:
       - "Completion criteria are testable"
       - "No <fill> placeholders remain in task fields"
       - "UI-facing + release-affecting plans define testing.integration_flows in inventory with at least one structured flow"
+      - "All must-priority features have at least one task in write_scope"
+      - "All Q-{N} quality_requirements have a quality_mapping entry with concrete decision"
+      - "architecture_pattern is set with one-sentence justification"
     output: "review findings — blocking and non-blocking"
     verify: "blocking_findings is empty"
 
@@ -630,20 +736,54 @@ steps:
     schema_ref: ../contracts/milestone-tasks-md-schema.yaml
     verify: "harnass-os/documents/plans/milestone-tasks.md exists and contains one detail section per task"
 
+  - id: generate-prd
+    action: "生成 PRD.md — User Journeys + Features 表 + Quality Requirements 表 + 架构摘要"
+    tool: Write
+    output: harnass-os/documents/plans/PRD.md
+    sections:
+      - "# PRD — {project_name}  （plan_id / goal / generated_at）"
+      - "## Problem Statement  （来自 discover-and-frame.problem_statement）"
+      - "## Solution Direction  （chosen_direction + hypothesis）"
+      - "## User Journeys  （每个 must feature 对应一个 Journey）"
+      - "    ### Journey N: {name} — Persona / Goal / Steps（用户视角）/ Happy Path / Edge Cases"
+      - "## Features  （table: ID | Priority | Description | Acceptance Criteria | Milestone）"
+      - "## Quality Requirements  （table: ID | Category | Description | Target | Decision）"
+      - "## Architecture  （pattern + quality_mapping table + tech_stack_rationale）"
+      - "## Out of Scope v1  （wont features + out-of-scope-v1 用户回答）"
+    verify:
+      - "PRD.md 存在且包含 User Journeys section"
+      - "每个 must feature 在 Journeys 或 Features table 中有覆盖"
+
   - id: begin-implementation
-    action: "Immediately enter the implement phase — do not wait for user input"
-    next_scenario: ../../harnass-engineer-start/documents/shared/scenarios/implement.yaml
-    behavior: |
-      After plan approval and milestone-tasks.md generation, proceed directly into
-      the implement scenario without pausing. Read harnass-os/Implement.md, load the
-      approved plan, and pick the first ready task. The user has already approved the
-      plan — no further confirmation is needed to start execution.
+    action: "DO NOT STOP OR PAUSE. Execute the implement scenario now — all steps, in order, starting immediately."
+    transition_ref: "../../harnass-engineer-start/documents/shared/routes/default-sequence.yaml transitions.plan_to_implement"
+    mandatory: true
+    no_user_confirmation_needed: true
+    critical: |
+      See default-sequence.yaml transitions.plan_to_implement — this transition is automatic.
+      The user has already approved the plan. You MUST NOT output a summary and wait.
+      You MUST NOT ask if you should proceed. You MUST NOT stop between tasks.
+      The plan is approved. Implementation begins NOW in this same response turn.
+    execution_order:
+      1: "Read harnass-os/Implement.md"
+      2: "Read harnass-os/documents/plans/<slug>.yaml to confirm plan.status == approved"
+      3: "Run: python harnass-os/scripts/agent-guard.py check-execution-ready"
+      4: "Pick the first pending task (status == pending, all depends_on committed)"
+      5: "Enter milestone worktree: git worktree add ../milestone-<id> -b milestone/<id>"
+      6: "Execute task.implementation_steps one by one using the tool each step specifies"
+      7: "Run task.validation_commands — repair if any fail (max 3 retries)"
+      8: "Commit: git add <write_scope files> && git commit -m '<task.goal>\n\ntask:<id> plan:<plan.id>'"
+      9: "Write handoff: harnass-os/documents/handoffs/<task-id>.yaml"
+      10: "Update plan: set task.status = committed"
+      11: "Update milestone-tasks.md: mark task [x]"
+      12: "Repeat from step 4 for the next pending task — do not stop between tasks"
+    implement_scenario_ref: ../../harnass-engineer-start/documents/shared/scenarios/implement.yaml
     tool: Read
     targets:
       - harnass-os/Implement.md
       - "harnass-os/documents/plans/<slug>.yaml"
       - harnass-os/documents/orchestrator/current.yaml
-    verify: "implementation phase has started — first task is being picked"
+    verify: "first task is actively being executed — code is being written, not just described"
 
 gates:
   enforcement: behavioral
@@ -674,6 +814,7 @@ emit:
   - harnass-os/documents/deploy/current.yaml when release_affecting
   - harnass-os/documents/decisions/index.yaml when decision_sensitive
   - harnass-os/documents/plans/milestone-tasks.md
+  - harnass-os/documents/plans/PRD.md
   - harnass-os/documents/runs/current.yaml when long_run
   - harnass-os/documents/status/current.yaml when long_run
 

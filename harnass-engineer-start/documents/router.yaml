@@ -28,7 +28,6 @@ scenarios:
       - ./shared/contracts/runtime-cloudflare-schema.yaml
       - ./shared/contracts/release-schema.yaml
       - ./shared/contracts/audit-md-schema.yaml
-      - ./shared/contracts/final-audit-schema.yaml
       - ./shared/contracts/decision-index-schema.yaml
       - ./shared/contracts/adr-md-schema.yaml
       - ./shared/contracts/deployment-schema.yaml
@@ -46,11 +45,8 @@ scenarios:
       - ./shared/contracts/inventory-schema.yaml
       - ./shared/contracts/plan-md-schema.yaml
       - ./shared/contracts/version-handshake-schema.yaml
-      - ./shared/contracts/milestone-schema.yaml
       - ./shared/contracts/milestone-tasks-md-schema.yaml
-      - ./shared/contracts/task-schema.yaml
       - ./shared/validation/profiles.yaml
-      - ./shared/scenarios/implement.yaml
   retrofit-bootstrap:
     local:
       - ./scenarios/retrofit-bootstrap.yaml
@@ -71,7 +67,6 @@ scenarios:
       - ./shared/contracts/runtime-cloudflare-schema.yaml
       - ./shared/contracts/release-schema.yaml
       - ./shared/contracts/audit-md-schema.yaml
-      - ./shared/contracts/final-audit-schema.yaml
       - ./shared/contracts/decision-index-schema.yaml
       - ./shared/contracts/adr-md-schema.yaml
       - ./shared/contracts/deployment-schema.yaml
@@ -89,11 +84,8 @@ scenarios:
       - ./shared/contracts/inventory-schema.yaml
       - ./shared/contracts/plan-md-schema.yaml
       - ./shared/contracts/version-handshake-schema.yaml
-      - ./shared/contracts/milestone-schema.yaml
       - ./shared/contracts/milestone-tasks-md-schema.yaml
-      - ./shared/contracts/task-schema.yaml
       - ./shared/validation/profiles.yaml
-      - ./shared/scenarios/implement.yaml
 emit:
   - target.documents-root
   - target.root-runbooks

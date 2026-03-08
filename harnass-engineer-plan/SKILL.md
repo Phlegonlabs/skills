@@ -31,6 +31,11 @@ Read [documents/router.yaml](./documents/router.yaml).
 
 If `harnass-os/...` is missing, stay in read-only draft mode: inspect the repo, align with the user, summarize the draft in chat, and direct the repo through `harnass-engineer-start` before writing plan files.
 
+CRITICAL EXECUTION RULE:
+After the user approves the plan, you MUST immediately begin executing tasks.
+Do NOT output a summary and stop. Do NOT ask "should I proceed?". Do NOT wait.
+The plan approval IS the signal to start. Read Implement.md, pick the first pending task, and execute it now.
+
 Do:
 - announce current phase and step before executing (planning visibility)
 - scan repo reality
@@ -48,7 +53,7 @@ Do:
 - record durable decisions when ui, runtime, or release direction changes
 - make tasks execution-ready with read scopes, entrypoints, implementation steps, validation commands, and structured integration audit flows when release/UI work is involved
 - self-review before approval
-- after plan approval, immediately proceed to implementation — do not wait for user input
+- after plan approval: immediately read harnass-os/Implement.md and begin-implementation step — execute every task in the plan without pausing between them
 
 Do not:
 - backfill missing bootstrap layers during planning
@@ -56,6 +61,8 @@ Do not:
 - skip inspection
 - finalize plan before alignment
 - approve plan without review gates
+- stop after plan approval and wait for user input — implementation must start automatically
+- output a "plan is ready, shall I proceed?" message — the user's approval IS the proceed signal
 
 Gates:
 - planning visibility — announce phase and step before executing

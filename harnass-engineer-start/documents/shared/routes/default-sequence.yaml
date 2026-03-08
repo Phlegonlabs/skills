@@ -11,6 +11,29 @@ enter:
   implement: approved reviewed plan exists
   deploy: release-affecting work is ready for preview or production deployment
   final-audit: production deployment is recorded and final signoff is pending
+transitions:
+  plan_to_implement:
+    trigger: "plan.status == approved AND execution_ready flags all true"
+    mode: automatic
+    no_user_confirmation: true
+    rule: |
+      When the plan phase ends with an approved plan, the implement phase begins
+      immediately in the same response turn. The agent MUST NOT output a completion
+      summary and stop. The agent MUST NOT ask "shall I proceed?". Picking the first
+      pending task is the next action — no pause, no confirmation.
+  implement_to_deploy:
+    trigger: "all tasks committed AND plan.release_affecting == true"
+    mode: surface_and_confirm
+    rule: |
+      After all tasks are committed, surface deploy readiness to the user.
+      Deployment requires explicit user confirmation before proceeding.
+  implement_to_final_audit:
+    trigger: "all tasks committed AND plan.release_affecting == false"
+    mode: automatic
+    rule: |
+      Non-release work transitions directly to final-audit announcement after
+      all tasks are committed. No deploy step needed.
+
 implement_phase_note: |
   The implement phase is not a packaged skill. It is governed by the scaffolded
   repo's own AGENTS.md, CLAUDE.md, Implement.md runbook, and the git hooks

@@ -19,8 +19,7 @@ start → plan → implement → deploy → audit
 ```
 <repo-root>/
   AGENTS.md              # agent entry — routing rules and red-line defaults
-  CLAUDE.md              # alternate agent entry — read order and routing
-  Plan.md                # planning runbook — intake, discovery, review, approval
+  CLAUDE.md              # Claude Code entry — routing shortcut for Claude Code
   Architecture.md        # this file — project structure and lifecycle overview
   harnass-os/
     Implement.md         # execution runbook — task pickup, validation, commit
@@ -30,8 +29,7 @@ start → plan → implement → deploy → audit
     documents/
       .harnass-version.yaml
       routes/
-        router.yaml      # phase routing and gate definitions
-        load-order.yaml  # per-phase document read order
+        router.yaml      # phase routing, gate definitions, and per-phase read order
       intake/
         request.yaml     # user goal, project name, constraints
         change-requests/current.yaml
@@ -87,18 +85,12 @@ start → plan → implement → deploy → audit
 
 ## Routing
 
-Agents enter through `AGENTS.md` or `CLAUDE.md` at the repo root.
-Both route to `harnass-os/documents/routes/router.yaml` which defines per-phase read lists and gate conditions.
-`harnass-os/documents/routes/load-order.yaml` specifies the exact document read sequence for each phase.
+Agents enter through `AGENTS.md` at the repo root, which routes to `harnass-os/documents/routes/router.yaml`.
+`router.yaml` is the single source of truth for per-phase read lists, gate conditions, and load rules.
 
 ## Gates
 
-Every phase transition is gated:
-- **Bootstrap → Plan**: scaffold files must exist
-- **Plan → Implement**: plan must be approved, execution_ready flags set
-- **Implement → Deploy**: all milestone tasks committed and validated
-- **Deploy → Audit**: production deployment recorded
-- **Audit → Complete**: final audit passes with no blocking findings
+Gate definitions and per-phase read order are in `harnass-os/documents/routes/router.yaml` (`gates` and `rules` sections).
 
 Gate enforcement runs through `harnass-os/scripts/agent-guard.py` and git hooks.
 

@@ -12,23 +12,144 @@ groups:
   intake: [project-name, user-goal, project-idea]
   app_type: [app-type, frontend-framework, backend-framework, package-manager, styling-approach, runtime-target]
   product: [ship-first-capability, out-of-scope-v1]
+  discovery:
+    # 来自 BMAD BA：了解问题的深度和紧迫性
+    - problem-depth:
+        prompt: "用户目前是怎么处理这个问题的？（现有的 workaround 或工具）"
+        why: "理解当前痛点，避免造一个被忽视的东西"
+    - problem-impact:
+        prompt: "如果这个问题不解决，影响有多大？（时间损耗 / 业务影响 / 用户流失）"
+        why: "帮助 MoSCoW 优先级判断"
+    - why-now:
+        prompt: "为什么现在要做这个？（新机会 / 用户反馈积累 / 技术条件成熟）"
+        why: "帮助识别紧迫性和 MVP 边界"
+    - frequency:
+        prompt: "这个问题出现的频率如何？（每天 / 每次使用 / 偶尔）"
+        why: "低频问题可能是 could 而非 must"
+  users:
+    # 来自 BMAD BA：用户画像和 Jobs-to-be-Done
+    - target-persona:
+        prompt: "主要用户是谁？（角色、技术背景、使用场景）"
+        why: "决定 UX 复杂度和功能深度"
+    - user-goal-jtbd:
+        prompt: "用户真正想完成的任务是什么？（不是要求的功能，而是背后的 job）"
+        why: "Jobs-to-be-Done 框架：避免只交付功能而忽视目标"
+    - user-pain-points:
+        prompt: "用户最大的痛点是什么？排前3位"
+        why: "直接映射到 must-priority features"
+  success:
+    # 来自 BMAD BA + PM：成功定义
+    - success-metrics:
+        prompt: "怎么判断这个项目成功了？（具体指标：DAU / 响应时间 / 转化率 / NPS）"
+        why: "映射到 quality_requirements 和 acceptance_criteria"
+    - success-timeline:
+        prompt: "v1 上线后3个月内希望达到什么状态？"
+        why: "帮助 milestone 顺序和 scope 判断"
+    - failure-definition:
+        prompt: "什么情况下会认为这次开发失败了？"
+        why: "倒推出真正的 must 条件，避免 must-should 混淆"
   ux: [browser-validated-flows, design-system-non-negotiables, design-artifact-source, responsive-state-coverage, frontend-design-skill-inputs]
   architecture: [replace-vs-patch, hard-boundaries, execution-entrypoints]
   data: [data-shape-constraints]
   integration: [external-dependencies, auth-or-provider-rules, runtime-binding-rules, package-manager-commands]
-  rollout: [milestone-order, release-risk, cloudflare-surface, preview-domain, deploy-command-source, rollback-rule, release-approval-owner]
+  rollout-cloudflare:
+    applies_when: "app_type in [web, cli, api-only, mobile-ios, mobile-android, desktop]"
+    items: [milestone-order, release-risk, cloudflare-surface, preview-domain, deploy-command-source, rollback-rule, release-approval-owner]
+  rollout-chrome-extension:
+    applies_when: "app_type == chrome-extension"
+    items:
+      - milestone-order
+      - release-risk
+      - cws-extension-id:
+          prompt: "Extension ID (if existing), or 'new'?"
+      - cws-developer-account:
+          prompt: "CWS developer account email?"
+      - cws-visibility:
+          prompt: "CWS listing visibility?"
+          options: [public, unlisted, private]
+      - build-output-dir:
+          prompt: "Build output directory to package? (e.g. dist/)"
+      - rollback-rule:
+          prompt: "Rollback strategy if CWS update breaks users? (revert to previous version / hotfix)"
+      - release-approval-owner
+  rollout-oss-library:
+    applies_when: "app_type == open-source-library"
+    items:
+      - milestone-order
+      - release-risk
+      - registry-publish-token-source:
+          prompt: "Where is the publish token stored? (e.g. GITHUB_SECRETS / NPM_TOKEN env var)"
+      - release-tag-format:
+          prompt: "Git tag format for releases? (e.g. v${version})"
+          default: "v${version}"
+      - changelog-path:
+          prompt: "Changelog file path?"
+          default: CHANGELOG.md
+      - pre-publish-checks:
+          prompt: "Any pre-publish checks beyond build+test? (e.g. size-limit, bundlewatch)"
+      - release-approval-owner
+  chrome-extension:
+    - manifest-version:
+        prompt: "Manifest version? (MV3 is required for new CWS submissions)"
+        options: [mv3, mv2-legacy]
+        default: mv3
+    - permissions:
+        prompt: "Which Chrome APIs does the extension need? (e.g. storage, tabs, scripting, notifications)"
+    - content-scripts:
+        prompt: "Does it inject content scripts into pages? If yes, list match patterns."
+    - background-worker:
+        prompt: "Does it need a background service worker? (MV3) If yes, describe its role."
+    - popup:
+        prompt: "Does it have a browser-action popup?"
+    - options-page:
+        prompt: "Does it have an options/settings page?"
+    - target-browsers:
+        prompt: "Target browsers: Chrome only, or cross-browser (Firefox/Edge too)?"
+        options: [chrome-only, cross-browser]
+    - cws-publish:
+        prompt: "Will this be published to the Chrome Web Store?"
+        options: [yes-public, yes-unlisted, no-private]
+    - extension-id-source:
+        prompt: "Is this a new extension or updating an existing one? (affects extension ID)"
+        options: [new, existing-dashboard]
+  oss-library:
+    - registry:
+        prompt: "Which registry will this be published to?"
+        options: [npmjs, crates-io, pypi, pkg-go-dev, jsr]
+    - license:
+        prompt: "License?"
+        options: [MIT, Apache-2.0, GPL-3.0, BSD-3-Clause, ISC]
+    - semver-policy:
+        prompt: "Semver enforcement: manual bumps, or automated via semantic-release/changesets?"
+        options: [manual, semantic-release, changesets]
+    - changelog-format:
+        prompt: "Changelog format?"
+        options: [conventional-commits, keepachangelog, github-releases-only]
+    - contributor-docs:
+        prompt: "Include CONTRIBUTING.md and CODE_OF_CONDUCT.md?"
+        options: [yes, no]
+    - ci-publish:
+        prompt: "Auto-publish on tag push via GitHub Actions?"
+        options: [yes, no-manual-only]
+    - docs-site:
+        prompt: "Generate a docs site? (TypeDoc, Storybook, MkDocs, etc.)"
+        options: [yes, no]
 adaptive_depth:
   rule: "question depth adapts to initial_horizon classified from intake signals"
   single_task:
     max_rounds: 3
     strategy: minimum-unblocking-set-only
     groups: [intake, app_type, product]
+    note: "single_task 不变 — 3组，快速完成，跳过所有 BA 问题；features 和 quality_requirements 靠推断生成"
   long_run:
     max_rounds: 10
     strategy: fixed-intake-then-deep-dive
     fixed_rounds: 3
     deep_dive_rounds: 7
-    groups: [intake, app_type, product, ux, architecture, data, integration, rollout]
+    groups: [intake, app_type, product, discovery, users, ux, success, quality, architecture, data, integration,
+             rollout-cloudflare, rollout-chrome-extension, rollout-oss-library,
+             chrome-extension, oss-library]
+    note: "discovery + users + success 3个新组插在 product 之后、ux 之前（long_run 专用）；chrome-extension 和 oss-library 组只在对应 app_type 时激活"
 output_mode:
   scaffold_ready: write answers into `harnass-os/...` planning artifacts
   scaffold_missing: keep answers in chat-only draft notes

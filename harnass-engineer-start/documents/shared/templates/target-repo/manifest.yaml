@@ -23,12 +23,6 @@ templates:
     write_mode: merge_block
     managed_marker: root::CLAUDE.md
     conflict_policy: preserve-user-content
-  - output: Plan.md
-    template: ./root/Plan.md
-    contract: ../../contracts/plan-md-schema.yaml
-    write_mode: merge_block
-    managed_marker: root::Plan.md
-    conflict_policy: preserve-user-content
   - output: Architecture.md
     template: ./root/Architecture.md
     contract: ../../contracts/target-documents-layout.yaml
@@ -74,11 +68,6 @@ templates:
   # ── Route stack ─────────────────────────────────────────────────────
   - output: harnass-os/documents/routes/router.yaml
     template: ./documents/routes/router.yaml
-    contract: ../../contracts/target-documents-layout.yaml
-    write_mode: replace_owned
-    conflict_policy: replace-managed-path
-  - output: harnass-os/documents/routes/load-order.yaml
-    template: ./documents/routes/load-order.yaml
     contract: ../../contracts/target-documents-layout.yaml
     write_mode: replace_owned
     conflict_policy: replace-managed-path
