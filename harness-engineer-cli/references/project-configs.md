@@ -369,24 +369,228 @@ jobs:
       - run: pnpm run validate
       - run: pnpm run build
 
-      # Deploy — adapt to target platform:
-      # Vercel:
+      # ── Deploy — uncomment ONE section matching your target ──────────
+
+      # Vercel (managed — usually auto-deploys on push, use this for manual control):
       # - uses: amondnet/vercel-action@v25
       #   with:
       #     vercel-token: ${{ secrets.VERCEL_TOKEN }}
       #     vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
       #     vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
       #     vercel-args: '--prod'
-      #
+
+      # Cloudflare Pages:
+      # - uses: cloudflare/wrangler-action@v3
+      #   with:
+      #     apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      #     accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      #     command: pages deploy ./out --project-name=<project-name>
+
+      # Cloudflare Workers:
+      # - uses: cloudflare/wrangler-action@v3
+      #   with:
+      #     apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      #     command: deploy
+
       # Fly.io:
       # - uses: superfly/flyctl-actions/setup-flyctl@master
       # - run: flyctl deploy --remote-only
       #   env:
       #     FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      # Railway (auto-deploys on push — CI just validates):
+      # Railway connects directly to your repo. No deploy step needed here.
+      # Just ensure validate passes. Railway triggers on push to main.
+
+      # Render (auto-deploys on push — CI just validates):
+      # Render connects directly to your repo. No deploy step needed here.
+      # Or use deploy hook:
+      # - run: curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+
+      # VPS via SSH + Docker Compose:
+      # - uses: appleboy/ssh-action@v1
+      #   with:
+      #     host: ${{ secrets.VPS_HOST }}
+      #     username: ${{ secrets.VPS_USER }}
+      #     key: ${{ secrets.VPS_SSH_KEY }}
+      #     script: |
+      #       cd /opt/<project-name>
+      #       git pull origin main
+      #       docker compose pull
+      #       docker compose up -d --remove-orphans
+
+      # VPS via Kamal (zero-downtime Docker deploy):
+      # - uses: ruby/setup-ruby@v1
+      #   with:
+      #     ruby-version: '3.3'
+      # - run: gem install kamal
+      # - run: kamal deploy
+      #   env:
+      #     KAMAL_REGISTRY_PASSWORD: ${{ secrets.KAMAL_REGISTRY_PASSWORD }}
+
+      # AWS ECS (Docker → ECR → ECS):
+      # - uses: aws-actions/configure-aws-credentials@v4
+      #   with:
+      #     aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      #     aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      #     aws-region: us-east-1
+      # - uses: aws-actions/amazon-ecr-login@v2
+      # - run: |
+      #     docker build -t $ECR_REGISTRY/<project-name>:${{ github.sha }} .
+      #     docker push $ECR_REGISTRY/<project-name>:${{ github.sha }}
+      # - run: |
+      #     aws ecs update-service --cluster <cluster> --service <service> --force-new-deployment
+
+      # Google Cloud Run:
+      # - uses: google-github-actions/auth@v2
+      #   with:
+      #     credentials_json: ${{ secrets.GCP_SA_KEY }}
+      # - uses: google-github-actions/deploy-cloudrun@v2
+      #   with:
+      #     service: <service-name>
+      #     region: us-central1
+      #     source: .
+
+      # Netlify:
+      # - uses: nwtgck/actions-netlify@v3
+      #   with:
+      #     publish-dir: './out'
+      #     production-deploy: true
+      #   env:
+      #     NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+      #     NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
 ```
 
 **Adapt:** replace `pnpm` with `bun` or `npm`. For Bun, use `oven-sh/setup-bun@v2`.
 For npm, remove the pnpm setup step — Node.js includes npm.
+
+### Platform config files
+
+Generate the appropriate config file based on the chosen deploy target:
+
+```
+# Vercel — vercel.json (optional, Vercel auto-detects most frameworks)
+{
+  "framework": "nextjs",
+  "buildCommand": "pnpm run build",
+  "outputDirectory": ".next"
+}
+
+# Cloudflare Pages — wrangler.toml
+name = "<project-name>"
+compatibility_date = "2025-01-01"
+pages_build_output_dir = "./out"
+
+# Cloudflare Workers — wrangler.toml
+name = "<project-name>"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+
+# Fly.io — fly.toml
+app = "<project-name>"
+primary_region = "iad"
+[build]
+  dockerfile = "Dockerfile"
+[http_service]
+  internal_port = 3000
+  force_https = true
+
+# Railway — railway.toml (optional)
+[build]
+  builder = "dockerfile"
+[deploy]
+  healthcheckPath = "/health"
+  restartPolicyType = "ON_FAILURE"
+
+# Kamal (VPS) — config/deploy.yml
+service: <project-name>
+image: <registry>/<project-name>
+servers:
+  web:
+    - <vps-ip>
+registry:
+  server: ghcr.io
+  username: <github-username>
+  password:
+    - KAMAL_REGISTRY_PASSWORD
+
+# Docker Compose (VPS self-hosted) — docker-compose.yml already generated in scaffold
+# Coolify / Dokku — connect repo via their web UI, no config file needed
+```
+
+Only generate the config file for the platform the user chose. Don't include configs
+for platforms they didn't select.
+
+---
+
+---
+
+## GitLab CI (alternative to GitHub Actions)
+
+Generate these if user selects `GitLab CI` in Step 4. Place at project root as `.gitlab-ci.yml`.
+
+### .gitlab-ci.yml
+
+```yaml
+stages:
+  - validate
+  - deploy
+
+variables:
+  NODE_VERSION: "22"
+
+# ── CI: runs on every merge request ──────────────────────────────────────────
+validate:
+  stage: validate
+  image: node:${NODE_VERSION}-alpine
+  before_script:
+    - corepack enable
+    - pnpm install --frozen-lockfile
+  script:
+    - pnpm run harness validate
+    - pnpm run harness file-guard
+    - pnpm run harness schema
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == "main"'
+
+# ── Deploy: runs on push to main ─────────────────────────────────────────────
+deploy:
+  stage: deploy
+  image: node:${NODE_VERSION}-alpine
+  before_script:
+    - corepack enable
+    - pnpm install --frozen-lockfile
+  script:
+    - pnpm run harness validate:full
+    - pnpm run build
+
+    # Uncomment ONE deploy target:
+
+    # Vercel:
+    # - npx vercel --prod --token $VERCEL_TOKEN
+
+    # Fly.io:
+    # - curl -L https://fly.io/install.sh | sh
+    # - flyctl deploy --remote-only
+
+    # VPS via SSH + Docker Compose:
+    # - apt-get update && apt-get install -y openssh-client
+    # - ssh -o StrictHostKeyChecking=no $VPS_USER@$VPS_HOST "cd /opt/$CI_PROJECT_NAME && git pull && docker compose up -d --remove-orphans"
+
+    # Docker registry push (for container platforms):
+    # - docker build -t $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA .
+    # - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
+
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+  environment:
+    name: production
+```
+
+**Adapt:** replace `pnpm` with `bun` or `npm`. For Bun, use `oven-sh/setup-bun` or
+`bun install` directly. Variables like `$VERCEL_TOKEN`, `$VPS_HOST` etc. are set in
+GitLab CI/CD settings → Variables.
 
 ---
 
@@ -449,6 +653,218 @@ validate: lint type-check test
 
 ---
 
+## Go equivalents
+
+### golangci-lint (.golangci.yml)
+
+```yaml
+run:
+  timeout: 5m
+
+linters:
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - gofmt
+    - goimports
+    - misspell
+    - unconvert
+    - gocritic
+    - revive
+
+linters-settings:
+  revive:
+    rules:
+      - name: exported
+        severity: warning
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - style
+      - performance
+```
+
+### Makefile (Go)
+
+```makefile
+.PHONY: lint lint-fix type-check test validate build
+
+lint:
+	golangci-lint run ./...
+
+lint-fix:
+	golangci-lint run --fix ./...
+	goimports -w .
+
+type-check:
+	go vet ./...
+
+test:
+	go test -v -race ./...
+
+test-integration:
+	go test -v -race -tags=integration ./...
+
+validate: lint type-check test
+
+build:
+	go build -o bin/<app-name> ./cmd/<app-name>/
+```
+
+---
+
+## Rust equivalents
+
+### clippy.toml
+
+```toml
+too-many-arguments-threshold = 5
+cognitive-complexity-threshold = 15
+```
+
+### Cargo.toml (lint section)
+
+```toml
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+unwrap_used = "warn"
+expect_used = "warn"
+```
+
+### Makefile (Rust)
+
+```makefile
+.PHONY: lint lint-fix type-check test validate build
+
+lint:
+	cargo clippy -- -D warnings
+
+lint-fix:
+	cargo clippy --fix --allow-dirty
+	cargo fmt
+
+type-check:
+	cargo check
+
+test:
+	cargo test
+
+validate: lint type-check test
+
+build:
+	cargo build --release
+```
+
+---
+
+## Docker variants by project type
+
+### Node.js Web App / API (default)
+
+```dockerfile
+FROM node:22-alpine AS build
+WORKDIR /app
+COPY package.json pnpm-lock.yaml ./
+RUN corepack enable && pnpm install --frozen-lockfile
+COPY . .
+RUN pnpm run build
+
+FROM node:22-alpine
+WORKDIR /app
+COPY --from=build /app/dist ./dist
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/package.json ./
+EXPOSE 3000
+CMD ["node", "dist/index.js"]
+```
+
+### Node.js CLI Tool (for Docker distribution)
+
+```dockerfile
+FROM node:22-alpine AS build
+WORKDIR /app
+COPY package.json pnpm-lock.yaml ./
+RUN corepack enable && pnpm install --frozen-lockfile
+COPY . .
+RUN pnpm run build
+
+FROM node:22-alpine
+WORKDIR /app
+COPY --from=build /app/dist ./dist
+COPY --from=build /app/package.json ./
+ENTRYPOINT ["node", "dist/index.js"]
+```
+
+### Python (API or CLI)
+
+```dockerfile
+FROM python:3.12-slim AS build
+WORKDIR /app
+COPY pyproject.toml uv.lock ./
+RUN pip install uv && uv sync --frozen
+COPY . .
+
+FROM python:3.12-slim
+WORKDIR /app
+COPY --from=build /app /app
+ENV PATH="/app/.venv/bin:$PATH"
+# For API:
+# CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "3000"]
+# For CLI:
+# ENTRYPOINT ["python", "-m", "src.cli"]
+```
+
+### Go (API or CLI)
+
+```dockerfile
+FROM golang:1.22-alpine AS build
+WORKDIR /app
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 go build -o /bin/app ./cmd/<app-name>/
+
+FROM alpine:3.19
+COPY --from=build /bin/app /bin/app
+# For API:
+# EXPOSE 3000
+# CMD ["/bin/app"]
+# For CLI:
+# ENTRYPOINT ["/bin/app"]
+```
+
+### Rust (API or CLI)
+
+```dockerfile
+FROM rust:1.77-alpine AS build
+WORKDIR /app
+RUN apk add musl-dev
+COPY Cargo.toml Cargo.lock ./
+COPY src/ src/
+RUN cargo build --release
+
+FROM alpine:3.19
+COPY --from=build /app/target/release/<app-name> /bin/app
+# ENTRYPOINT ["/bin/app"]
+```
+
+**Rules:**
+- Only generate Docker if the project needs it (web apps, self-hosted agents, Docker distribution)
+- Skip Docker for CLI tools distributed via npm/pip/homebrew (unless user requests it)
+- Always multi-stage build (build stage + minimal production stage)
+- Never install dev dependencies in production stage
+
+---
+
 ## Assembly Rules
 
 1. Read this file BEFORE generating any config — never write configs from memory
@@ -473,7 +889,9 @@ validate: lint type-check test
       "Bash(<package-manager> *)",
       "Bash(npx tsx scripts/harness.ts *)",
       "Bash(npx tsx scripts/check-commit-msg.ts *)",
-      "Bash(npx lint-staged)"
+      "Bash(npx lint-staged)",
+      "Bash(npx prisma *)",
+      "Bash(npx drizzle-kit *)"
     ],
     "deny": ["Read(./.env)", "Read(./.env.*)"]
   }

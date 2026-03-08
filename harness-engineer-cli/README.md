@@ -145,20 +145,28 @@ your-project/
 ## CLI commands
 
 ```
+# Worktree management (milestone isolation — run from main repo root)
+harness worktree:start <M-id>   Create branch + worktree for a milestone
+harness worktree:finish <M-id>  Merge milestone → main, remove worktree, update progress
+
+# Session (run inside the milestone worktree)
 harness init              Session boot: sync plans, stale check, print status
 harness status            Print current milestone, task, blockers, progress
+
+# Task loop (inside worktree)
 harness next              Find and print the next unblocked task
 harness start <id>        Claim a task → auto-updates progress.json + PLAN.md
 harness validate          lint:fix → lint → type-check → test
 harness validate:full     + integration + e2e + file-guard
 harness done <id>         Complete a task → auto-updates state + commit hash
-harness block <id> <msg>  Mark task blocked, stash changes, log reason
-harness merge-gate        Full gate: validate:full + stale-check + changelog
+harness block <id> <msg>  Mark task blocked, log reason
+
+# Quality gates
+harness merge-gate        Full gate check before worktree:finish
 harness stale-check       Detect stale docs, env, plans
-harness file-guard        Check no file exceeds 500 lines
+harness file-guard        Check no source file exceeds 500 lines
 harness schema            Validate progress.json against JSON Schema
 harness changelog         Generate release notes from commit messages
-harness learn             Log a learning entry to progress.json + learnings.md
 ```
 
 ## Requirements
