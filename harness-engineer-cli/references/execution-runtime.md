@@ -1,0 +1,114 @@
+# Execution Runtime — Agent Guidelines
+
+Conceptual guidelines that complement the harness CLI.
+The CLI handles mechanics (state, validation, task picking). This doc handles
+judgment calls that can't be automated: context management, parallel coordination,
+quality gates, and when to ask humans.
+
+---
+
+## Parallel Worktree Protocol
+
+Multiple agents can work on different milestones simultaneously.
+
+**Rules:**
+1. **One agent, one worktree** — never share
+2. **Milestones with no dependencies run in parallel** (check PLAN.md `Depends on`)
+3. **progress.json is the coordination point** — agents claim milestones via `harness start`
+4. **Merge order follows dependency order** — even if M3 finishes before M1
+5. **Stale heartbeat (>1h) = reclaimable** — another agent can take the milestone
+
+Example parallel setup:
+```
+Agent 1: git worktree add ../project-M1 -b milestone/M1  → working on M1
+Agent 2: git worktree add ../project-M3 -b milestone/M3  → working on M3 (no dep on M1)
+Agent 1 finishes M1 → merges → Agent 2 rebases M3 on updated main
+```
+
+---
+
+## Context Budget
+
+Performance degrades beyond ~40% context utilization. Budget:
+
+| Zone | Budget |
+|------|--------|
+| System prompt + AGENTS.md / CLAUDE.md | ≤ 15% |
+| `harness status` output + current PLAN section | ≤ 10% |
+| PRD section for current story | ≤ 5% |
+| Source files for current task | ≤ 30% |
+| Working memory (code + reasoning) | ≤ 40% |
+
+**Progressive disclosure:**
+- Never load entire codebase, entire PLAN, or entire PRD
+- Load only files relevant to the current task
+- Load `docs/frontend-design.md` only when task involves frontend
+- Files >200 lines → load only the relevant section
+- Context overloaded? → `harness done`, commit, start fresh session
+
+**Signs of overload:** repeating itself, forgetting rules, conflicting patterns, re-asking answered questions.
+
+---
+
+## Quality Checkpoints
+
+| Event | Mode | Action |
+|-------|------|--------|
+| Task passes `harness validate` | **Auto** | `harness done`, continue |
+| Task failed 3x | **Human** | `harness block`, report, wait |
+| Milestone all done | **Auto** | `harness merge-gate` |
+| Merge gate fails | **Human** | Report, wait |
+| Integration tests fail | **Human** | Report, suggest fix, wait |
+| New module created | **Human** | Review ARCHITECTURE.md update |
+| Security-sensitive change | **Human** | Always request review |
+| Dependency conflict | **Auto** | Delete and rebuild (Iron Rule 3) |
+| File approaching 500 lines | **Auto** | Split (Iron Rule 1) |
+| Stale doc detected | **Auto** | Fix, commit, continue |
+
+**How to request human review:**
+1. `harness block <id> "needs human review: <reason>"`
+2. Commit current work with `[WIP: Mn-id]` prefix
+3. Pick next unblocked task via `harness next`, or pause if none
+
+---
+
+## Integration Testing
+
+Three test tiers:
+
+| Tier | Scope | Trigger | Command |
+|------|-------|---------|---------|
+| Unit | Per-module | Every task | `harness validate` |
+| Integration | Cross-module | Milestone merge | `harness validate:full` |
+| E2E | Full user journey | Milestone merge | `harness validate:full` |
+
+Test directory structure:
+```
+tests/
+├── unit/              ← run per-task
+├── integration/       ← run at milestone merge
+└── e2e/               ← run at milestone merge
+```
+
+---
+
+## Learnings Format
+
+When `harness learn` logs an entry, it uses this structure in progress.json:
+
+```json
+{
+  "date": "2026-03-05",
+  "context": "M1-003",
+  "category": "dependency",
+  "problem": "bcrypt native bindings fail on Alpine Docker",
+  "solution": "Use bcryptjs (pure JS) instead",
+  "affected_files": ["package.json", "src/lib/auth/hash.ts"],
+  "prevention": "Prefer pure-JS packages for Docker compatibility"
+}
+```
+
+Categories: `dependency`, `config`, `architecture`, `testing`, `deploy`, `performance`, `security`, `tooling`
+
+During session init (`harness init`), scan learnings relevant to the current task.
+Load those. Skip irrelevant history — don't waste context budget.
