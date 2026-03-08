@@ -1,5 +1,6 @@
 ---
 name: harnass-engineer-start
+version: 1.1.0
 description: Bootstrap or retrofit a repository so agents can work safely. Use when Codex needs to create or normalize the repo entry layer, documents folder, design, runtime, release, audit, and decision files, hook and guard constraints, validation skeletons, worktree rules, or the full agentic scaffold before research, ask-user, planning, task execution, or final signoff. This skill owns the canonical scaffold source that materializes `harnass-os/...` in the target repo.
 docking:
   phase: start

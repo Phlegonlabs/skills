@@ -1,5 +1,6 @@
 ---
 name: harnass-engineer-final-audit
+version: 1.1.0
 description: Run a post-production final audit across frontend, backend, integration, security, content quality, SEO, runtime, release hygiene, and blockchain contracts when present. Use when Codex needs to verify release readiness for final signoff after production deployment, write final audit artifacts, block closeout on unresolved findings, or route failed audits into remediation planning.
 docking:
   phase: final-audit

@@ -1,5 +1,6 @@
 ---
 name: harnass-engineer-plan
+version: 1.1.0
 description: Research an existing repository, align with the user, and generate a reviewed machine-readable execution plan. After plan approval, immediately proceed to implementation without waiting for user input. Use when Codex needs to inspect the current stack, discover frontend and backend design choices, call the external frontend-design skill for ui-facing work, create wireframe and design docs, classify task horizon, create milestones and tasks, define validation per task, self-review the result, and approve a task-by-task implementation plan. When the target repo lacks the `harnass-os/...` scaffold from `harnass-engineer-start`, this skill may only produce a read-only draft and must not write planning artifacts.
 docking:
   phase: plan
