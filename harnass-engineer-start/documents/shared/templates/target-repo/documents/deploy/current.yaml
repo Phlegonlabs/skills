@@ -4,6 +4,17 @@ project: <fill>
 runtime_ref: <fill>
 release_ref: harnass-os/documents/release/current.yaml
 post_deploy_audit_required: true
+deploy_mode: manual
+
+# Agent MUST NOT trigger deploy automatically.
+# User deploys after confirming all secrets and .env values are in place.
+secrets_gate:
+  status: pending_user_input   # pending_user_input | confirmed | skipped
+  env_file_confirmed: false    # user has filled .env from .env.example
+  secrets_confirmed: false     # user has confirmed all secrets are in place
+  confirmed_by: null           # filled by user when ready
+  confirmed_at: null
+  note: "Fill .env from .env.example, confirm all secrets, then run deploy commands manually per Deploy.md."
 preview_environment:
   name: preview
   url: <fill>

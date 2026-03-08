@@ -1,7 +1,34 @@
-# Environment
+# Environment variables — never commit real values
 .env
 .env.*
+.env.local
+.env.*.local
 !.env.example
+!.env.template
+
+# Secrets and credentials
+*.secret
+*.secrets
+.secrets
+secrets/
+.secrets/
+*.pem
+*.key
+*.p8
+*.p12
+*.pfx
+*.crt
+*.cer
+*.der
+*_rsa
+*_dsa
+*_ecdsa
+*_ed25519
+.ssh/
+service-account*.json
+*credentials*.json
+*secret*.json
+*keyfile*.json
 
 # Dependencies
 node_modules/

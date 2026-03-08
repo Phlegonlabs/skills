@@ -15,6 +15,7 @@ gates:
   - frontend-design-before-ui-plan-approval
   - design-validation-before-ui-implementation
   - approved-plan-before-implement
+  - secrets-confirmed-before-deploy
   - preview-validation-before-production
   - final-audit-before-release-signoff
   - handoff-before-next-task
@@ -90,9 +91,12 @@ routes:
       - harnass-os/documents/release/current.yaml
       - harnass-os/documents/deploy/current.yaml
       - harnass-os/documents/status/current.yaml
+      - .env.example
     gate:
-      condition: "plan.release_affecting == true"
+      condition: "plan.release_affecting == true AND deploy.secrets_gate.secrets_confirmed == true"
       guard_command: "python harnass-os/scripts/agent-guard.py check-deployment-ready"
+    deploy_mode: manual
+    agent_note: "Stop after preparing deploy docs. Present secrets checklist to user. Do not run build or deploy commands."
   final_audit:
     read:
       - harnass-os/Audit.md
@@ -129,6 +133,8 @@ rules:
   - current-state-before-new-questions
   - approved-plan-before-code
   - design-docs-before-ui-code
+  - no-auto-deploy
+  - secrets-before-deploy
   - preview-before-production
   - production-deploy-before-final-audit
   - final-audit-before-release-signoff

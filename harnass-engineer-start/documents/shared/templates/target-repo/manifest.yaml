@@ -11,6 +11,12 @@ templates:
     write_mode: merge_block
     managed_marker: root::.gitignore
     conflict_policy: preserve-user-content
+  - output: .env.example
+    template: ./root/.env.example
+    contract: ../../contracts/target-documents-layout.yaml
+    write_mode: create_if_missing
+    conflict_policy: preserve-user-content
+    note: "Source-of-truth for required env variables. User copies to .env and fills values before deploy."
   - output: AGENTS.md
     template: ./root/AGENTS.md
     contract: ../../contracts/target-documents-layout.yaml
