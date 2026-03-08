@@ -1,7 +1,0 @@
-id: load
-rules:
-  - router-first
-  - scenario-second
-  - contracts-on-demand
-  - no-bulk-shared-load
-  - repo-files-over-chat

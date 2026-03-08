@@ -1,4 +1,0 @@
-interface:
-  display_name: "Harness Engineer Plan"
-  short_description: "Research repos and approve plans"
-  default_prompt: "Use $harnass-engineer-plan to research this repo, align with the user, and write a reviewed execution plan."

@@ -1,8 +1,0 @@
-id: agent-topology
-values: [solo, lead_workers]
-rules:
-  solo:
-    - one agent owns planning and execution
-  lead_workers:
-    - lead owns plan and milestones
-    - workers own atomic tasks and commits
