@@ -159,19 +159,23 @@ Issues found during analysis:
 ```json
 {
   "project": "<detected project name>",
+  "version": "1.0.0",
   "last_updated": "<now>",
   "last_agent": "human",
   "current_milestone": null,
   "current_task": null,
+  "active_milestones": [],
   "completed_milestones": [],
+  "agents": [],
+  "finish_jobs": [],
   "blockers": [],
   "learnings": [],
   "dependency_graph": {},
   "synced_plans": [],
-  "agents": [],
-  "finish_jobs": [],
-  "learnings": [],
-  "blockers": []
+  "stale_checks": {
+    "last_run": null,
+    "issues": []
+  }
 }
 ```
 
@@ -222,7 +226,8 @@ Present to the user:
 
 After confirmation, the user:
 1. Copies the generated files into their existing project
-2. Runs `<pkg-mgr> install` (to pick up tsx + husky)
+2. If using the TypeScript CLI: runs `<pkg-mgr> install` (to pick up tsx + husky)
+   If using the native shell CLI: installs `jq` / hooks exactly as documented in `references/harness-native.md`
 3. Commits: `[scaffold] add harness framework`
 4. Opens Claude Code / Codex → agent reads AGENTS.md / CLAUDE.md → ready
 
@@ -243,12 +248,20 @@ User enters plan mode
   → Plan file saved to docs/exec-plans/active/
   → Switch to normal mode
 
-Agent detects new plan (progress-sync)
+TypeScript CLI path:
+  Agent opens project → `harness init` detects new plan → auto-runs `plan:apply`
   → Parses plan into PRD update + new Milestone in PLAN.md
   → Updates progress.json with dependency graph
   → Creates worktree → Task Execution Loop
   → Same iron rules, same testing, same atomic commits
   → Milestone done → merge gate → auto-finish → optional release tag or new plan → repeat
+
+Native shell CLI path (no Node.js):
+  Agent writes the plan file to docs/exec-plans/active/
+  → Manually mirrors the milestone tables into PLAN.md + progress.json
+  → Runs `bash scripts/harness.sh init`
+  → Enters the same task loop (`next` / `start` / `validate` / `done`)
+  → No `plan:apply`, no `worktree:*`, no auto-finish queue
 
 Repeat.
 ```

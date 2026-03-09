@@ -9,6 +9,9 @@ done, block, file-guard, schema). It does NOT include worktree management, agent
 stale-check, plan:apply, merge-gate auto-chain, or scaffold commands. For the full feature set,
 use the TypeScript CLI with Node.js installed alongside your language toolchain.
 
+**Windows:** prefer the TypeScript CLI for native Windows usage. The shell CLI assumes POSIX shell
+utilities such as `bash` and `date`, so on Windows it should run under Git Bash or WSL.
+
 **Dependency:** `jq` (JSON processor) — available on all major platforms:
 - macOS: `brew install jq`
 - Ubuntu/Debian: `apt install jq`
@@ -71,7 +74,7 @@ load_progress() {
 save_progress() {
   local tmp
   tmp=$(mktemp)
-  # Update last_updated timestamp
+  # Update last_updated timestamp (Git Bash / WSL provides POSIX `date` on Windows)
   echo "$1" | jq --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '.last_updated = $ts' > "$tmp"
   mv "$tmp" "$PROGRESS_FILE"
 }
@@ -285,17 +288,22 @@ cmd_done() {
   ok "Done: $task_id (commit: $commit_hash)"
 
   # Auto-chain: find and start next task
+  # cmd_next prints a human-readable line then the bare task-id on its own line;
+  # grep for a task-id pattern (M<n>-<nnn>) to avoid empty-line / "No more tasks" ambiguity.
   local next_id
-  next_id=$(cmd_next 2>/dev/null | tail -1)
-  if [ -n "$next_id" ] && [ "$next_id" != "No more tasks"* ]; then
-    cmd_start "$next_id"
-  else
-    local tasks_remaining
-    tasks_remaining=$(echo "$p" | jq '.current_milestone.tasks_remaining // 0')
-    if [ "$tasks_remaining" -le 0 ]; then
-      ok "All tasks complete in milestone. Run validate:full before merging."
-    fi
-  fi
+  next_id=$(cmd_next 2>/dev/null | grep -E '^M[0-9]+-[0-9]+$' | head -1)
+  case "$next_id" in
+    M[0-9]*-[0-9]*)
+      cmd_start "$next_id"
+      ;;
+    *)
+      local tasks_remaining
+      tasks_remaining=$(echo "$p" | jq '.current_milestone.tasks_remaining // 0')
+      if [ "$tasks_remaining" -le 0 ]; then
+        ok "All tasks complete in milestone. Run validate:full before merging."
+      fi
+      ;;
+  esac
 }
 
 # ─── block ───────────────────────────────────────────────────────────────────

@@ -17,7 +17,8 @@ Multiple agents can work on different milestones simultaneously.
 3. **progress.json is the coordination point** — agents self-register via `harness init`
 4. **Merge order follows dependency order** — `worktree:finish` blocks if deps aren't merged
 5. **Stale heartbeat (>2h) = reclaimable** — another agent can take the milestone
-6. **Rebase after upstream merge** — when a parallel milestone merges, others rebase
+6. **Root-side finish is serialized** — only one `worktree:finish` mutates main at a time; other ready milestones remain queued in `finish_jobs`
+7. **Rebase after upstream merge** — when a parallel milestone merges, others rebase
 
 Example parallel setup:
 ```
@@ -42,7 +43,7 @@ harness worktree:status  → shows agents, heartbeats, auto-finish jobs, merge r
 - `harness init` (in worktree) → registers agent with id, milestone, heartbeat
 - `harness next/start/done` → updates heartbeat timestamp
 - `harness worktree:finish` → root-side rebase, merge, plan archive, push, deregister, remove worktree
-- `finish_jobs` in `docs/progress.json` → visible queued/running/failed/succeeded state for detached auto-finish closeout jobs
+- `finish_jobs` in `docs/progress.json` → visible queued/running/failed/succeeded state for the serialized root-side finish queue
 - Heartbeat >2h old → shown as STALE in `worktree:status`, reclaimable by other agents
 
 If a stale milestone needs to be taken over immediately, run:

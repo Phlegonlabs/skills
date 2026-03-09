@@ -558,35 +558,33 @@ Rules:
 - Do NOT put design or documentation tasks in milestones — those happen continuously.
   Exception: if the PRD explicitly scopes docs as a deliverable (e.g. API reference site).
 
-**Step 3 — Apply the plan to PLAN.md:**
+**Step 3 — Seed the initial plan during Phase 3 scaffold:**
 
-This is the ONLY way to populate PLAN.md. Do not write to PLAN.md directly.
-Instruct the user to run the following command after they copy the generated files:
+For the **initial scaffold only**, the generated project must already contain a consistent
+`docs/PLAN.md` and `docs/progress.json` before handoff. Do **not** leave `PLAN.md` blank and do
+**not** defer the initial milestone insertion to a later `plan:apply` step.
 
-```bash
-<pkg-mgr> run harness plan:apply docs/exec-plans/active/001-initial-setup.md
-```
+The exec-plan file (`docs/exec-plans/active/001-initial-setup.md`) is still written in Phase 2.5,
+but during Phase 3 scaffold generation you must:
 
-`plan:apply` parses the exec-plan file, renumbers milestones to avoid collisions, inserts
-them into `docs/PLAN.md`, updates `docs/progress.json` (active_milestones + dependency_graph),
-and records the file in `synced_plans` to prevent duplicate application.
+- copy its milestone tables into `docs/PLAN.md`
+- populate `docs/progress.json` so `active_milestones[]`, per-task mirrors, and
+  `dependency_graph` already match those tables
+- generate the CLI so future plan files can use `harness plan:apply` from main/root
 
 **If the project uses a non-Node runtime (Python / Go / Rust):**
 The shell CLI (`scripts/harness.sh`) and Makefile do NOT implement `plan:apply`.
 During Phase 3 scaffold generation, append the milestone tables from the exec-plan
 directly into `docs/PLAN.md` under `## Milestones`, and populate
-`docs/progress.json`'s `active_milestones[]` array to match — there is no automated
-sync command. The agent receiving the project must start with a consistent PLAN.md and
-progress.json from the start; the first `make init` inside the project will verify
-state but cannot repair a missing PLAN or progress.
+`docs/progress.json`'s `active_milestones[]`, task mirrors, and `dependency_graph` to match —
+there is no automated sync command. The agent receiving the project must start with a
+consistent PLAN.md and progress.json from the start; the first `make init` inside the
+project will verify state but cannot repair a missing PLAN or progress.
 
 **Ordering constraint (applies to all runtimes):**
-Do NOT instruct the user to run `plan:apply` until Phase 3 scaffold generation is
-complete and the full Phase 3 Exit Gate checklist has been verified. The exec-plan
-file is safe to write early (it is just markdown), but `plan:apply` requires the CLI
-to be installed, `docs/progress.json` to exist and be valid, and `docs/PLAN.md` to
-be present. Running `plan:apply` against an incomplete scaffold will produce a
-mismatched state that is harder to repair than starting from a clean scaffold.
+Do NOT instruct the user to run `plan:apply` for the initial scaffold. `plan:apply` is for
+**future** plan files after the scaffold already exists. The Phase 3 Exit Gate expects the
+initial milestones to be materialized in `docs/PLAN.md` and `docs/progress.json` already.
 
 ---
 
@@ -643,16 +641,22 @@ mismatched state that is harder to repair than starting from a clean scaffold.
 │   │   └── error-handler.ts
 │   └── ...
 ├── scripts/
-│   ├── harness.ts               ← entry point router (~50 lines)
+│   ├── harness.ts               ← entry point router (~85 lines)
 │   ├── check-commit-msg.ts      ← commit message format enforcer (for hooks)
-│   └── harness/                 ← CLI modules (each <350 lines)
-│       ├── config.ts            ← constants, colors, output helpers
-│       ├── types.ts             ← all interfaces
-│       ├── state.ts             ← load/save progress + plan
-│       ├── worktree.ts          ← worktree detection, enforcement, agent lifecycle
+│   └── harness/                 ← CLI modules (each <500 lines)
+│       ├── config.ts            ← constants, paths, colors, output helpers
+│       ├── types.ts             ← all interfaces: Progress, AgentEntry, WorktreeInfo
+│       ├── state.ts             ← loadProgress, saveProgress, loadPlan, savePlan
+│       ├── plan-utils.ts        ← PLAN.md table parser — shared by tasks/quality/recovery
+│       ├── recovery.ts          ← installWithRetry + recoverMilestoneBoard
+│       ├── worktree-helpers.ts  ← path normalization, finish-job state, worktree cleanup
+│       ├── worktree.ts          ← worktree detection, enforcement, agent lifecycle, worktree:* commands
+│       ├── task-helpers.ts      ← pending-plan detection, next-task selection, milestone sync
 │       ├── tasks.ts             ← init, status, next, start, done, block, reset
-│       ├── validate.ts          ← validate, file-guard
-│       └── quality.ts           ← merge-gate, stale-check, schema, changelog, learn
+│       ├── validate.ts          ← validate, validate:full, file-guard
+│       ├── quality.ts           ← merge-gate, stale-check, sync-plans, schema, changelog
+│       ├── plan-apply.ts        ← plan:apply + plan:status — parse plans, insert milestones
+│       └── scaffold-templates.ts ← scaffold command: inject MCP, SKILL.md, Cloudflare templates
 ├── schemas/
 │   └── progress.schema.json     ← JSON Schema for progress.json
 ├── tests/
@@ -1157,6 +1161,8 @@ Required artifacts:
 Required consistency checks:
 
 - `PLAN.md` task IDs match the dependency graph and active milestone state in `progress.json`
+- The initial milestones from `docs/exec-plans/active/001-initial-setup.md` are already
+  materialized in `docs/PLAN.md` and `docs/progress.json`
 - Every task marked available in `progress.json` actually exists in `PLAN.md`
 - `progress.schema.json` includes every required field written by the scaffold
 - The quick-start commands in `AGENTS.md` / `CLAUDE.md` match the actual package manager and
