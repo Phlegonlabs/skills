@@ -47,6 +47,7 @@ This skill is split into focused reference files to avoid loading everything upf
 | `references/scaffold-templates.md` | During Phase 3 if project needs scaffold commands — MCP, SKILL.md, Cloudflare, agent capability templates |
 | `references/eslint-configs.md` | During Phase 3 for JS/TS projects — ESLint flat config templates |
 | `references/gitignore-templates.md` | During Phase 3 — .gitignore templates per stack |
+| `references/execution-runtime.md` | During Phase 3 — agent guidelines: context budget, parallel coordination, quality gates |
 
 **Load order:**
 - Retrofit path: `skill-retrofit.md` → then `skill-artifacts.md` when generating files

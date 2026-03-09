@@ -403,6 +403,49 @@ jobs:
 
 ---
 
+---
+
+### Harness CLI Integration for Expo Projects
+
+Expo projects are Node-based, so the **TypeScript CLI** (`scripts/harness.ts`) applies.
+Do NOT use `harness-native.md` for mobile projects.
+
+**`harness validate` wiring for mobile:**
+
+```json
+// package.json scripts
+{
+  "harness:lint:fix": "eslint . --fix",
+  "harness:lint":     "eslint .",
+  "harness:types":    "tsc --noEmit",
+  "harness:test":     "jest --passWithNoTests"
+}
+```
+
+`harness validate:full` on mobile should guard E2E tests as optional:
+```typescript
+// In validate.ts, the e2e step should use:
+execSync(`${PKG} run harness:test --testPathPattern="e2e"`, { stdio: 'inherit' });
+// Wrap in try/catch with: if (existsSync('e2e/')) { ... }
+// Expo E2E (Maestro/Detox) requires a running simulator — skip in CI unless explicitly set up.
+```
+
+**`docs/frontend-design.md` — required (Iron Rule 5):**
+Expo/React Native is a UI project. `docs/frontend-design.md` MUST be bundled in the
+project following the same 3-strategy approach in SKILL.md. AGENTS.md Iron Rule 5 must
+point to it. All screen and component work reads it first.
+
+**Scaffold additions for mobile (added to Phase 3 output):**
+- `docs/frontend-design.md` — generated from frontend-design skill (see SKILL.md load order)
+- `.env.example` — `EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_APP_ENV`; note that `EXPO_PUBLIC_*`
+  vars are inlined in the bundle — never put secrets here
+- `eas.json` — development / preview / production build profiles
+- `.eas/workflows/` — optional CI automation for builds
+
+**Git hook note:**
+`.husky/pre-commit` runs `npx expo export --dry-run` is too slow for per-commit validation.
+Use only lint + type-check in pre-commit; reserve `expo export` for CI or `validate:full`.
+
 ### Common Pitfalls
 
 - **EAS Build + pnpm**: EAS internally assumes Yarn. If using pnpm monorepo, publish `packages/*` to npm for prod builds

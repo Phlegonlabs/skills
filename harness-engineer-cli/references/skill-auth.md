@@ -3,6 +3,55 @@
 Better Auth is a TypeScript-first, framework-agnostic auth library. Self-hosted,
 no vendor lock-in, works with any database (Prisma, Drizzle, raw SQL).
 
+---
+
+## Phase 3 Scaffold Integration
+
+When auth is selected during Step 4 (tech stack choices), the Phase 3 scaffold
+generation must include auth-specific tasks and wiring. Do this BEFORE generating
+the exec-plan, so auth tasks appear in `docs/exec-plans/active/001-initial-setup.md`.
+
+**Auth tasks to add to M1 (or the first milestone) in the exec-plan:**
+
+```markdown
+| M1-00X | Auth | Install Better Auth + configure lib/auth.ts | `pnpm run harness validate` passes; auth config exports `auth` object | ⬜ | — |
+| M1-00X | Auth | Add env vars to .env.example | All BETTER_AUTH_* vars documented; server starts without auth errors | ⬜ | — |
+| M1-00X | Auth | Mount auth handler route | /api/auth/* responds 200 for all methods | ⬜ | — |
+| M1-00X | Auth | Run schema migration | User, Session, Account, Verification tables exist in DB | ⬜ | — |
+| M1-00X | Auth | Write auth integration test | Sign up + sign in flow passes; invalid creds return 401 | ⬜ | — |
+```
+
+**Auth handler mount by framework** (wire this in Phase 3 scaffold, not just Setup):
+
+```typescript
+// Next.js App Router — app/api/auth/[...all]/route.ts
+import { auth } from '@/lib/auth';
+import { toNextJsHandler } from 'better-auth/next-js';
+export const { GET, POST } = toNextJsHandler(auth);
+
+// Hono (Cloudflare Workers / Node)
+import { auth } from './lib/auth';
+import { fromHono } from 'better-auth/integrations/hono';
+app.use('/api/auth/*', fromHono(auth));
+
+// Express
+import { auth } from './lib/auth';
+import { toNodeHandler } from 'better-auth/node';
+app.all('/api/auth/*', toNodeHandler(auth));
+
+// Fastify
+import { auth } from './lib/auth';
+import { fromNodeHandler } from 'better-auth/node';
+fastify.all('/api/auth/*', async (request, reply) => {
+  await fromNodeHandler(auth)(request.raw, reply.raw);
+});
+```
+
+Generate the mount file appropriate for the chosen framework — do NOT leave it
+as a copy-paste comment. The scaffolded file must match the framework selected in Phase 1.
+
+---
+
 ## Installation
 
 ```bash

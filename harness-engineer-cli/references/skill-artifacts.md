@@ -341,6 +341,38 @@ Automatically checks: .env.example sync, PLAN vs progress.json,
 new modules not in ARCHITECTURE.md, unsynced plan files, dead doc links.
 ```
 
+- **Idle Protocol** — What to do when all milestones are complete:
+
+```
+## Idle Protocol (all milestones complete)
+
+When progress.json shows no active milestone and no remaining tasks:
+
+1. Run: <pkg-mgr> run harness worktree:status  — confirm no active worktrees or pending finish jobs
+2. Run: <pkg-mgr> run harness validate:full    — final green-pass on main branch
+3. Run: <pkg-mgr> run harness changelog        — generate release notes from [Mn-id] commits
+4. Run: <pkg-mgr> run harness schema           — confirm progress.json is valid
+
+Report to the user:
+  "All milestones are complete. Here's the changelog for this sprint.
+  Based on the changes I'd suggest version X.Y.Z — please confirm or pick a different version."
+
+WAIT for user to confirm the version. Do NOT create or push the tag yourself.
+
+After confirmation:
+  git tag v<version>
+  git push --tags
+
+Then archive any remaining exec-plans:
+  mv docs/exec-plans/active/*.md docs/exec-plans/completed/
+  git add -A && git commit -m "chore: archive exec-plans for v<version>"
+
+After tagging and archiving, enter IDLE state:
+- Do NOT invent new tasks or milestones
+- Do NOT start new work without an explicit user request
+- Wait for the user to add new work via plan mode
+```
+
 - **Adding New Work** — Plan mode → CLI handles the rest:
 
 ```
@@ -1281,7 +1313,7 @@ read and debug it without guessing:
   "version": "1.0.0",
   "last_updated": "2025-01-15T10:00:00Z",
   "last_agent": "claude-code",
-  "current_milestone": "M1",
+  "current_milestone": null,
   "current_task": null,
   "agents": [
     {
@@ -1311,7 +1343,7 @@ read and debug it without guessing:
       "title": "Core Authentication",
       "status": "in_progress",
       "branch": "milestone/m1",
-      "worktree": "../my-project-M1",
+      "worktree": "../my-project-m1",
       "depends_on": [],
       "started_at": "2025-01-15T10:00:00Z",
       "completed_at": null,

@@ -572,10 +572,21 @@ them into `docs/PLAN.md`, updates `docs/progress.json` (active_milestones + depe
 and records the file in `synced_plans` to prevent duplicate application.
 
 **If the project uses a non-Node runtime (Python / Go / Rust):**
-The CLI is not available during bootstrap. Instead, the plan file content is appended
-directly into `docs/PLAN.md` under `## Milestones` during Phase 3 scaffold generation.
-The agent running inside the project will run `make plan-apply FILE=...` if the Makefile
-supports it, or manually sync `progress.json` on first `make init`.
+The shell CLI (`scripts/harness.sh`) and Makefile do NOT implement `plan:apply`.
+During Phase 3 scaffold generation, append the milestone tables from the exec-plan
+directly into `docs/PLAN.md` under `## Milestones`, and populate
+`docs/progress.json`'s `active_milestones[]` array to match — there is no automated
+sync command. The agent receiving the project must start with a consistent PLAN.md and
+progress.json from the start; the first `make init` inside the project will verify
+state but cannot repair a missing PLAN or progress.
+
+**Ordering constraint (applies to all runtimes):**
+Do NOT instruct the user to run `plan:apply` until Phase 3 scaffold generation is
+complete and the full Phase 3 Exit Gate checklist has been verified. The exec-plan
+file is safe to write early (it is just markdown), but `plan:apply` requires the CLI
+to be installed, `docs/progress.json` to exist and be valid, and `docs/PLAN.md` to
+be present. Running `plan:apply` against an incomplete scaffold will produce a
+mismatched state that is harder to repair than starting from a clean scaffold.
 
 ---
 
