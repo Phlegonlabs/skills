@@ -592,6 +592,15 @@ mismatched state that is harder to repair than starting from a clean scaffold.
 
 ## Phase 3: Generate Project Artifacts
 
+> **Before generating any files:** Load the reference files that apply to this project.
+> - **All Node/TS projects:** Read `references/harness-cli.md` NOW — it contains the full
+>   TypeScript CLI source code, JSON Schema, git hooks, and Assembly Checklist that Phase 3
+>   must produce. Do not generate CLI files from memory.
+> - **Mobile projects:** Also read `references/skill-mobile.md`.
+> - **Desktop projects:** Also read `references/skill-desktop.md`.
+> - **Non-Node projects:** Read `references/harness-native.md` instead of harness-cli.md.
+> - **Projects with auth:** Also read `references/skill-auth.md`.
+
 ### File Structure
 
 ```
@@ -1152,6 +1161,10 @@ Required consistency checks:
 - `progress.schema.json` includes every required field written by the scaffold
 - The quick-start commands in `AGENTS.md` / `CLAUDE.md` match the actual package manager and
   runtime chosen in Phase 1
+- **Frontend / UI projects** (web, mobile, desktop): `docs/frontend-design.md` exists and
+  AGENTS.md Iron Rule 5 references it. If it was not generated via an active `frontend-design`
+  skill session or a local copy, a minimal fallback must be generated — see SKILL.md strategy.
+  Pure CLI tools and MCP servers are exempt.
 - Desktop projects include the shell-specific files from `skill-desktop.md`
 - Mixed-language monorepos include the root orchestration file (`Makefile` or `justfile`) plus
   native manifests in each app

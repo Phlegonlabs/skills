@@ -169,10 +169,9 @@ Issues found during analysis:
   "dependency_graph": {},
   "synced_plans": [],
   "agents": [],
-  "stale_check": {
-    "last_run": null,
-    "stale_files": []
-  }
+  "finish_jobs": [],
+  "learnings": [],
+  "blockers": []
 }
 ```
 

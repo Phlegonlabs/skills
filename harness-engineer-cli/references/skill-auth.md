@@ -13,6 +13,11 @@ the exec-plan, so auth tasks appear in `docs/exec-plans/active/001-initial-setup
 
 **Auth tasks to add to M1 (or the first milestone) in the exec-plan:**
 
+Replace `M1-00X` with the next available task number in M1's table. Run
+`pnpm run harness plan:status` (or inspect PLAN.md) to see the highest existing
+task number, then increment: if the last task is `M1-007`, add auth tasks as
+`M1-008`, `M1-009`, etc.
+
 ```markdown
 | M1-00X | Auth | Install Better Auth + configure lib/auth.ts | `pnpm run harness validate` passes; auth config exports `auth` object | ⬜ | — |
 | M1-00X | Auth | Add env vars to .env.example | All BETTER_AUTH_* vars documented; server starts without auth errors | ⬜ | — |
@@ -20,6 +25,12 @@ the exec-plan, so auth tasks appear in `docs/exec-plans/active/001-initial-setup
 | M1-00X | Auth | Run schema migration | User, Session, Account, Verification tables exist in DB | ⬜ | — |
 | M1-00X | Auth | Write auth integration test | Sign up + sign in flow passes; invalid creds return 401 | ⬜ | — |
 ```
+
+After adding auth tasks, also update `ARCHITECTURE.md`: add an **Auth Layer** section
+describing the auth library chosen, session strategy (HttpOnly cookie / SecureStore),
+protected route approach, and the DB tables created (`user`, `session`, `account`,
+`verification`). Keep it to one concise paragraph — the goal is discoverability for
+future agents, not exhaustive documentation.
 
 **Auth handler mount by framework** (wire this in Phase 3 scaffold, not just Setup):
 
@@ -29,10 +40,12 @@ import { auth } from '@/lib/auth';
 import { toNextJsHandler } from 'better-auth/next-js';
 export const { GET, POST } = toNextJsHandler(auth);
 
-// Hono (Cloudflare Workers / Node)
+// Hono (Cloudflare Workers / Node) — Better Auth v1.x handler API
 import { auth } from './lib/auth';
-import { fromHono } from 'better-auth/integrations/hono';
-app.use('/api/auth/*', fromHono(auth));
+import { Hono } from 'hono';
+const app = new Hono();
+app.all('/api/auth/*', (c) => auth.handler(c.req.raw));
+// Note: better-auth/integrations/hono does NOT exist. Use auth.handler(c.req.raw) directly.
 
 // Express
 import { auth } from './lib/auth';

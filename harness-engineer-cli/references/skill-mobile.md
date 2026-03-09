@@ -412,22 +412,26 @@ Do NOT use `harness-native.md` for mobile projects.
 
 **`harness validate` wiring for mobile:**
 
+`cmdValidate` in the TypeScript CLI calls `lint:fix`, `lint`, `type-check`, and `test` —
+the script names must match **exactly** or npm/pnpm will throw "Missing script".
+
 ```json
-// package.json scripts
+// package.json scripts — use the exact names cmdValidate expects
 {
-  "harness:lint:fix": "eslint . --fix",
-  "harness:lint":     "eslint .",
-  "harness:types":    "tsc --noEmit",
-  "harness:test":     "jest --passWithNoTests"
+  "lint:fix":    "eslint . --fix",
+  "lint":        "eslint .",
+  "type-check":  "tsc --noEmit",
+  "test":        "jest --passWithNoTests"
 }
 ```
 
 `harness validate:full` on mobile should guard E2E tests as optional:
 ```typescript
 // In validate.ts, the e2e step should use:
-execSync(`${PKG} run harness:test --testPathPattern="e2e"`, { stdio: 'inherit' });
-// Wrap in try/catch with: if (existsSync('e2e/')) { ... }
-// Expo E2E (Maestro/Detox) requires a running simulator — skip in CI unless explicitly set up.
+if (existsSync('e2e/')) {
+  execSync(`${PKG} run test:e2e`, { stdio: 'inherit' });
+  // Expo E2E (Maestro/Detox) requires a running simulator — skip in CI unless explicitly set up.
+}
 ```
 
 **`docs/frontend-design.md` — required (Iron Rule 5):**
