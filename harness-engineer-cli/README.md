@@ -132,8 +132,18 @@ your-project/
 │   ├── learnings.md                ← Agent learnings log
 │   └── ...
 ├── scripts/
-│   ├── harness.ts                  ← The CLI — one file, all automation
-│   └── check-commit-msg.ts         ← Commit message format enforcer
+│   ├── harness.ts                  ← The CLI entry point — thin command router
+│   ├── check-commit-msg.ts         ← Commit message format enforcer
+│   └── harness/
+│       ├── config.ts               ← Constants, colors, helpers
+│       ├── types.ts                ← All interfaces
+│       ├── state.ts                ← progress.json + PLAN.md I/O
+│       ├── plan-utils.ts           ← Row-level PLAN.md table parser (shared)
+│       ├── recovery.ts             ← Install retry + milestone board recovery
+│       ├── worktree.ts             ← Worktree commands + agent lifecycle
+│       ├── tasks.ts                ← init, status, next, start, done, block, reset
+│       ├── validate.ts             ← lint, type-check, test, file-guard
+│       └── quality.ts              ← merge-gate, stale-check, changelog
 ├── schemas/
 │   └── progress.schema.json        ← Validates progress.json
 ├── .claude/settings.json           ← Claude Code config (auto mode)
@@ -146,11 +156,12 @@ your-project/
 
 ```
 # Worktree management (milestone isolation — run from main repo root)
-harness worktree:start <M-id>   Create branch + worktree for a milestone
+harness worktree:start <M-id>   Create branch + worktree + install + init + auto-start
 harness worktree:finish <M-id>  Merge milestone → main, remove worktree, update progress
 
 # Session (run inside the milestone worktree)
 harness init              Session boot: sync plans, stale check, print status
+harness init --auto-start Session boot + auto-claim first available task
 harness status            Print current milestone, task, blockers, progress
 
 # Task loop (inside worktree)
@@ -158,7 +169,7 @@ harness next              Find and print the next unblocked task
 harness start <id>        Claim a task → auto-updates progress.json + PLAN.md
 harness validate          lint:fix → lint → type-check → test
 harness validate:full     + integration + e2e + file-guard
-harness done <id>         Complete a task → auto-updates state + commit hash
+harness done <id>         Complete a task → auto-updates state + commit hash + git checkout .
 harness block <id> <msg>  Mark task blocked, log reason
 
 # Quality gates
@@ -167,6 +178,7 @@ harness stale-check       Detect stale docs, env, plans
 harness file-guard        Check no source file exceeds 500 lines
 harness schema            Validate progress.json against JSON Schema
 harness changelog         Generate release notes from commit messages
+harness recover           Auto-detect and fix milestone board inconsistencies
 ```
 
 ## Requirements
