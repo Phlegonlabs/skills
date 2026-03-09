@@ -380,6 +380,63 @@ project needs CI-driven versioning and publishing.
 See `references/execution-advanced.md`, section `Phase 6: Documentation Site`,
 if the project needs a maintained documentation site workflow.
 
+### GitBook Companion Track (when requested)
+
+If the user wants GitBook-ready project-introduction content while execution is
+happening, treat docs as a parallel deliverable rather than a final cleanup pass.
+
+**Default location:** `docs/gitbook/` unless the repo already has an established
+docs root. Keep GitBook pages derived from the repo's sources of truth:
+`docs/PRD.md`, `ARCHITECTURE.md`, `docs/PLAN.md`, and the current code.
+
+**Minimum page set:**
+- `README.md` or landing page - what the project is and why it exists
+- `product-overview.md` - users, problems, use cases, scope
+- `target-users.md` - who the product serves, current personas, pains, success criteria
+- `architecture.md` - system shape, core modules, integrations, data flow
+- `quickstart.md` - install, env, run, validate
+- `roadmap.md` - shipped milestones, current focus, next work
+- `SUMMARY.md` - GitBook navigation linking the above pages
+
+**Preferred starter skeleton:**
+```text
+docs/gitbook/
+  README.md
+  product-overview.md
+  target-users.md
+  architecture.md
+  quickstart.md
+  roadmap.md
+  SUMMARY.md
+```
+
+**PLAN insertion rule:**
+- During bootstrap or any later `plan:apply` flow, add explicit docs tasks when the
+  milestone changes public-facing product understanding.
+- For greenfield projects, create an early baseline task such as
+  `Docs: create GitBook project-intro baseline`.
+- For retrofits without coherent public docs, add a catch-up task or dedicated docs
+  milestone before feature drift makes the project harder to explain.
+- Example follow-up tasks:
+  - `Docs: refresh GitBook architecture after auth and billing integration`
+  - `Docs: update GitBook quickstart after local dev bootstrap changes`
+  - `Docs: revise roadmap and product overview for milestone M3`
+
+**Update rule:**
+- If a milestone changes positioning, onboarding, architecture, integrations, or
+  roadmap, update the affected GitBook pages in the same milestone or
+  immediately after merge.
+- Small wording syncs can be folded into the implementation task.
+- Larger docs changes get explicit PLAN tasks with measurable "done when"
+  conditions.
+
+**Writing rule:**
+- Prefer clear external-facing language over internal planning jargon.
+- Do not invent claims, capabilities, or future scope that are not grounded in
+  PRD, PLAN, architecture docs, or the code.
+- When the user asks for "project introduction" content, synthesize it from the
+  repo and current milestone status.
+
 ---
 
 ## Principles

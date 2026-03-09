@@ -11,6 +11,8 @@ description: >
   existing project, says "retrofit", "add AGENTS.md to my project", "set up harness for my repo",
   "convert my project", or mentions AGENTS.md, harness engineering, agent-first development.
   Even if the user just describes an idea and wants to "get started", this is the skill to use.
+  Also use it when the user wants GitBook-ready project introduction or documentation content
+  produced alongside the actual project work.
 ---
 
 # Harness Engineer
@@ -82,6 +84,21 @@ This skill is split into focused reference files to avoid loading everything upf
      palette, typography scale (font families + size steps), 4-point spacing system,
      component naming conventions, and the "no generic AI aesthetics" principle.
   Log which strategy was used as a note in `docs/learnings.md`.
+- GitBook / project-intro companion docs: when the user wants project documentation, GitBook
+  pages, or an external-facing project introduction while the build is happening, treat that
+  as a parallel deliverable. Generate and maintain a `docs/gitbook/` markdown set by default
+  (or the repo's existing docs root if one already exists). Minimum scope: landing page,
+  product overview, problem/users, architecture/capabilities, quickstart, roadmap, and
+  `SUMMARY.md`. Preferred starter shape:
+  `docs/gitbook/README.md`, `docs/gitbook/product-overview.md`,
+  `docs/gitbook/target-users.md`, `docs/gitbook/architecture.md`,
+  `docs/gitbook/quickstart.md`, `docs/gitbook/roadmap.md`, and
+  `docs/gitbook/SUMMARY.md`. Keep these pages derived from `docs/PRD.md`,
+  `ARCHITECTURE.md`, `docs/PLAN.md`, and the current codebase state.
+  When generating or revising `docs/PLAN.md`, add explicit GitBook tasks whenever a milestone
+  changes product positioning, onboarding, architecture, integrations, or roadmap. For a new
+  project, add an early baseline task to create the GitBook structure. For a retrofit, add a
+  catch-up docs task or milestone if no coherent project-introduction docs exist yet.
 
 ---
 
