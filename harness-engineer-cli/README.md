@@ -2,6 +2,7 @@
 
 An agent-first project framework based on Harness Engineering principles.
 Works with **Claude Code** and **Codex** on **Windows**, macOS, and Linux.
+Skill version: `2026.03.10`
 
 ## What it does
 
@@ -13,9 +14,8 @@ Two modes:
 Both modes generate a CLI that agents use to autonomously loop through tasks:
 pick → start → code → validate → commit → done → repeat.
 
-- **Node/TS projects** — TypeScript CLI (`scripts/harness.ts` + `scripts/harness/` modules)
-- **Non-Node projects** (Python, Go, Rust without Node) — Shell CLI (`scripts/harness.sh` + `Makefile`)
-The animated chain map is in [flow-visualizer.html](flow-visualizer.html).
+- **Node/TS projects** — TypeScript CLI (`scripts/harness.ts` + `scripts/harness/` modules), with full capability: worktrees, `plan:apply`, and agent lifecycle
+- **Strict non-Node projects** (Python/Go/Rust, user explicitly refuses Node) — Shell CLI (`scripts/harness.sh` + `Makefile`), single-agent only: `init` / `status` / `validate` / `next` / `start` / `done` / `block`
 
 > **`references/replay-protocol.md` is for framework-level development only.**
 > It documents the SOP for verifying changes to this skill's own reference files across
@@ -41,30 +41,9 @@ Human quality checkpoints (security changes, merge failures, blocked tasks).
 This is the default because the harness CLI + git hooks + CI already enforce all
 rules mechanically. The agent can't commit bad code — the hooks reject it.
 
-**Claude Code — `.claude/settings.json`:**
-```json
-{
-  "permissions": {
-    "allowedTools": [
-      "Read", "Write",
-      "Bash(git *)",
-      "Bash(<package-manager> *)",
-      "Bash(npx tsx scripts/harness.ts *)",
-      "Bash(npx tsx scripts/check-commit-msg.ts *)",
-      "Bash(npx lint-staged)"
-    ],
-    "deny": ["Read(./.env)", "Read(./.env.*)"]
-  }
-}
-```
-
-**Codex — `.codex/config.toml`:**
-```toml
-approval_policy = "never"
-
-[sandbox]
-sandbox_mode = "workspace-write"
-```
+Config templates for Claude Code and Codex live in `references/project-configs.md`.
+Use the `Claude Code — .claude/settings.json` and `Codex — .codex/config.toml` sections
+there as the canonical source.
 
 ### Menu Mode (supervised)
 
@@ -73,25 +52,14 @@ Use this when you want to review each step, or when working on sensitive code.
 
 **To switch Claude Code to Menu Mode:**
 
-Edit `.claude/settings.json` — remove the harness commands from `allowedTools`:
-```json
-{
-  "permissions": {
-    "allowedTools": ["Read", "Write"],
-    "deny": ["Read(./.env)", "Read(./.env.*)"]
-  }
-}
-```
+Edit `.claude/settings.json` — remove the harness commands from `allowedTools`.
 
 Now the agent will ask "Allow Bash(npx tsx scripts/harness.ts validate)?" before
 each command. You press Y to approve or N to skip.
 
 **To switch Codex to Menu Mode:**
 
-Edit `.codex/config.toml`:
-```toml
-approval_policy = "on-request"
-```
+Edit `.codex/config.toml` and set `approval_policy = "on-request"`.
 
 Now Codex pauses for every command and waits for your approval.
 
@@ -121,7 +89,7 @@ Changes take effect on the next agent session. No restart needed — just start 
 harness-engineer-cli/
 ├── SKILL.md                        ← Main skill file (claude.ai reads this)
 ├── README.md                       ← You are here
-├── flow-visualizer.html            ← Interactive workflow chain map (open in browser)
+├── scripts/                        ← Maintenance scripts (version bump, local tooling)
 └── references/                     ← Templates used during generation
     ├── skill-greenfield.md         ← Greenfield workflow (discovery → PRD → scaffold)
     ├── skill-retrofit.md           ← Existing-project retrofit workflow
@@ -137,6 +105,7 @@ harness-engineer-cli/
     ├── project-configs.md          ← TS, Python, Go, Rust, workspace, Docker, CI configs
     ├── gitignore-templates.md      ← .gitignore templates per stack
     ├── execution-runtime.md        ← Agent guidelines (context budget, parallel, quality gates)
+    ├── execution-advanced.md       ← Optional release automation, docs site, memory system
     └── replay-protocol.md          ← Downstream replay / fixture verification SOP
 ```
 
@@ -173,15 +142,12 @@ your-project/
 ```
 # Worktree management (milestone isolation — run from main repo root)
 harness worktree:start <M-id>   Create branch + worktree + install + init + auto-start
-harness worktree:finish <M-id>  Rebase → merge → archive plans → push → cleanup
-harness worktree:reclaim <M-id> Reclaim a stale/abandoned milestone and reopen its worktree
+harness worktree:finish <M-id>  Serialized root-side rebase → merge → archive plans → push → cleanup
 harness worktree:status         Show worktrees, agents, auto-finish jobs, and merge readiness
 harness migrate                 Refresh harness-managed runtime folders + schema after upgrades
-harness sync-template           Alias of migrate
 
-# Session (run inside the milestone worktree)
-harness init              Session boot: sync plans, stale check, print status
-harness init --auto-start Session boot + auto-claim first available task
+# Session (run from main/root or inside the milestone worktree)
+harness init Session boot: sync plans, stale check, memory reminders, print status
 harness status            Print current milestone, task, blockers, progress
 
 # Task loop (inside worktree)
@@ -198,11 +164,14 @@ harness stale-check       Detect stale docs, env, plans
 harness file-guard        Check no source file exceeds 500 lines
 harness schema            Validate progress.json against JSON Schema
 harness changelog         Generate release notes from commit messages
-harness recover           Auto-detect and fix milestone board inconsistencies
 
 # Planning (add new work mid-project)
-harness plan:status       Show project progress overview + pending plan files
-harness plan:apply [file] Parse plan → analyze state → insert milestones + tasks + deps
+harness plan:apply [file] Parse plan → analyze state → insert milestones + task mirrors + deps
+
+# Ops / rarely needed manually (auto-called or recovery only)
+harness recover           Close milestones already merged (auto at init; manual for recovery)
+harness worktree:reclaim <M-id> Reclaim a stale milestone and reopen its worktree
+harness plan:status       Show project progress overview for planning context
 
 # Scaffold (inject capability templates — no web search needed)
 harness scaffold mcp            MCP server: src/tools/, server.ts, tests
@@ -231,12 +200,51 @@ harness scaffold cloudflare      wrangler.toml + .dev.vars + CI
 - One of: pnpm, bun, or npm
 - `tsx` (added automatically as a dev dependency)
 
-**Non-Node projects (Shell CLI — Python, Go, Rust):**
+**Strict non-Node projects (Shell CLI fallback — Python, Go, Rust):**
 - Git
 - `jq` (JSON processor — for `scripts/harness.sh`)
 - `bash` 4+ (macOS ships bash 3; install bash via Homebrew if needed)
 - Language runtime: Python 3.11+ / Go 1.22+ / Rust stable
-- No Node.js or npm required — the shell CLI handles all harness operations
+- No Node.js or npm required — the shell CLI handles the single-agent task loop only
+- Windows note: prefer the TypeScript CLI on native Windows. The shell CLI requires Git Bash or WSL because it uses POSIX shell utilities.
+
+## Upgrade And Rollback
+
+- `harness migrate` only backfills harness-managed runtime folders, schema files, and missing runtime fields. It does not rewrite `AGENTS.md`, `CLAUDE.md`, or workflow prose.
+- If a merged milestone must be undone, use `git revert` on the merge commit, then manually reconcile `docs/PLAN.md`, `docs/progress.json`, and any archived exec-plan files. The harness does not provide a `revert-merge` command yet.
+
+## Version Update Shortcut
+
+From repo root:
+
+```bash
+pwsh scripts/bump-version.ps1            # set version to today's date (YYYY.MM.DD)
+pwsh scripts/bump-version.ps1 -Version 2026.03.11  # explicit version
+```
+
+This updates:
+
+- `VERSION`
+- `SKILL.md` (frontmatter `version`)
+- `README.md` (`Skill version`)
+
+## Self-Iteration + Self-Correction
+
+When you detect a workflow/process drift (commands changed, duplicated docs, wrong
+template source, etc.):
+
+```bash
+pwsh scripts/skill-maintenance.ps1                  # full health check only
+pwsh scripts/skill-maintenance.ps1 -AutoFix         # run safe self-corrections
+pwsh scripts/skill-maintenance.ps1 -AutoFix -Version 2026.03.12  # optional explicit version sync
+```
+
+Recommended loop:
+
+1. Run maintenance check.
+2. Fix any failures manually.
+3. Re-run with `-AutoFix` to sync obvious drift.
+4. Re-run check to verify the process contract is closed again.
 
 ## Validation Strategy
 

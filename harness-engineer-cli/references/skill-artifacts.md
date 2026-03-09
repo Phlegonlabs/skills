@@ -45,6 +45,7 @@ If `PLAN.md` grows past ~1000 lines, archive completed execution plan files to
 automatically via `worktree:finish` when a milestone completes.
 When upgrading an older project to a newer harness runtime, run `harness migrate`
 once from main/root to backfill the exec-plan folders and schema.
+`harness migrate` does not rewrite AGENTS.md / CLAUDE.md or workflow prose.
 
 ### 2. Zero Compatibility Code
 No polyfills. No shims. No backward-compat wrappers.
@@ -148,22 +149,30 @@ Example: `2026-03-08-add-user-profile-editing.md`
    Use any milestone numbering (M1, M2...) — plan:apply auto-renumbers to avoid conflicts.
    If the plan needs architecture changes, document them in the plan file as prose above the tables.
 
-4. Run: `<pkg-mgr> run harness plan:apply`
+4. If this project uses the TypeScript CLI (`scripts/harness.ts`), run:
+   `<pkg-mgr> run harness plan:apply`
    The CLI automatically:
    - Reads all unsynced plan files
    - Analyzes current project state (completed, active, pending milestones)
    - Renumbers milestones to avoid conflicts (M1 in plan → M5 in project if M4 exists)
    - Resolves dependencies (same apply batch auto-chains in order unless explicit deps override it)
    - Appends milestones to PLAN.md with correct headers (Status, Branch, Worktree, Depends on)
-   - Updates progress.json (active_milestones, dependency_graph, synced_plans, finish_jobs)
+   - Updates progress.json (active_milestones, per-task mirrors, dependency_graph, synced_plans, finish_jobs)
    - Marks plan file as synced
 
-5. Run: `<pkg-mgr> run harness worktree:start M<next>`
+5. Then run: `<pkg-mgr> run harness worktree:start M<next>`
    The CLI creates worktree → installs → inits → auto-starts first task.
 
-After a plan is applied, the file stays in exec-plans/active/ as reference.
+If this project uses the native shell CLI (`scripts/harness.sh` with no Node.js):
+- Still write the plan file to `docs/exec-plans/active/`
+- Manually copy the milestone tables into `docs/PLAN.md`
+- Manually update `docs/progress.json` (`active_milestones`, task mirrors, `dependency_graph`)
+- Run `bash scripts/harness.sh init`, then `next` / `start` to enter the task loop
+- Do NOT instruct the agent to run `plan:apply`, `worktree:*`, or expect auto-archive
+
+After a TypeScript CLI plan is applied, the file stays in exec-plans/active/ as reference.
 When every milestone defined in that file is completed, `worktree:finish` auto-moves it to
-`exec-plans/completed/`.
+`exec-plans/completed/`. The native shell CLI does not automate that archive step.
 ```
 
 - **Scaffold Templates (CLI)** — When adding new capabilities mid-project, use the
@@ -221,7 +230,7 @@ This automatically cascades through the full startup sequence:
 1. Syncs any new plan files from docs/exec-plans/active/
 2. If running on main/root and unsynced plans have milestone tables → auto plan:apply (inserts into PLAN.md)
 3. If running inside a worktree and new plans exist → warns and defers plan:apply to main/root
-4. Runs stale detection + milestone board recovery
+4. Runs stale detection + milestone closeout recovery
 5. Prints current status (milestone, task, blockers, progress)
 6. If in a worktree with no current task → auto next → auto start (claims first available)
 7. If NOT in a worktree and there's a pending milestone → prints worktree:start command
@@ -235,10 +244,8 @@ Then load memory (agent does this, not the CLI):
 - If resuming a task: check the daily log for "In Progress" section
 
 Context budget:
-- AGENTS.md / CLAUDE.md + progress.json + current PLAN section: ≤ 25%
-- Memory (MEMORY.md + today's daily log): ≤ 10%
-- Source files for current task: ≤ 30%
-- Remaining ≥ 35% for code generation and reasoning
+- Use the canonical budget in `references/execution-runtime.md#Context Budget`
+- Do not maintain a second budget table here
 - Overloaded? → write notes to daily log, commit what works, start fresh session.
 
 After init, proceed DIRECTLY to writing code. Do not wait for user confirmation.
@@ -296,7 +303,7 @@ When the last task is done, the CLI auto-runs merge-gate and, on success, queues
 root-side `worktree:finish` from the main repo:
 
   # done M1-007 auto-triggers this chain after merge-gate passes:
-  #   → root-side worktree:finish M1
+  #   → root-side serialized worktree:finish queue receives M1
   #   → rebase + merge + archive completed exec plan + push + remove worktree
   #   → AUTO: worktree:start M2 (create + install + init + start M2-001)
   #   → "Started: M2-001 — ..."
@@ -446,8 +453,9 @@ Independent milestones can run in parallel (one agent per worktree).
 The CLI coordinates via progress.json agents array:
 - worktree:start checks no other active agent has claimed the milestone
 - init registers the agent with a heartbeat (updated on every command)
-- worktree:status shows all agents, heartbeats, auto-finish jobs, and merge readiness
+- worktree:status shows all agents, heartbeats, serialized auto-finish jobs, and merge readiness
 - Stale agents (heartbeat >2h) are reclaimable
+- Only one root-side `worktree:finish` mutates main at a time; other ready milestones remain queued in `finish_jobs`
 
 After another milestone merges into main, rebase your worktree:
   <pkg-mgr> run harness worktree:rebase
@@ -1014,41 +1022,9 @@ Configure: `git config core.hooksPath .githooks`
 Generate BOTH config files to enable **autonomous execution** — the agent loops
 through tasks without asking permission for routine commands:
 
-**Claude Code — `.claude/settings.json`:**
-```json
-{
-  "plansDirectory": "./docs/exec-plans/active",
-  "permissions": {
-    "allowedTools": [
-      "Read", "Write",
-      "Bash(git *)",
-      "Bash(<package-manager> *)",
-      "Bash(npx tsx scripts/harness.ts *)",
-      "Bash(npx tsx scripts/check-commit-msg.ts *)",
-      "Bash(npx lint-staged)",
-      "Bash(npx prisma *)",
-      "Bash(npx drizzle-kit *)"
-    ],
-    "deny": ["Read(./.env)", "Read(./.env.*)"]
-  }
-}
-```
-
-**Codex — `.codex/config.toml`:**
-```toml
-# Codex reads AGENTS.md automatically from project root.
-# Plans directory not natively configurable — handled via AGENTS.md.
-
-approval_policy = "never"
-# This allows Codex to run harness commands, git, and package manager without prompts.
-# For supervised mode: approval_policy = "on-request"
-
-[sandbox]
-sandbox_mode = "workspace-write"
-
-[project_doc]
-project_doc_max_bytes = 65536
-```
+Config templates: see `references/project-configs.md` →
+- `Claude Code — .claude/settings.json`
+- `Codex — .codex/config.toml`
 
 **What this enables:**
 
@@ -1087,24 +1063,9 @@ Agent:  pauses ONLY at Human quality checkpoints:
   through `npx tsx` (Node.js) — no bash dependency.
 
 **Non-Node projects using the native shell CLI — `.claude/settings.json`:**
-```json
-{
-  "plansDirectory": "./docs/exec-plans/active",
-  "permissions": {
-    "allowedTools": [
-      "Read", "Write",
-      "Bash(git *)",
-      "Bash(make *)",
-      "Bash(bash scripts/harness.sh *)",
-      "Bash(bash scripts/check-commit-msg.sh *)"
-    ],
-    "deny": ["Read(./.env)", "Read(./.env.*)"]
-  }
-}
-```
-Add language-specific tools: Python → `"Bash(uv *)"`, `"Bash(python *)"`;
-Go → `"Bash(go *)"`, `"Bash(golangci-lint *)"`;
-Rust → `"Bash(cargo *)"`. See `references/harness-native.md` for the full list.
+Config template: see `references/project-configs.md` →
+`Non-Node variant — .claude/settings.json`.
+Add language-specific tools from that section for Python, Go, or Rust projects.
 
 Both agents end up with plan files in the same location → harness init detects and
 syncs them identically.
@@ -1347,12 +1308,17 @@ read and debug it without guessing:
       "depends_on": [],
       "started_at": "2025-01-15T10:00:00Z",
       "completed_at": null,
+      "tasks_total": 2,
+      "tasks_done": 1,
+      "tasks_in_progress": 1,
+      "tasks_blocked": 0,
+      "tasks_remaining": 1,
       "tasks": [
         {
           "id": "M1-001",
           "story": "E1-S01",
           "title": "Set up Better Auth with Prisma adapter",
-          "status": "done",
+          "status": "✅",
           "done_when": "Auth tables migrated, /api/auth/* routes respond 200",
           "started_at": "2025-01-15T10:00:00Z",
           "completed_at": "2025-01-15T12:30:00Z",
@@ -1363,7 +1329,7 @@ read and debug it without guessing:
           "id": "M1-002",
           "story": "E1-S02",
           "title": "Build sign-in and sign-up screens",
-          "status": "in_progress",
+          "status": "🟡",
           "done_when": "Both screens render, email/password auth flow works end-to-end",
           "started_at": "2025-01-15T12:31:00Z",
           "completed_at": null,
@@ -1391,14 +1357,14 @@ read and debug it without guessing:
 Field meanings for agents:
 - `last_updated`: ISO timestamp, auto-set by CLI on every saveProgress
 - `last_agent`: who last modified — `"claude-code"`, `"codex"`, or `"human"`
-- `current_milestone`: object with milestone counters (id, name, tasks_done, etc.)
+- `current_milestone`: deprecated singleton snapshot with milestone counters. Keep the field for compatibility, but in parallel-worktree mode the CLI derives the active milestone from the branch instead of trusting this object.
 - `current_task`: object for the task currently being worked on, or null
 - `status` on a task: `⬜` = not started, `🟡` = in progress (claimed by agent), `✅` = done, `🚫` = blocked
 - `depends_on` (task): task IDs that must be ✅ before this task can be started. `harness next` respects this
 - `depends_on` (milestone): milestone IDs that must be merged before this milestone can merge. `harness worktree:finish` enforces this
 - `worktree`: relative path to the git worktree for this milestone
 - `agents`: array of currently active agents — each agent registers on `harness init`, heartbeat updates on every command, stale after 2h
-- `finish_jobs`: root-side auto-finish queue state — queued/running/failed/succeeded closeout jobs written by `merge-gate` and `worktree:finish`
+- `finish_jobs`: serialized root-side auto-finish queue state — queued/running/failed/succeeded closeout jobs written by `merge-gate` and `worktree:finish`
 - `blockers`: array of blocked tasks with reasons
 - `learnings`: array of logged learnings (via `harness learn`)
 - `dependency_graph`: task-level dependency map — keys are task IDs, values have `depends_on` and `blocks` arrays

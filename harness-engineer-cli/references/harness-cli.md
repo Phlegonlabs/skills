@@ -41,7 +41,6 @@ harness done <id>         Complete task → auto: git checkout → next → star
 
 # Everything below is auto-cascaded or for special situations:
 
-harness init --auto-start Session boot + auto-claim first task (used internally by worktree:start)
 harness status            Print current milestone, task, blockers, progress
 harness next              Find next unblocked task (auto-called by done — rarely manual)
 harness start <id>        Claim a task → 🟡 (auto-called by done — rarely manual)
@@ -51,7 +50,7 @@ harness reset <id>        Revert task to ⬜ (undo start or unblock)
 harness learn <cat> <msg>  Log a learning (dependency, config, architecture, etc.)
 harness merge-gate        Full gate (auto-called by done when milestone complete)
 harness worktree:start <M-id>   Create worktree → auto: install → init → start task
-harness worktree:finish <M-id>  Rebase → merge → archive → push → cleanup → auto: worktree:start next milestone
+harness worktree:finish <M-id>  Serialized root-side rebase → merge → archive → push → cleanup → auto: worktree:start next milestone
 harness worktree:rebase          Rebase current worktree onto latest main
 harness worktree:reclaim <M-id>  Reclaim a stale/abandoned milestone
 harness worktree:status          Show all worktrees, agents, auto-finish jobs, merge readiness
@@ -59,8 +58,8 @@ harness stale-check       Detect stale docs, env, plans
 harness file-guard        Check 500-line limit (--staged for hooks)
 harness changelog [from] [to]  Generate release notes
 harness schema            Validate progress.json against schema
-harness recover           Auto-detect and fix milestone board inconsistencies
-harness plan:apply [file] Parse plan → analyze state → insert milestones (auto-called by init)
+harness recover           Close milestones whose PLAN rows are all ✅ and whose branch is already merged/removed
+harness plan:apply [file] Parse plan → analyze state → insert milestones + task mirrors + deps (auto-called by init)
 harness plan:status       Show project progress overview for planning context
 harness scaffold <type>   Inject capability templates (16 types — run without args to see list)
 ```
@@ -69,7 +68,7 @@ harness scaffold <type>   Inject capability templates (16 types — run without 
 ```
 init (main/root) → syncPlans → plan:apply (if new plans) → recover → start or finish
 init (worktree) → warn on pending plans → recover → resume task / next / start
-done → git checkout . → next → start (or: merge-gate → queue root-side finish)
+done → git checkout . → next → start (or: merge-gate → queue serialized root-side finish)
 block → next → start next unblocked task
 worktree:finish → auto worktree:start next eligible milestone → install → init → start
 worktree:start → dep check → install → init → next → start
@@ -128,6 +127,7 @@ export const PROGRESS_FILE = 'docs/progress.json';
 export const PLAN_FILE = 'docs/PLAN.md';
 export const SCHEMA_FILE = 'schemas/progress.schema.json';
 export const PLANS_DIR = 'docs/exec-plans/active';
+export const FINISH_LOCK_FILE = '.git/harness-finish.lock';
 export const FILE_LIMIT = 500;
 export const SOURCE_EXTS = new Set(['.ts', '.tsx', '.js', '.jsx', '.py', '.go', '.rs', '.vue', '.svelte']);
 export const IGNORE_DIRS = new Set(['node_modules', 'dist', 'build', '.next', 'out', 'coverage', '.git']);
@@ -180,6 +180,11 @@ export interface ActiveMilestone {
   depends_on?: string[];
   started_at?: string;
   completed_at?: string | null;
+  tasks_total?: number;
+  tasks_done?: number;
+  tasks_in_progress?: number;
+  tasks_blocked?: number;
+  tasks_remaining?: number;
   tasks?: Array<Record<string, unknown>>;
   [k: string]: unknown;
 }
@@ -255,8 +260,12 @@ export interface TableLayout {
   statusIdx: number;
   /** Index in the raw parts[] array for Commit column (null if absent). */
   commitIdx: number | null;
+  /** Index in the raw parts[] array for Story column (null if absent). */
+  storyIdx: number | null;
   /** Index in the raw parts[] array for Task/Description column. */
   descIdx: number | null;
+  /** Index in the raw parts[] array for Done When column (null if absent). */
+  doneWhenIdx: number | null;
 }
 
 export interface TaskRow {
@@ -264,7 +273,10 @@ export interface TaskRow {
   taskId: string;
   statusEmoji: string;      // ⬜ | 🟡 | ✅ | 🚫
   statusText: string;       // full cell text, e.g. "⬜ Todo"
+  story: string;
   description: string;
+  doneWhen: string;
+  commit: string | null;
   rawLine: string;
 }
 
@@ -308,8 +320,14 @@ export function detectLayout(plan: string): TableLayout {
       commitIdx: lower.findIndex((c) => c === 'commit') > 0
         ? lower.findIndex((c) => c === 'commit')
         : null,
+      storyIdx: lower.findIndex((c) => c === 'story') > 0
+        ? lower.findIndex((c) => c === 'story')
+        : null,
       descIdx: lower.findIndex((c) => c === 'task' || c === 'description') > 0
         ? lower.findIndex((c) => c === 'task' || c === 'description')
+        : null,
+      doneWhenIdx: lower.findIndex((c) => c === 'done when') > 0
+        ? lower.findIndex((c) => c === 'done when')
         : null,
     };
     cachedPlanHash = h;
@@ -318,7 +336,7 @@ export function detectLayout(plan: string): TableLayout {
 
   // Fallback: harness default
   // | Task ID(1) | Story(2) | Task(3) | Done When(4) | Status(5) | Commit(6) |
-  cachedLayout = { statusIdx: 5, commitIdx: 6, descIdx: 3 };
+  cachedLayout = { statusIdx: 5, commitIdx: 6, storyIdx: 2, descIdx: 3, doneWhenIdx: 4 };
   cachedPlanHash = h;
   return cachedLayout;
 }
@@ -358,13 +376,25 @@ export function parsePlanTaskRows(plan: string, milestoneFilter?: string): TaskR
     const desc = layout.descIdx !== null
       ? (parts[layout.descIdx] ?? '').trim()
       : '';
+    const story = layout.storyIdx !== null
+      ? (parts[layout.storyIdx] ?? '').trim()
+      : '—';
+    const doneWhen = layout.doneWhenIdx !== null
+      ? (parts[layout.doneWhenIdx] ?? '').trim()
+      : '';
+    const commit = layout.commitIdx !== null
+      ? (parts[layout.commitIdx] ?? '').trim()
+      : null;
 
     rows.push({
       lineIndex: i,
       taskId,
       statusEmoji: (emojiMatch?.[1] ?? '') as string,
       statusText: statusCell,
+      story,
       description: desc,
+      doneWhen,
+      commit,
       rawLine: line,
     });
   }
@@ -743,15 +773,15 @@ export function recoverMilestoneBoard(p: Progress): { recovered: number; ids: st
 ```typescript
 // Worktree detection, enforcement, agent lifecycle, and all worktree:* commands.
 import { execSync, spawn } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { hostname } from 'node:os';
 import process from 'node:process';
-import { PKG, STALE_AGENT_MS, PLANS_DIR, ok, warn, fail, step, info, R, G, Y, B, N } from './config.js';
+import { PKG, STALE_AGENT_MS, PLANS_DIR, PROGRESS_FILE, FINISH_LOCK_FILE, ok, warn, fail, step, info, R, G, Y, B, N } from './config.js';
 import type { Progress, ActiveMilestone, WorktreeInfo, FinishJobEntry } from './types.js';
 import { loadProgress, saveProgress, loadPlan, savePlan } from './state.js';
 import { installWithRetry, recoverMilestoneBoard } from './recovery.js';
-import { parseMilestoneHeaders, countTaskStatuses } from './plan-utils.js';
+import { parseMilestoneHeaders, countTaskStatuses, parsePlanTaskRows, STATUS } from './plan-utils.js';
 
 // ─── Cross-platform path normalization ──────────────────────────────────────
 // Windows resolve() → "C:\Users\foo\project"
@@ -915,11 +945,56 @@ function removeWorktreeWithRetry(worktreeDir: string, attempts = 20, delayMs = 5
   return false;
 }
 
-export function enqueueAutoFinish(milestoneId: string, mainRoot: string): void {
-  step(`Queueing automatic finish for ${milestoneId} from main root...`);
-  const p = loadProgress();
-  setFinishJobState(p, milestoneId, 'queued');
-  saveProgress(p);
+function loadProgressFromRoot(rootDir: string): Progress {
+  return JSON.parse(readFileSync(join(rootDir, PROGRESS_FILE), 'utf-8')) as Progress;
+}
+
+function saveProgressToRoot(rootDir: string, p: Progress): void {
+  p.last_updated = new Date().toISOString();
+  writeFileSync(join(rootDir, PROGRESS_FILE), JSON.stringify(p, null, 2) + '\n');
+}
+
+function mergeFinishJobs(existing: FinishJobEntry[] = [], incoming: FinishJobEntry[] = []): FinishJobEntry[] {
+  const merged = new Map<string, FinishJobEntry>();
+  for (const job of existing) merged.set(job.milestone, job);
+  for (const job of incoming) merged.set(job.milestone, job);
+  return [...merged.values()];
+}
+
+function saveRootProgressMerged(rootDir: string, next: Progress): void {
+  const latest = loadProgressFromRoot(rootDir);
+  const merged: Progress = {
+    ...latest,
+    ...next,
+    finish_jobs: mergeFinishJobs(latest.finish_jobs ?? [], next.finish_jobs ?? []),
+  };
+  merged.last_updated = new Date().toISOString();
+  writeFileSync(join(rootDir, PROGRESS_FILE), JSON.stringify(merged, null, 2) + '\n');
+}
+
+function finishLockPath(rootDir: string): string {
+  return join(rootDir, FINISH_LOCK_FILE);
+}
+
+function tryAcquireFinishLock(rootDir: string, milestoneId: string): string | null {
+  const lockPath = finishLockPath(rootDir);
+  try {
+    writeFileSync(lockPath, `${milestoneId}\n`, { flag: 'wx' });
+    return null;
+  } catch {
+    try {
+      return readFileSync(lockPath, 'utf-8').trim() || 'another finish job';
+    } catch {
+      return 'another finish job';
+    }
+  }
+}
+
+function releaseFinishLock(rootDir: string): void {
+  try { unlinkSync(finishLockPath(rootDir)); } catch { /* already released */ }
+}
+
+function spawnFinishProcess(milestoneId: string, mainRoot: string): void {
   const child = spawn(`${PKG} run harness worktree:finish ${milestoneId} --from-worktree`, [], {
     cwd: mainRoot,
     shell: true,
@@ -927,7 +1002,46 @@ export function enqueueAutoFinish(milestoneId: string, mainRoot: string): void {
     stdio: 'ignore',
   });
   child.unref();
-  ok(`Automatic finish queued for ${milestoneId}.`);
+}
+
+function dispatchQueuedFinish(mainRoot: string): void {
+  const p = loadProgressFromRoot(mainRoot);
+  if ((p.finish_jobs ?? []).some((j) => j.status === 'running')) return;
+  const next = (p.finish_jobs ?? []).find((j) => j.status === 'queued');
+  if (!next) return;
+  step(`Dispatching queued finish for ${next.milestone}...`);
+  spawnFinishProcess(next.milestone, mainRoot);
+}
+
+function buildTaskMirror(p: Progress, rows: ReturnType<typeof parsePlanTaskRows>): Array<Record<string, unknown>> {
+  return rows.map((row, index) => {
+    const deps = p.dependency_graph?.[row.taskId]?.depends_on
+      ?? (index > 0 ? [rows[index - 1].taskId] : []);
+    return {
+      id: row.taskId,
+      story: row.story || '—',
+      title: row.description,
+      status: (row.statusEmoji || STATUS.TODO),
+      done_when: row.doneWhen,
+      started_at: null,
+      completed_at: row.statusEmoji === STATUS.DONE ? new Date().toISOString() : null,
+      commit: row.commit && row.commit !== '—' ? row.commit : null,
+      blocked_reason: row.statusEmoji === STATUS.BLOCKED ? 'See blockers[]' : null,
+      depends_on: deps,
+    };
+  });
+}
+
+export function enqueueAutoFinish(milestoneId: string, mainRoot: string): void {
+  step(`Queueing automatic finish for ${milestoneId} from main root...`);
+  const p = loadProgressFromRoot(mainRoot);
+  setFinishJobState(p, milestoneId, 'queued');
+  saveProgressToRoot(mainRoot, p);
+  dispatchQueuedFinish(mainRoot);
+  const refreshed = loadProgressFromRoot(mainRoot);
+  const job = (refreshed.finish_jobs ?? []).find((j) => j.milestone === milestoneId);
+  if (job?.status === 'running') ok(`Automatic finish queued for ${milestoneId} and started immediately.`);
+  else ok(`Automatic finish queued for ${milestoneId}. Another finish job is already mutating main.`);
 }
 
 // ─── PLAN.md milestone backfill ─────────────────────────────────────────────
@@ -942,13 +1056,21 @@ function backfillMilestone(p: Progress, milestoneId: string): ActiveMilestone | 
 
   const counts = countTaskStatuses(plan, milestoneId);
   if (counts.total === 0) return null;
+  const rows = parsePlanTaskRows(plan, milestoneId);
 
   const ms: ActiveMilestone = {
     id: milestoneId, title: header.title,
-    status: header.status || '🟡 In Progress',
+    status: counts.done === counts.total ? 'complete' : (counts.wip > 0 || counts.done > 0 ? 'in_progress' : 'not_started'),
     branch: header.branch,
     depends_on: header.dependsOn.length > 0 ? header.dependsOn : undefined,
     started_at: new Date().toISOString(),
+    completed_at: counts.done === counts.total ? new Date().toISOString() : null,
+    tasks_total: counts.total,
+    tasks_done: counts.done,
+    tasks_in_progress: counts.wip,
+    tasks_blocked: counts.blocked,
+    tasks_remaining: counts.total - counts.done,
+    tasks: buildTaskMirror(p, rows),
   };
 
   p.active_milestones = p.active_milestones ?? [];
@@ -1120,18 +1242,23 @@ export function cmdWorktreeStart(milestoneId: string): void {
 export function cmdWorktreeFinish(milestoneId: string): void {
   if (!milestoneId) { fail('Usage: harness worktree:finish <milestone-id>  (e.g. M1)'); return; }
 
-  const p = loadProgress();
-  const finishFail = (message: string): never => {
-    setFinishJobState(p, milestoneId, 'failed', message);
-    saveProgress(p);
-    fail(message);
-  };
+  const rootDir = getMainRoot();
+  const p = loadProgressFromRoot(rootDir);
   const ms = (p.active_milestones ?? []).find((m) => m.id === milestoneId);
-  if (!ms) { finishFail(`Milestone ${milestoneId} not found in active_milestones`); }
+  if (!ms) {
+    setFinishJobState(p, milestoneId, 'failed', `Milestone ${milestoneId} not found in active_milestones`);
+    saveRootProgressMerged(rootDir, p);
+    fail(`Milestone ${milestoneId} not found in active_milestones`);
+  }
 
   const branch = ms.branch ?? `milestone/${milestoneId.toLowerCase()}`;
   const worktreeDir = ms.worktree ?? '';
-  const rootDir = getMainRoot();
+  const finishFail = (message: string): never => {
+    releaseFinishLock(rootDir);
+    setFinishJobState(p, milestoneId, 'failed', message);
+    saveRootProgressMerged(rootDir, p);
+    fail(message);
+  };
 
   if (normalizePath(process.cwd()) !== normalizePath(rootDir)) {
     finishFail(`Run worktree:finish from the main repo root:\n  cd "${rootDir}"\n  ${PKG} run harness worktree:finish ${milestoneId}`);
@@ -1141,8 +1268,18 @@ export function cmdWorktreeFinish(milestoneId: string): void {
     finishFail(`Worktree for ${milestoneId} not found at ${worktreeDir || '(missing path)'}`);
   }
 
+  const lockOwner = tryAcquireFinishLock(rootDir, milestoneId);
+  if (lockOwner) {
+    setFinishJobState(p, milestoneId, 'queued');
+    saveRootProgressMerged(rootDir, p);
+    fail(
+      `Another root-side worktree:finish is already running (${lockOwner}). ${milestoneId} remains queued.\n` +
+      `  Re-run harness init or harness worktree:status from main/root after the current finish completes.`
+    );
+  }
+
   setFinishJobState(p, milestoneId, 'running');
-  saveProgress(p);
+  saveRootProgressMerged(rootDir, p);
 
   // Dependency order check
   const completedIds = new Set(p.completed_milestones.map((m) => m.id));
@@ -1251,7 +1388,7 @@ export function cmdWorktreeFinish(milestoneId: string): void {
     p.synced_plans = (p.synced_plans ?? []).filter((name) => !archivedPlans.includes(name));
     ok(`Archived completed plan file(s): ${archivedPlans.join(', ')}`);
   }
-  saveProgress(p);
+  saveRootProgressMerged(rootDir, p);
 
   step('Creating merge commit with metadata updates...');
   try {
@@ -1284,8 +1421,10 @@ export function cmdWorktreeFinish(milestoneId: string): void {
   catch { warn(`Branch ${branch} not deleted`); }
 
   setFinishJobState(p, milestoneId, 'succeeded');
-  saveProgress(p);
+  saveRootProgressMerged(rootDir, p);
+  releaseFinishLock(rootDir);
   ok(`${milestoneId} merged, pushed, archived, and cleaned up.`);
+  dispatchQueuedFinish(rootDir);
 
   if (p.active_milestones.length > 0) {
     // Find first milestone whose deps are all met (just-finished milestone counts as completed now)
@@ -1421,10 +1560,11 @@ export function cmdWorktreeList(): void {
 ### scripts/harness/tasks.ts
 
 ```typescript
-// Session init, status display, and the task execution loop: next, start, done, block.
+// Session init, status display, memory reminders, and the task execution loop: next, start, done, block.
 // Auto-cascading: done → next → start → merge-gate → finish. Agent only calls init + validate + done.
 import { execSync } from 'node:child_process';
-import { existsSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { basename, join } from 'node:path';
 import process from 'node:process';
 import { PKG, STALE_AGENT_MS, PLANS_DIR, ok, warn, fail, step, info, R, G, Y, B, D, N } from './config.js';
 import type { Progress } from './types.js';
@@ -1470,6 +1610,7 @@ export function cmdInit(): void {
   // ── 2. Stale check + milestone recovery ───────────────────────────────
   step('Running stale check...');
   cmdStaleCheck(true);
+  printMemoryStatus();
 
   step('Validating milestone board...');
   const p = loadProgress();
@@ -1664,6 +1805,38 @@ function detectPendingPlans(): number {
   } catch { return 0; }
 }
 
+function printMemoryStatus(): void {
+  const memoryDir = join('docs', 'memory');
+  if (!existsSync(memoryDir)) return;
+
+  const memoryFile = join(memoryDir, 'MEMORY.md');
+  if (existsSync(memoryFile)) {
+    const lines = readFileSync(memoryFile, 'utf-8').split('\n').length;
+    info(`Memory loaded: ${memoryFile} (${String(lines)} lines)`);
+  }
+
+  const today = new Date().toISOString().split('T')[0];
+  const todayLog = join(memoryDir, `${today}.md`);
+  if (existsSync(todayLog)) {
+    const lines = readFileSync(todayLog, 'utf-8').split('\n').length;
+    info(`Today's log: ${todayLog} (${String(lines)} lines)`);
+  }
+
+  const cutoff = new Date();
+  cutoff.setUTCDate(cutoff.getUTCDate() - 14);
+  const cutoffId = cutoff.toISOString().split('T')[0];
+  const staleLogs = readdirSync(memoryDir)
+    .filter((name) => /^\d{4}-\d{2}-\d{2}\.md$/.test(name) && name.slice(0, 10) < cutoffId)
+    .sort();
+
+  if (staleLogs.length > 0) {
+    warn(
+      `${String(staleLogs.length)} daily log(s) are older than 14 days.\n` +
+      `  Summarize them into ${join(memoryDir, 'MEMORY.md')} and archive or delete the stale logs.`
+    );
+  }
+}
+
 // ── Helper — find next task without exiting process ─────────────────────────
 // Uses row-level parsing. Returns task ID or null.
 
@@ -1734,6 +1907,11 @@ function syncTaskInMilestone(p: Progress, taskId: string, newStatus: string, com
     ms.status = 'in_progress';
     if (p.current_milestone && p.current_milestone.id === taskMs) {
       p.current_milestone.status = 'in_progress';
+    }
+  } else {
+    ms.status = 'not_started';
+    if (p.current_milestone && p.current_milestone.id === taskMs) {
+      p.current_milestone.status = 'not_started';
     }
   }
 }
@@ -2361,7 +2539,7 @@ export function cmdMergeGate(): void {
       return;
     }
     enqueueAutoFinish(ms.id, wt.mainRoot);
-    info('Finish will rebase on the latest main, archive completed plans, push, and auto-start the next eligible milestone.');
+    info('Finish will enter the serialized main-root queue, then rebase on the latest main, archive completed plans, push, and auto-start the next eligible milestone.');
     info('Use harness worktree:status or rerun harness init from main/root to inspect queued/running/failed finish state.');
   } else {
     console.log(`Run: ${PKG} run harness worktree:finish ${ms.id}`);
@@ -2430,6 +2608,7 @@ export function cmdMigrate(): void {
   }
 
   info('This command updates harness-managed runtime files only.');
+  info('This command does not rewrite AGENTS.md / CLAUDE.md or workflow prose.');
   info('If workflow docs or agent rules changed, copy the latest harness files into the project first, then rerun migrate from main/root.');
 }
 
@@ -2688,7 +2867,7 @@ export function cmdChangelog(from = '', to = 'HEAD'): void {
 //
 // The CLI handles: where to insert, milestone numbering, dependency wiring, progress.json.
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import process from 'node:process';
 import { PKG, PLANS_DIR, ok, warn, fail, step, info, R, G, Y, B, D, N } from './config.js';
 import { loadProgress, saveProgress, loadPlan, savePlan } from './state.js';
@@ -2696,6 +2875,24 @@ import { getWorktreeInfo } from './worktree.js';
 import {
   parseMilestoneHeaders, parsePlanTaskRows, countTaskStatuses, STATUS,
 } from './plan-utils.js';
+
+function buildPlanTaskMirror(
+  taskRows: ReturnType<typeof parsePlanTaskRows>,
+  dependencyGraph: Record<string, { depends_on: string[]; blocks: string[] }>,
+): Array<Record<string, unknown>> {
+  return taskRows.map((row) => ({
+    id: row.taskId,
+    story: row.story || '—',
+    title: row.description,
+    status: row.statusEmoji || STATUS.TODO,
+    done_when: row.doneWhen,
+    started_at: null,
+    completed_at: row.statusEmoji === STATUS.DONE ? new Date().toISOString() : null,
+    commit: row.commit && row.commit !== '—' ? row.commit : null,
+    blocked_reason: row.statusEmoji === STATUS.BLOCKED ? 'See blockers[]' : null,
+    depends_on: dependencyGraph[row.taskId]?.depends_on ?? [],
+  }));
+}
 
 // ─── plan:status — project overview for planning context ─────────────────────
 
@@ -2856,17 +3053,6 @@ export function cmdPlanApply(filePath?: string): void {
         // Append to PLAN.md
         plan += '\n' + milestoneBlock;
 
-        // Update progress.json
-        p.active_milestones = p.active_milestones ?? [];
-        p.active_milestones.push({
-          id: newId,
-          title: pm.title,
-          status: '⬜ Not Started',
-          branch: `milestone/${newId.toLowerCase()}`,
-          depends_on: dependsOn.length > 0 ? dependsOn : undefined,
-          started_at: null as any,
-        });
-
         // Build dependency graph for tasks
         const taskRows = parsePlanTaskRows(milestoneBlock, newId);
         p.dependency_graph = p.dependency_graph ?? {};
@@ -2885,6 +3071,26 @@ export function cmdPlanApply(filePath?: string): void {
             }
           }
         }
+
+        const counts = countTaskStatuses(milestoneBlock, newId);
+
+        // Update progress.json
+        p.active_milestones = p.active_milestones ?? [];
+        p.active_milestones.push({
+          id: newId,
+          title: pm.title,
+          status: counts.done === counts.total ? 'complete' : (counts.wip > 0 || counts.done > 0 ? 'in_progress' : 'not_started'),
+          branch: `milestone/${newId.toLowerCase()}`,
+          depends_on: dependsOn.length > 0 ? dependsOn : undefined,
+          started_at: null as any,
+          completed_at: null,
+          tasks_total: counts.total,
+          tasks_done: counts.done,
+          tasks_in_progress: counts.wip,
+          tasks_blocked: counts.blocked,
+          tasks_remaining: counts.total - counts.done,
+          tasks: buildPlanTaskMirror(taskRows, p.dependency_graph),
+        });
 
         totalMilestonesAdded++;
         totalTasksAdded += taskRows.length;
@@ -3108,7 +3314,6 @@ switch (cmd) {
   case 'learn':             cmdLearn(arg1, argRest); break;
   case 'merge-gate':        cmdMergeGate(); break;
   case 'migrate':           cmdMigrate(); break;
-  case 'sync-template':     cmdMigrate(); break;
   case 'worktree:start':    cmdWorktreeStart(arg1); break;
   case 'worktree:finish':   cmdWorktreeFinish(arg1); break;
   case 'worktree:rebase':   cmdWorktreeRebase(); break;
@@ -3121,9 +3326,9 @@ switch (cmd) {
   case 'scaffold':          cmdScaffold(arg1); break;
   case 'plan:apply':        cmdPlanApply(arg1 || undefined); break;
   case 'plan:status':       cmdPlanStatus(); break;
-  // ── PATCH: Manual milestone board recovery command ──────────────────────
+  // ── PATCH: Manual milestone closeout recovery command ───────────────────
   case 'recover': {
-    console.log(`\n${B}═══ Milestone Board Recovery ═══${N}\n`);
+    console.log(`\n${B}═══ Milestone Closeout Recovery ═══${N}\n`);
     const p = loadProgress();
     const result = recoverMilestoneBoard(p);
     if (result.recovered > 0) {
@@ -3138,13 +3343,12 @@ switch (cmd) {
 ${B}harness${N} — project automation CLI
 
 ${Y}Session:${N}
-  init                    Boot session: sync plans, stale check, register agent, status
-  init --auto-start       Boot + auto-claim first available task (used by worktree:start)
+  init                    Boot session: sync plans, stale check, memory reminders, register agent, status
   status                  Print current state
 
 ${Y}Worktrees (milestone isolation):${N}
   worktree:start <M-id>   Create branch + worktree + install + init + auto-start
-  worktree:finish <M-id>  Rebase + merge + archive + push + cleanup
+  worktree:finish <M-id>  Serialized root-side rebase + merge + archive + push + cleanup
   worktree:rebase          Rebase current worktree onto latest main (run inside worktree)
   worktree:reclaim <M-id> Reclaim a stale/abandoned milestone and reopen its worktree
   worktree:status          Show all worktrees, agents, auto-finish jobs, and merge readiness
@@ -3164,16 +3368,15 @@ ${Y}Validation:${N}
 ${Y}Quality:${N}
   merge-gate              Full gate check before worktree:finish
   migrate                 Refresh harness-managed runtime files + schema
-  sync-template           Alias of migrate
   stale-check             Detect stale docs/env/plans
   file-guard              500-line limit check (--staged)
   schema                  Validate progress.json
   changelog [from]        Generate release notes
-  recover                 Auto-detect and fix milestone board inconsistencies
+  recover                 Close milestones whose PLAN rows are complete and whose branch is already merged/removed
 
 ${Y}Planning (add new work mid-project):${N}
   plan:status             Show project progress overview + pending plans
-  plan:apply [file]       Parse plan → analyze state → insert milestones + tasks + deps
+  plan:apply [file]       Parse plan → analyze state → insert milestones + task mirrors + deps
 
 ${Y}Scaffold (inject capability templates):${N}
   scaffold mcp            MCP server: tools/, server.ts, transport, tests

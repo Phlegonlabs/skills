@@ -1,5 +1,6 @@
 ---
 name: harness-engineer-cli
+version: 2026.03.10
 description: >
   Bootstrap a complete agent-first project OR retrofit an existing project with the harness
   framework — AGENTS.md, CLAUDE.md, execution plans, PRD, and automation scripts, all based
@@ -48,6 +49,7 @@ This skill is split into focused reference files to avoid loading everything upf
 | `references/eslint-configs.md` | During Phase 3 for JS/TS projects — ESLint flat config templates |
 | `references/gitignore-templates.md` | During Phase 3 — .gitignore templates per stack |
 | `references/execution-runtime.md` | During Phase 3 — agent guidelines: context budget, parallel coordination, quality gates |
+| `references/execution-advanced.md` | Only when needed — release automation, docs site, memory system |
 
 **Load order:**
 - Retrofit path: `skill-retrofit.md` → then `skill-artifacts.md` when generating files
