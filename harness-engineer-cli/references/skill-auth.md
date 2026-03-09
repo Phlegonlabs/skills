@@ -325,3 +325,74 @@ Then in `auth.ts`, decode it: `Buffer.from(process.env.APPLE_PRIVATE_KEY_B64!, '
 - **Session not persisting on mobile**: Ensure `expo-secure-store` is installed and passed to `expoClient`. SecureStore caches session between app restarts
 - **Apple Sign In required**: Apple App Store guidelines require "Sign In with Apple" if you offer any other social sign-in (Google, Facebook, etc.)
 - **`BETTER_AUTH_SECRET` rotation**: Use `BETTER_AUTH_SECRETS` (plural, array) to rotate without invalidating existing sessions
+
+---
+
+## Alternative Auth Providers
+
+This skill file covers Better Auth in depth because it's self-hosted, TypeScript-native,
+and gives the agent full control over the implementation. If the user chose a different
+auth provider in Phase 1, use the guidance below instead.
+
+### Clerk (managed — zero backend auth code)
+
+Research: `clerk <framework> setup <current year>`
+
+Key differences from Better Auth:
+- No self-hosted auth code — Clerk handles everything via their SDK + hosted UI
+- Install: `<pkg-mgr> add @clerk/nextjs` (or `@clerk/remix`, `@clerk/express`, `@clerk/expo`)
+- Env vars: `CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_WEBHOOK_SECRET`
+- Protected routes: `clerkMiddleware()` in Next.js middleware, or `requireAuth()` per-route
+- User data lives in Clerk's cloud — sync to local DB via webhooks if needed
+- Mobile (Expo): `@clerk/clerk-expo` + `expo-secure-store` for token storage
+- Tradeoff: faster setup, no auth code to maintain, but vendor lock-in + usage-based pricing
+
+Generate: env vars in `.env.example`, middleware setup, webhook handler if DB sync needed.
+Do NOT generate auth screens — Clerk provides pre-built `<SignIn />` and `<SignUp />` components.
+
+### Supabase Auth
+
+Research: `supabase auth <framework> setup <current year>`
+
+Key differences:
+- Part of Supabase platform — comes free with a Supabase project
+- Install: `<pkg-mgr> add @supabase/supabase-js` (or `@supabase/ssr` for server-side)
+- Env vars: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
+- Row Level Security (RLS): auth integrates directly with Postgres policies
+- OAuth, magic links, phone OTP built-in — configure in Supabase dashboard
+- Mobile (Expo): `@supabase/supabase-js` + `expo-secure-store` for session persistence
+- Tradeoff: deeply integrated with Supabase DB, but coupled to Supabase platform
+
+Generate: Supabase client init, auth helper, RLS policy examples, env vars.
+
+### Firebase Auth
+
+Research: `firebase auth <framework> setup <current year>`
+
+Key differences:
+- Google's managed auth — supports email/password, OAuth, phone, anonymous
+- Install: `<pkg-mgr> add firebase` (client) + `firebase-admin` (server)
+- Env vars: `FIREBASE_API_KEY`, `FIREBASE_AUTH_DOMAIN`, `FIREBASE_PROJECT_ID`
+- Server-side verification: `admin.auth().verifyIdToken(token)` — validate client tokens
+- Mobile: `@react-native-firebase/auth` (not the web SDK — native modules required)
+- Tradeoff: broad platform support, mature, but Google lock-in + complex pricing
+
+Generate: Firebase config, auth context, server-side token verification middleware, env vars.
+
+### None / Custom
+
+If the user selected "None / custom":
+- Do NOT generate any auth code or auth-related env vars
+- Generate a placeholder `src/lib/auth.ts` (or equivalent) with a TODO comment
+- Add a `docs/tech-debt/auth-not-implemented.md` note
+- In PLAN.md: do not create auth-related tasks unless the user explicitly asks later
+
+### General Auth Rules (all providers)
+
+Regardless of provider:
+- Auth-related env vars go in `.env.example` with clear comments
+- Protected routes/endpoints must be defined — never leave all routes public by default
+- Session handling: use HttpOnly cookies (web) or secure storage (mobile)
+- Rate limit auth endpoints: login, signup, password reset, OTP verification
+- Log auth events: sign-in, sign-out, failed attempts, password changes
+- If the provider supports webhooks: generate the webhook handler to sync user data to local DB

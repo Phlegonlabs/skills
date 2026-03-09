@@ -38,21 +38,47 @@ This skill is split into focused reference files to avoid loading everything upf
 | `references/skill-greenfield.md` | User wants a new project (Phases 1–3: discovery, PRD, scaffold) |
 | `references/skill-artifacts.md` | During generation — all artifact templates (AGENTS.md, ARCHITECTURE.md, PLAN.md, configs) |
 | `references/skill-execution.md` | After scaffold — execution runtime, task loop, git workflow, doc site (Phases 4–6) |
+| `references/skill-desktop.md` | Project type is Desktop (Electron/Tauri) — shell split, IPC/commands, updater, packaging, testing |
 | `references/skill-mobile.md` | Project type is Mobile (Expo/React Native) — architecture, EAS build, iOS/Android deploy |
 | `references/skill-auth.md` | Project includes authentication — Better Auth setup, env vars, OAuth, mobile auth |
+| `references/harness-native.md` | Project is non-JS/TS AND user does not want Node.js — shell-based CLI, Makefile integration, pre-commit hooks |
+| `references/project-configs.md` | During Phase 3 scaffold generation — tsconfig, pyproject.toml, go.mod, Cargo.toml, CI workflows, Docker |
+| `references/harness-cli.md` | During Phase 3 scaffold generation — CLI source code, schema, git hooks (TypeScript version) |
+| `references/scaffold-templates.md` | During Phase 3 if project needs scaffold commands — MCP, SKILL.md, Cloudflare, agent capability templates |
+| `references/eslint-configs.md` | During Phase 3 for JS/TS projects — ESLint flat config templates |
+| `references/gitignore-templates.md` | During Phase 3 — .gitignore templates per stack |
 
 **Load order:**
 - Retrofit path: `skill-retrofit.md` → then `skill-artifacts.md` when generating files
-- Greenfield path: `skill-greenfield.md` → then `skill-artifacts.md` → then `skill-execution.md`
+- Greenfield path: `skill-greenfield.md` → then `skill-artifacts.md` → Phase 3 exit gate in
+  `skill-greenfield.md` → then `skill-execution.md`
 - Mobile projects: also read `skill-mobile.md` before generating scaffold
-- Desktop projects (Electron/Tauri): no dedicated skill file — run web search for
-  `<chosen framework> project structure best practices` and adapt the web app scaffold.
-  Key differences: main process + renderer split, IPC patterns, platform-specific build
+- Desktop projects: also read `skill-desktop.md` before generating scaffold. Use targeted web
+  search only for version-sensitive packaging, signing, notarization, updater, or plugin details
+  that are not already covered by the desktop reference.
+- Non-JS/TS projects without Node.js: also read `harness-native.md` before generating the
+  harness layer. This provides the shell-based CLI, Makefile integration, and pre-commit hooks
+  that replace the TypeScript CLI and husky.
+- Agent Tool / MCP Server projects: `skill-greenfield.md` → `skill-artifacts.md` (includes
+  SKILL.md template for agent discovery) → `skill-execution.md`. The generated project will
+  include a `SKILL.md` at the root that describes tools, connection methods, and env vars
+  so other AI agents can discover and use the MCP server.
 - Any project with auth: also read `skill-auth.md` before generating auth code
-- Frontend projects: `docs/frontend-design.md` is generated from the `frontend-design`
-  skill at `/mnt/skills/public/frontend-design/SKILL.md`. If that skill is not available,
-  generate a minimal fallback with: color palette, typography scale, spacing system,
-  component naming conventions, and "no generic AI aesthetics" principle.
+- Mixed-language monorepos: keep `skill-greenfield.md` as the primary workflow, then use
+  `project-configs.md` for Python / Go / Rust manifests. Do not force JS-only workspace rules onto
+  non-JS apps.
+- Frontend projects: `docs/frontend-design.md` must be bundled into every project that has
+  a frontend so Claude Code and Codex (which cannot access claude.ai skill paths) can read it.
+  Generation strategy — try in order until one succeeds:
+  1. If the `frontend-design` skill is already active in this claude.ai session, read its
+     full content and write it verbatim to `docs/frontend-design.md`.
+  2. If a local copy exists on the machine (common paths: `~/.agents/skills/frontend-design/SKILL.md`,
+     `C:\Users\<user>\.agents\skills\frontend-design\SKILL.md`, `/mnt/skills/public/frontend-design/SKILL.md`),
+     read it and write it verbatim.
+  3. If neither source is reachable, generate a minimal fallback containing: brand color
+     palette, typography scale (font families + size steps), 4-point spacing system,
+     component naming conventions, and the "no generic AI aesthetics" principle.
+  Log which strategy was used as a note in `docs/learnings.md`.
 
 ---
 

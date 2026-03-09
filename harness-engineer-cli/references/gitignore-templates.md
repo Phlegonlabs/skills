@@ -16,6 +16,7 @@ stack-specific block.
 .env.development
 .env.production
 .env.staging
+.dev.vars
 *.pem
 *.key
 *.cert

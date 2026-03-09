@@ -25,24 +25,28 @@ Agent 1: harness worktree:start M1  → working on M1
 Agent 2: harness worktree:start M3  → working on M3 (no dep on M1)
 
 # Agent 1 finishes M1:
-cd main-repo && harness worktree:finish M1  → merges M1 into main
+harness done M1-last  → merge-gate queues root-side finish → M1 merges into main
 
 # Agent 2 rebases M3 onto updated main (inside M3 worktree):
 harness worktree:rebase  → git rebase main
 # resolve any conflicts, then continue working
 
 # Agent 2 finishes M3:
-cd main-repo && harness worktree:finish M3  → auto-rebases, merges M3
+harness done M3-last  → merge-gate queues root-side finish → auto-rebases, merges M3
 
 # Check status from main:
-harness worktree:status  → shows agents, heartbeats, merge readiness
+harness worktree:status  → shows agents, heartbeats, auto-finish jobs, merge readiness
 ```
 
 **Agent registration lifecycle:**
 - `harness init` (in worktree) → registers agent with id, milestone, heartbeat
 - `harness next/start/done` → updates heartbeat timestamp
-- `harness worktree:finish` → deregisters agent, removes worktree
+- `harness worktree:finish` → root-side rebase, merge, plan archive, push, deregister, remove worktree
+- `finish_jobs` in `docs/progress.json` → visible queued/running/failed/succeeded state for detached auto-finish closeout jobs
 - Heartbeat >2h old → shown as STALE in `worktree:status`, reclaimable by other agents
+
+If a stale milestone needs to be taken over immediately, run:
+`harness worktree:reclaim <M-id>`
 
 ---
 
@@ -54,16 +58,19 @@ Performance degrades beyond ~40% context utilization. Budget:
 |------|--------|
 | System prompt + AGENTS.md / CLAUDE.md | ≤ 15% |
 | `harness status` output + current PLAN section | ≤ 10% |
+| Memory (`MEMORY.md` + today's daily log) | ≤ 5% |
 | PRD section for current story | ≤ 5% |
-| Source files for current task | ≤ 30% |
+| Source files for current task | ≤ 25% |
 | Working memory (code + reasoning) | ≤ 40% |
 
 **Progressive disclosure:**
 - Never load entire codebase, entire PLAN, or entire PRD
 - Load only files relevant to the current task
 - Load `docs/frontend-design.md` only when task involves frontend
+- Load `docs/memory/MEMORY.md` at session start — if >200 lines, load only recent entries
+- Load today + yesterday daily log; skip older logs unless searching for specific info
 - Files >200 lines → load only the relevant section
-- Context overloaded? → `harness done`, commit, start fresh session
+- Context overloaded? → write notes to daily log, `harness done`, commit, start fresh session
 
 **Signs of overload:** repeating itself, forgetting rules, conflicting patterns, re-asking answered questions.
 
@@ -81,6 +88,7 @@ Performance degrades beyond ~40% context utilization. Budget:
 | New module created | **Human** | Review ARCHITECTURE.md update |
 | Security-sensitive change | **Human** | Always request review |
 | Dependency conflict | **Auto** | Delete and rebuild (Iron Rule 3) |
+| Shared harness / CI / template change | **Auto** | Trigger downstream replay validation and record the result |
 | File approaching 500 lines | **Auto** | Split (Iron Rule 1) |
 | Stale doc detected | **Auto** | Fix, commit, continue |
 | TODO/FIXME found in code | **Auto** | Convert to task in PLAN.md, remove comment (Iron Rule 7) |
@@ -104,6 +112,7 @@ Three test tiers:
 | Unit | Per-module | Every task | `harness validate` |
 | Integration | Cross-module | Milestone merge | `harness validate:full` |
 | E2E | Full user journey | Milestone merge | `harness validate:full` |
+| Replay | Cross-project workflow compatibility | Shared harness / template / CI change | Downstream repo: `harness validate:full` |
 
 Test directory structure:
 ```
@@ -112,6 +121,31 @@ tests/
 ├── integration/       ← run at milestone merge
 └── e2e/               ← run at milestone merge
 ```
+
+## Multi-Project Replay Protocol
+
+When a repo changes shared harness assets (`SKILL.md`, `references/harness-cli.md`,
+CI/hook templates, progress schema, or plan insertion rules), local green is not enough.
+The change is only closed when at least one downstream project or fixture repo replays it.
+
+Required upstream handoff packet:
+- changed files / contracts
+- migration steps for downstream repos
+- expected CLI behavior deltas (`plan:apply`, `worktree:start`, `validate:full`, finish flow)
+- rollback note if replay fails
+
+Replay flow:
+1. Choose a representative downstream repo or fixture project.
+2. Apply the upstream delta there via scaffold update, plan insertion, or manual migration.
+3. If the replay spans multiple tasks, create a replay milestone so the downstream run still uses normal worktree flow.
+4. Run the normal loop: `harness init` → `plan:apply` if needed → `worktree:start` → `validate:full`.
+5. Record pass/fail with repo name, commit SHA, and handoff notes.
+
+Hard rules:
+- No shared harness / CI / template change ships with only single-repo proof.
+- If project A changes a workflow that project B depends on, project B gets an explicit replay or follow-up milestone — never assume the handoff is implicit.
+
+For the short executable version, see [replay-protocol.md](replay-protocol.md).
 
 ---
 

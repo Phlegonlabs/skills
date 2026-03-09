@@ -181,7 +181,7 @@ All future work enters through plan mode → progress-sync → Task Execution Lo
 
 ### Retrofit Step 6: Wire CLI into Existing package.json
 
-Add the harness CLI to the EXISTING package.json. Do NOT replace existing scripts.
+**For JS/TS projects:** Add the harness CLI to the EXISTING package.json. Do NOT replace existing scripts.
 
 ```
 Merge into existing "scripts":
@@ -198,6 +198,19 @@ The CLI calls `<pkg-mgr> run test`, which runs whatever `test` script is defined
 your package.json. If your project uses `jest`, make sure `"test": "jest"` is in
 package.json scripts. Same for `mocha`, `ava`, or any other runner. The harness CLI
 delegates to your existing scripts — it doesn't auto-detect frameworks.
+
+**For non-JS/TS projects (Python, Go, Rust):** Two options:
+
+1. **Recommended:** Install Node.js alongside the project's toolchain. Add `scripts/harness.ts`
+   + `scripts/harness/` as-is. Wire into the existing Makefile:
+   ```makefile
+   harness: npx tsx scripts/harness.ts $(ARGS)
+   ```
+
+2. **No Node.js:** Use `references/harness-native.md` to generate `scripts/harness.sh`.
+   Ensure the existing Makefile has a `validate` target. Add pre-commit hooks using the
+   language-appropriate framework (see harness-native.md). Note the feature tradeoffs in
+   AGENTS.md / CLAUDE.md.
 
 ### Retrofit Step 7: Present and Review
 
@@ -236,7 +249,7 @@ Agent detects new plan (progress-sync)
   → Updates progress.json with dependency graph
   → Creates worktree → Task Execution Loop
   → Same iron rules, same testing, same atomic commits
-  → Milestone done → merge gate → tag → idle
+  → Milestone done → merge gate → auto-finish → optional release tag or new plan → repeat
 
 Repeat.
 ```
@@ -245,4 +258,3 @@ No long-task bootstrap. No initial milestone grind. The project is already built
 The harness just gives agents the rails to do future work safely.
 
 ---
-

@@ -4,67 +4,85 @@ Everything from "artifacts generated" to "project complete" is driven by the
 harness CLI. For agent guidelines (context budget, parallel coordination, quality gates),
 see `references/execution-runtime.md`.
 
-### The Agent's Entire Workflow (CLI commands)
+### The Agent's Entire Workflow (Auto-Cascading CLI)
+
+The CLI auto-chains commands. The agent only needs to run 3 commands in a loop.
 
 ```bash
-# ── From main repo root: set up worktree for a milestone ──────────────────────
+# ── First time setup: worktree for a milestone ──────────────────────────────
 <pkg-mgr> run harness worktree:start M1
-# → checks no other agent has claimed M1 (heartbeat-based)
-# → creates branch milestone/m1
-# → runs: git worktree add ../project-m1 milestone/m1
-# → updates progress.json with branch + worktree path
-# → prints: cd "../project-m1" && <pkg-mgr> install && <pkg-mgr> run harness init
+# → AUTO: creates branch + worktree
+# → AUTO: installs dependencies (with retry on Windows EBUSY)
+# → AUTO: harness init (sync plans, recover, register agent)
+# → AUTO: finds first task → starts it
+# → prints: "Started: M1-001 — Create user model. Write code, then: harness validate"
 
-# ── Inside the milestone worktree: task execution loop ────────────────────────
-cd ../project-m1
-<pkg-mgr> install
-<pkg-mgr> run harness init        # sync plans, stale check, register agent, print status
+# ── The agent's entire task loop (just 3 commands, repeat) ──────────────────
 
-# Task loop (repeat until milestone is done)
-# NOTE: next/start/done REFUSE to run on main — worktree is enforced by CLI
-<pkg-mgr> run harness next        # → "M1-003: Implement email confirmation"
-<pkg-mgr> run harness start M1-003
+# 1. Write code for the current task
 
-# Write code for the task
+# 2. Validate + commit
+<pkg-mgr> run harness validate
+git add -A && git commit -m "[M1-001] create user model + migration"
 
-<pkg-mgr> run harness validate    # → lint:fix → lint → type-check → test
-git add -A && git commit -m "[M1-003] implement email confirmation flow"
-<pkg-mgr> run harness done M1-003
+# 3. Mark done — CLI auto-cascades everything:
+<pkg-mgr> run harness done M1-001
+# → AUTO: ✅ updates PLAN.md + progress.json
+# → AUTO: git checkout . (clean working tree)
+# → AUTO: finds next task → starts it
+# → prints: "Started: M1-002 — Implement signup. Write code, then: harness validate"
 
-# If validate fails 3x:
+# Agent writes code for M1-002... validate... commit... done M1-002...
+# CLI auto-starts M1-003... and so on.
+
+# ── When all tasks in the milestone are done (fully automatic): ────────────
+<pkg-mgr> run harness done M1-007   # last task
+# → AUTO: ✅ task complete
+# → AUTO: no more tasks → triggers merge-gate
+# → AUTO: validate:full + stale-check + changelog
+# → AUTO: merge-gate passes → queues root-side worktree:finish M1
+# → AUTO: rebase on latest main + re-run merge gate + merge + archive + push + cleanup
+# → AUTO: detects next milestone M2 → worktree:start M2
+# → AUTO: install → init → starts M2-001
+# → prints: "Started: M2-001 — ..."
+# Agent continues writing code. Zero manual steps between milestones.
+# The only time this chain stops is if merge-gate, rebase, or push fails.
+
+# ── Special cases (the agent handles these as needed): ──────────────────────
+
+# Validate fails 3x:
 <pkg-mgr> run harness block M1-003 "bcrypt build fails on Alpine"
 <pkg-mgr> run harness learn dependency "bcrypt native fails on Alpine — use bcryptjs"
+# → AUTO: block → finds next unblocked task → starts it
 
-# If you need to undo a start (code is wrong, want to restart clean):
-<pkg-mgr> run harness reset M1-003   # reverts 🟡 back to ⬜
+# Undo a start:
+<pkg-mgr> run harness reset M1-003
+# → AUTO: reset → finds next task → starts it
 
-# Periodically rebase onto main (especially if other milestones merged):
-<pkg-mgr> run harness worktree:rebase  # → fetches main, rebases, reports conflicts
+# Rebase (when parallel milestone merged):
+<pkg-mgr> run harness worktree:rebase
 
-# When all milestone tasks are done:
-<pkg-mgr> run harness merge-gate  # → validate:full + stale-check + changelog
-                                  # → prints: run harness worktree:finish M1
+# New session (resuming after context reset):
+<pkg-mgr> run harness init
+# → AUTO: detects state → resumes task or auto-starts next one
+# → If pending plan files exist on main/root → auto plan:apply → inserts new milestones
+# → If pending plan files exist inside a worktree → warns and defers plan:apply to main/root
+```
 
-# ── Back in main repo root: merge + clean up ──────────────────────────────────
-cd ../project                     # main repo root
-<pkg-mgr> run harness worktree:finish M1
-# → checks dependency order (blocks if M1 depends on unmerged milestones)
-# → rebases milestone/m1 onto latest main (detects conflicts early)
-# → git merge --no-ff milestone/m1
-# → validate:full on main
-# → deregisters agent from progress.json
-# → git worktree remove ../project-m1
-# → git branch -d milestone/m1
-# → moves M1 from active_milestones → completed_milestones in progress.json
-# → git push origin main (syncs remote)
-# → prints: git tag v<version> && git push --tags
+**What the agent NEVER needs to manually run:**
+- `harness next` — auto-called by `done`, `block`, `reset`, `init`
+- `harness start <id>` — auto-called after `next` finds a task
+- `harness merge-gate` — auto-called by `done` when milestone is complete
+- `harness worktree:finish` — auto-queued in the main repo root after merge-gate passes
+- `harness worktree:start` — auto-called by `worktree:finish` for next milestone
+- `harness plan:apply` — auto-called by `init` only when new plans are detected on main/root
+- `harness recover` — auto-called by `init`
 
 # If rebase conflicts during worktree:finish:
 # → CLI aborts and shows conflicting files
-# → Option A: manual rebase inside worktree, then re-run worktree:finish
-# → Option B: worktree:finish M1 --force (skip rebase, merge directly)
+# → Resolve inside the worktree, run validate:full, then re-run worktree:finish
 
-# Human decides version number, then:
+# After the milestone is auto-finished and pushed, human decides whether to cut a release tag:
 git tag v1.0.0
 git push --tags
 
@@ -72,6 +90,30 @@ git push --tags
 <pkg-mgr> run harness worktree:status
 # → shows all worktrees, registered agents, heartbeat ages, merge readiness
 ```
+
+### Agent Error Recovery Protocol
+
+When a CLI command fails, the agent follows this decision tree — **do not retry the same
+command blindly** and **do not skip validations**:
+
+| Failure | Agent action |
+|---------|-------------|
+| `harness validate` fails (lint / type / test) | Fix the error, re-run validate. If same error after 3 attempts → `harness block <id> "<error summary>"` |
+| `harness validate` fails (file-guard: 500-line limit) | Split the file, do NOT disable the check. Commit the split as a separate task. |
+| `harness done` fails with ReferenceError / CLI crash | Confirm you are inside a milestone worktree (`git branch` shows `milestone/m<n>`). Run `harness init` to resync state, then retry `harness done`. |
+| `harness worktree:start` fails (branch conflict) | Run `harness worktree:status` to check if the worktree already exists. If so, `cd` into it and run `harness init` directly. |
+| `harness merge-gate` fails (validate:full) | Fix the failing tests/lint — do NOT use `--no-verify` or skip the gate. The gate is the last quality checkpoint before merge. |
+| `harness worktree:finish` fails (rebase conflict) | Resolve conflicts inside the worktree, run `harness validate:full`, re-run `harness worktree:finish`. |
+| `harness plan:apply` produces duplicate milestones (Windows path bug pre-fix) | Run `harness schema` to inspect `progress.json`. Remove duplicate entries from `active_milestones[]` and deduplicate `synced_plans[]` manually, then `harness validate`. |
+| Install fails (EBUSY / permissions) | `recovery.ts` auto-retries up to 3×. If all retries fail, run `<pkg-mgr> install --force` manually from inside the worktree. |
+| `current_milestone` shows wrong milestone (parallel worktree state drift) | Do NOT edit `progress.json` to patch `current_milestone`. Instead verify the branch (`git branch`) and confirm task IDs match the branch's milestone prefix. The CLI reads milestone from branch, not from `current_milestone`. |
+| Any command fails 3× with the same error | `harness block <id> "<error>"` → `harness learn <category> "<lesson>"` → continue with next unblocked task. |
+
+**Never take these shortcuts:**
+- `git commit --no-verify` — bypasses the pre-commit hook, which is how bad code gets in
+- Editing `PLAN.md` status cells directly — use `harness start/done/block` to keep state consistent
+- Deleting `progress.json` — run `harness recover` instead to auto-repair the board
+- Hardcoding `current_milestone` in `progress.json` to fix parallel drift — the field is intentionally unreliable in parallel mode; commands derive milestone from branch
 
 That's it. The CLI handles state management, dependency resolution, plan syncing,
 stale detection, schema validation, and changelog generation. The agent never
@@ -119,6 +161,37 @@ python manage.py migrate
 python manage.py showmigrations
 ```
 
+**SQLAlchemy + Alembic (Python — non-Django):**
+```bash
+alembic revision --autogenerate -m "add users table"   # generate from model diff
+alembic upgrade head                                    # apply all pending
+alembic downgrade -1                                    # revert last migration
+alembic history                                         # show migration chain
+alembic current                                         # show current revision
+```
+If using `uv`: prefix with `uv run alembic ...`
+Config lives in `alembic.ini` + `alembic/env.py`. Models must be imported in `env.py`
+for autogenerate to detect changes.
+
+**golang-migrate (Go):**
+```bash
+migrate create -ext sql -dir migrations -seq add_users  # create up/down pair
+migrate -path migrations -database "$DATABASE_URL" up    # apply all
+migrate -path migrations -database "$DATABASE_URL" down 1 # revert one
+migrate -path migrations -database "$DATABASE_URL" version # current version
+```
+Alternative: `goose` — same concept, slightly different CLI.
+
+**Diesel (Rust):**
+```bash
+diesel migration generate add_users    # create up.sql + down.sql
+diesel migration run                   # apply pending
+diesel migration revert                # undo last
+diesel migration list                  # show status
+diesel print-schema > src/schema.rs    # regenerate schema (Diesel-specific)
+```
+Alternative: `sqlx` with `sqlx migrate run` — works without codegen.
+
 **Raw SQL / custom:**
 - Keep files in `migrations/` with timestamp prefixes, apply in order
 - Track applied migrations in a `_migrations` table
@@ -132,7 +205,7 @@ python manage.py showmigrations
 - Agent heartbeat updated on every command (next/start/done) — stale after 2h
 - Merge order follows dependency order — `worktree:finish` blocks if deps aren't merged
 - After another milestone merges into main, rebase with `worktree:rebase`
-- `worktree:status` shows all agents, heartbeats, and merge readiness from main root
+- `worktree:status` shows all agents, heartbeats, auto-finish jobs, and merge readiness from main root
 
 ### Worktree Enforcement
 
@@ -140,6 +213,45 @@ The CLI **refuses** to run task commands (`next`, `start`, `done`) on the main b
 This prevents agents from accidentally working directly on main without worktree isolation.
 If an agent tries to run `harness start M1-001` on main, the CLI will error with instructions
 to create a worktree first. This is a hard gate — there is no override flag.
+
+### Non-Node Projects — Execution Differences
+
+Projects using the native shell CLI (`scripts/harness.sh`) instead of the TypeScript CLI
+follow the same conceptual loop but with different commands:
+
+```bash
+# ── Session init ───────────────────────────────────────────────────────────
+bash scripts/harness.sh init
+
+# ── Task loop (same 3-step pattern) ───────────────────────────────────────
+# 1. Write code
+
+# 2. Validate + commit
+make validate   # or: bash scripts/harness.sh validate
+git add -A && git commit -m "[M1-001] what you did"
+
+# 3. Mark done — auto-starts next task
+bash scripts/harness.sh done M1-001
+
+# ── Block a task ──────────────────────────────────────────────────────────
+bash scripts/harness.sh block M1-003 "reason"
+bash scripts/harness.sh learn dependency "what went wrong"
+```
+
+**Key differences from the TypeScript CLI:**
+- `make validate` delegates to the Makefile `validate` target (lint + type-check + test)
+- No automatic worktree management — create/merge worktrees with raw git commands
+- No automatic milestone transitions — run `bash scripts/harness.sh next` + `start` manually
+  after finishing all tasks in a milestone
+- No merge-gate auto-chain — run `make validate` + `bash scripts/harness.sh file-guard`
+  manually before merging
+- Pre-commit hooks use `.pre-commit-config.yaml` (Python/Go) or `.githooks/` (Rust)
+  instead of husky
+
+The AGENTS.md / CLAUDE.md generated for non-Node projects replaces all `<pkg-mgr> run harness`
+references with the equivalent `bash scripts/harness.sh` and `make` commands.
+See `references/harness-native.md` for the full shell CLI source, pre-commit hook templates,
+and feature comparison with the TypeScript CLI.
 
 ### Context Budget
 
@@ -159,7 +271,7 @@ Overloaded? → commit, `harness done`, start fresh session.
 |-------|------|
 | Task passes validate | **Auto** → commit, done, next |
 | Task failed 3x | **Human** → block, report |
-| Milestone merge-gate passes | **Auto** → merge, tag |
+| Milestone merge-gate passes | **Auto** → queue finish, merge, archive, push |
 | Merge-gate fails | **Human** → report, wait |
 | Security-sensitive change | **Human** → always review |
 | Dependency conflict | **Auto** → delete + rebuild (Iron Rule 3) |
@@ -235,7 +347,7 @@ Every project must have an explicit version scheme. Generate this in `AGENTS.md`
 **Version lives in `package.json`** (or `pyproject.toml` / `Cargo.toml`).
 `harness changelog` reads commit messages tagged `[Mn-id]` to generate release notes.
 
-**Git tagging convention** — `harness merge-gate` tags automatically on milestone completion:
+**Git tagging convention** — tagging happens after the milestone is merged and the changelog is reviewed:
 ```
 v1.0.0          ← production release
 v1.0.0-rc.1     ← release candidate (staging)
@@ -249,7 +361,7 @@ v0.9.0          ← pre-1.0 development
 - OTA updates via EAS Update do NOT change the version — they're transparent patches
 
 **Tagging workflow in AGENTS.md:**
-```
+``` 
 harness merge-gate           # validate:full + stale-check + changelog
 git tag v<new-version>       # after human reviews changelog
 git push --tags              # triggers deploy.yml
@@ -258,7 +370,62 @@ git push --tags              # triggers deploy.yml
 **Who decides the version number:** Human, not the agent.
 The agent runs `harness changelog`, shows the generated notes, and asks:
 > "Milestone M3 is complete. Based on the changes, I'd suggest version X.Y.Z.
-> Please confirm or choose a different version before I tag and push."
+> Please confirm or choose a different version before I create and push the release tag."
+
+### Release Automation (optional — choose one if project needs CI-driven releases)
+
+The harness CLI generates changelogs from commit messages. For projects that need
+automated version bumping and publishing, add one of these tools:
+
+**Changesets (recommended for JS/TS monorepos):**
+```bash
+<pkg-mgr> add -D @changesets/cli @changesets/changelog-github
+npx changeset init
+```
+Workflow: agent runs `npx changeset` after each milestone → human reviews → `npx changeset version`
+bumps package.json + generates CHANGELOG.md → `npx changeset publish` publishes to npm.
+CI: add `.github/workflows/release.yml` using `changesets/action@v1`.
+
+**release-please (recommended for single-package repos):**
+Add `.github/workflows/release-please.yml`:
+```yaml
+name: Release
+on:
+  push:
+    branches: [main]
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        with:
+          release-type: node  # or: python, go, rust, simple
+```
+Workflow: conventional commit messages → release-please opens a release PR →
+human merges → GitHub Release + tag created automatically.
+Supports: Node.js, Python, Go, Rust, and generic repos.
+
+**semantic-release (fully automated — no human in the loop):**
+Only use if the team wants zero-touch releases. Every merge to main auto-publishes.
+```bash
+<pkg-mgr> add -D semantic-release @semantic-release/changelog @semantic-release/git
+```
+Config in `package.json` or `.releaserc`. Reads conventional commits to determine
+MAJOR/MINOR/PATCH automatically. Less control than changesets or release-please.
+
+**For non-JS projects:**
+- Python: `python-semantic-release` or release-please with `release-type: python`
+- Go: release-please with `release-type: go` + GoReleaser for binary builds
+- Rust: release-please with `release-type: rust` or `cargo-release`
+
+**Which to choose:**
+| Situation | Tool |
+|-----------|------|
+| Monorepo with multiple publishable packages | Changesets |
+| Single package, want PR-based releases | release-please |
+| Single package, want fully automated releases | semantic-release |
+| Non-JS project | release-please (broadest language support) |
+| Team prefers manual control over every release | None — use `harness changelog` + manual `git tag` |
 
 ---
 
@@ -408,15 +575,27 @@ git add -A && git commit -m "scaffold: initial project setup" && git push
 
 **Step 3: Install dependencies**
 ```bash
-# The exact command is in AGENTS.md / CLAUDE.md Quick Start section
+# JS/TS projects:
 <package-manager> install
+
+# Python projects:
+uv sync
+
+# Go projects:
+go mod download
+
+# Rust projects:
+cargo build
 ```
 
 **Step 4: Verify scaffold works**
 ```bash
-# Run validate via the harness CLI
+# JS/TS projects:
 <package-manager> run harness validate
-# This should pass — the scaffold includes a hello-world test
+
+# Non-Node projects (native CLI):
+make validate
+# or: bash scripts/harness.sh validate
 ```
 
 **Step 5: Open in your agent**
@@ -443,7 +622,7 @@ Or for parallel execution:
 The agent will:
 1. Read AGENTS.md / CLAUDE.md (already done at startup)
 2. Read docs/progress.json → see M1 is first, all tasks ⬜
-3. Create worktree: `git worktree add ../my-project-M1 -b milestone/M1`
+3. Create worktree: `git worktree add ../my-project-m1 -b milestone/m1`
 4. Pick the first unblocked task (M1-001)
 5. Begin the Task Execution Loop autonomously
 
@@ -467,6 +646,155 @@ The agent will pause and ask for your input at Quality Checkpoints marked **Huma
 
 ---
 
+## Agent Memory System
+
+Projects generate a persistent, file-based memory system inspired by OpenClaw's architecture.
+The core philosophy: **files are the source of truth** — the agent only retains what gets
+written to disk. No reliance on context window for cross-session continuity.
+
+### Memory Directory Structure
+
+```
+docs/
+├── memory/
+│   ├── MEMORY.md              ← Curated long-term memory (strategies, patterns, decisions)
+│   ├── YYYY-MM-DD.md          ← Daily session logs (auto-generated per work session)
+│   └── sessions/              ← Archived session transcripts (optional)
+├── learnings.md               ← Technical learnings from harness learn (existing)
+└── progress.json              ← Machine-readable state (existing)
+```
+
+### Memory Tiers
+
+| Tier | File | Loaded When | Purpose |
+|------|------|-------------|---------|
+| **Identity** | `AGENTS.md` / `CLAUDE.md` | Every session | Iron rules, project context, coding conventions |
+| **Long-term** | `docs/memory/MEMORY.md` | Every `harness init` | Curated insights: architecture decisions, API quirks, performance findings, user preferences |
+| **Daily log** | `docs/memory/YYYY-MM-DD.md` | Current + yesterday | Running context: what happened today, blockers, discoveries, WIP state |
+| **Learnings** | `docs/learnings.md` | On-demand (harness commands) | Structured category-tagged learnings from `harness learn` |
+| **State** | `docs/progress.json` | Every harness command | Machine-readable task state, milestone progress, dependency graph |
+
+### Memory Lifecycle
+
+**Writing memory — when the agent should persist to disk:**
+
+1. **After every `harness done`** — append to today's daily log:
+   what was done, files changed, any gotchas discovered.
+   The CLI already writes commit hash; the agent should add a 2-3 line note.
+
+2. **When learning something reusable** — `harness learn <cat> <msg>` writes to
+   `docs/learnings.md` + `progress.json`. But if it's a strategic insight
+   (not just a one-off fix), also add it to `MEMORY.md`.
+
+3. **Before session end** — when context is getting large or the agent is about
+   to stop, write durable notes to today's daily log. Include:
+   - What tasks were completed
+   - What's in progress and where it left off
+   - Any decisions made and why
+   - Blockers or questions for next session
+
+4. **Architecture decisions** — always go to `MEMORY.md`, not daily logs.
+   Format: `## [date] Decision: <title>` + rationale + alternatives considered.
+
+**Reading memory — what the agent loads:**
+
+- `harness init` prints status + reads `MEMORY.md` + today's daily log
+- `harness next` / `harness start` → agent should scan relevant learnings
+- Beginning of a new session → agent reads `MEMORY.md` + yesterday + today
+
+**Pruning — memory doesn't grow forever:**
+
+- Daily logs older than 14 days: summarize into `MEMORY.md`, then archive or delete
+- `MEMORY.md` should stay under 200 lines — if approaching, distill and remove stale entries
+- `harness learn` entries that have been incorporated into `MEMORY.md` can be marked `[archived]`
+
+### MEMORY.md Template
+
+```markdown
+# Project Memory
+
+## Architecture Decisions
+
+### [2025-01-15] Use Hono over Express for API
+Hono is 10x faster on Cloudflare Workers, zero-dep, and types are better.
+Considered: Express (too heavy for edge), Fastify (no Workers support).
+
+### [2025-01-18] D1 over Neon for database
+D1 is co-located at the edge, no TCP connection needed.
+Trade-off: no joins across databases, 10GB limit per DB.
+
+## API & Integration Notes
+
+- GitHub API: rate limit is 5000/hr with auth, 60/hr without
+- Stripe webhooks: must verify signature before processing, use raw body
+- Auth: Better Auth session cookies expire in 7 days, refresh token in 30
+
+## Patterns & Conventions
+
+- Error codes: use `APP_` prefix for our errors, `EXT_` for external service errors
+- All API responses: `{ data, error, meta }` shape, never raw arrays
+- DB migrations: always add a down migration, even if it's destructive
+
+## User Preferences
+
+- Prefers concise commit messages (no body, just title)
+- Wants all API endpoints documented in api-reference.md
+- Testing: prefers integration tests over unit tests for API routes
+
+## Known Gotchas
+
+- `bcrypt` native module fails on Alpine — use `bcryptjs` instead
+- Cloudflare D1 doesn't support `RETURNING *` — use separate SELECT after INSERT
+- Vitest: must set `pool: 'forks'` for tests that use native modules
+```
+
+### Daily Log Template
+
+```markdown
+# 2025-01-20 — Session Log
+
+## Tasks Completed
+- M2-004: Implement search endpoint (commit: `a3f2b1c`)
+  - Used FTS5 for full-text search on D1
+  - Had to work around D1's lack of trigram indexes — used LIKE fallback
+
+## In Progress
+- M2-005: Add pagination to search results
+  - Started, cursor-based pagination skeleton in place
+  - Left off at: response envelope with `next_cursor` field
+
+## Decisions Made
+- Chose cursor-based over offset-based pagination (offset is O(n) on large tables)
+
+## Blockers / Questions
+- None currently
+
+## Learnings
+- D1 FTS5: must create virtual table with `content=''` for external content tables
+```
+
+### Integration with Harness CLI
+
+The existing `harness learn` command already writes to `docs/learnings.md`.
+The memory system extends this with two conventions:
+
+1. **Agent writes daily log entries after `harness done`** — this is a convention
+   documented in AGENTS.md / CLAUDE.md, not enforced by CLI. The agent should
+   append a brief note to `docs/memory/YYYY-MM-DD.md` after completing each task.
+
+2. **Agent reads MEMORY.md at session start** — documented in AGENTS.md / CLAUDE.md
+   as part of the Session Init checklist.
+
+The CLI doesn't need new commands for this. The agent uses standard file I/O.
+The `harness init` command should print a reminder if `docs/memory/MEMORY.md` exists:
+
+```
+ℹ Memory loaded: docs/memory/MEMORY.md (42 lines)
+ℹ Today's log: docs/memory/2025-01-20.md (exists, 15 lines)
+```
+
+---
+
 ## Ongoing Development — Adding New Work
 
 The initial bootstrap creates Milestones M1, M2, M3... from the PRD. But a project
@@ -479,24 +807,32 @@ was generated during bootstrap or added 6 months later. Same flow, same rules.
 
 **Path A: Directly in Claude Code or Codex (recommended for most new work)**
 
-The smoothest flow uses **plan mode** as the entry point:
+The flow uses **plan mode** as entry → CLI handles insertion:
 
 1. Open Claude Code or Codex in the project
 2. Enter plan mode:
    - Claude Code: `Shift+Tab`
    - Codex: enter plan mode per its current UI
-3. Describe what you want: "I want to add user profile editing with avatar upload"
-4. Agent generates a plan → saved to `docs/exec-plans/active/`
-   - Claude Code: automatic via `.claude/settings.json` plansDirectory
-   - Codex: follows AGENTS.md instruction to write plans there
-5. Review the plan, edit if needed, approve execution
-6. Switch back to normal/execution mode
-7. Tell the agent: "Sync the new plan and start working on it"
-8. The agent's Session Init detects the plan file and:
-   - Parses it into PRD updates + new Milestone in PLAN.md
-   - Builds dependency graph in progress.json
-   - Creates worktree → enters Task Execution Loop
-   - Same flow as initial development, identical rules
+3. Before planning, run: `<pkg-mgr> run harness plan:status`
+   → Shows current milestones, progress %, what's active, next M number
+   → This gives the agent context to write the plan correctly
+4. Discuss with the user: requirements, architecture impact, where this fits
+5. Agent generates the plan → saved to `docs/exec-plans/active/`
+   - Plan uses PLAN.md format: `### M1: Feature Name` + task table
+   - Milestone numbering can be anything — `plan:apply` auto-renumbers
+   - Claude Code: plansDirectory auto-routes here
+   - Codex: AGENTS.md instructs to write plans here
+6. User reviews the plan, edits if needed, approves
+7. Agent runs: `<pkg-mgr> run harness plan:apply`
+   → CLI reads the plan, analyzes current state, inserts milestones:
+   - Auto-renumbers to avoid conflicts (M1 in plan → M5 if M4 exists)
+   - Wires dependencies (new milestones depend on latest active/completed)
+   - Appends to PLAN.md with correct headers
+   - Updates progress.json (active_milestones + dependency_graph)
+   - Marks plan as synced
+8. Agent runs: `<pkg-mgr> run harness worktree:start M<next>`
+   → Creates worktree → installs → inits → auto-starts first task
+   → Enters Task Execution Loop automatically
 
 For tiny changes (1-2 files, obvious diff, no plan needed):
 > "Add a dark mode toggle to the settings page. Create a task for it."
@@ -522,6 +858,24 @@ The skill will:
 6. Update progress.json with new dependency graph
 7. User copies updated files back to project, commits them
 8. The agent picks up the changes on next session init
+
+**Path C: Cross-project harness / CI / workflow change**
+
+Use this path when the change affects more than one repo: shared harness docs, CI templates,
+hook behavior, plan insertion rules, or any workflow contract another project depends on.
+
+Required flow:
+1. Treat the upstream change as normal work in the source repo: plan, milestone, worktree, validation.
+2. Before calling it complete, identify at least one downstream repo or fixture that represents the consumer side.
+3. Create a replay milestone or replay checklist in that downstream repo if the rollout is more than a trivial edit.
+4. Apply the upstream delta there and run the same closed loop: `harness init` → `plan:apply` if needed → `worktree:start` → `validate:full`.
+5. Capture the replay result in the upstream handoff notes: downstream repo, commit SHA, pass/fail, migration notes.
+6. If replay fails, the upstream change is not closed. Either fix the upstream contract or create an explicit downstream follow-up milestone.
+
+This is the missing hardening layer for multi-project continuity: no shared workflow change
+ships with only single-repo proof.
+
+Use [replay-protocol.md](replay-protocol.md) as the minimal operator SOP.
 
 ### What the agent does when all milestones are complete
 
@@ -558,6 +912,62 @@ The same milestone/task structure handles all types of work:
 | **Refactor** | Add FR or tech debt item → Tasks with "Refactor:" prefix | Should |
 | **Dependency update** | Task in current or new milestone | Must (if security) |
 | **Performance** | Add NFR → Tasks with benchmarks as "Done When" | Based on impact |
+| **Agent / MCP layer** | `harness scaffold mcp` + `harness scaffold milestone:agent` | Should |
+| **SKILL.md for project** | `harness scaffold skill` | Should |
+| **llms.txt for LLM index** | `harness scaffold llms-txt` | Should (for agent projects) |
+| **A2A agent discovery** | `harness scaffold agent-card` | Should (for multi-agent) |
+| **Tool observability** | `harness scaffold agent-observe` | Should (for production) |
+| **Agent auth + rate limit** | `harness scaffold agent-auth` | Must (for remote SSE) |
+| **Agent payments** | `harness scaffold agent-pay` | Could (x402 + Stripe) |
+| **MCP protocol tests** | `harness scaffold agent-test` | Should |
+| **Schema drift CI** | `harness scaffold agent-schema-ci` | Should |
+| **Tool versioning** | `harness scaffold agent-version` | Should (if tools evolve) |
+| **Multi-agent client** | `harness scaffold agent-client` | Could (if calling others) |
+| **MCP Prompts** | `harness scaffold agent-prompts` | Could |
+| **Long-running tasks** | `harness scaffold agent-webhook` | Could (if tools >30s) |
+| **Cost tracking** | `harness scaffold agent-cost` | Should (if paid APIs) |
+| **Cloudflare config** | `harness scaffold cloudflare` | Varies |
+
+### Adding Capabilities Mid-Project (scaffold command)
+
+When the user says "let's add agent tools" or "make this an MCP server" or "deploy on Cloudflare":
+
+```
+# The agent runs these — no web search needed, templates are built into the CLI:
+
+# Core
+<pkg-mgr> run harness scaffold mcp              # → src/tools/, src/server.ts, tests
+<pkg-mgr> run harness scaffold skill             # → SKILL.md at project root
+<pkg-mgr> run harness scaffold llms-txt          # → llms.txt (auto-scans project files)
+<pkg-mgr> run harness scaffold milestone:agent   # → appends 11-task MCP milestone to PLAN.md
+
+# Infrastructure
+<pkg-mgr> run harness scaffold agent-card        # → /.well-known/agent.json (A2A protocol)
+<pkg-mgr> run harness scaffold agent-observe     # → src/lib/tool-metrics.ts (observability)
+<pkg-mgr> run harness scaffold agent-auth        # → src/middleware/auth.ts (auth + rate limit)
+<pkg-mgr> run harness scaffold agent-pay         # → x402 + Stripe payment middleware
+
+# Quality
+<pkg-mgr> run harness scaffold agent-test        # → MCP protocol compliance tests
+<pkg-mgr> run harness scaffold agent-schema-ci   # → CI script: SKILL.md vs code drift check
+<pkg-mgr> run harness scaffold agent-version     # → docs/tool-versioning.md
+
+# Advanced
+<pkg-mgr> run harness scaffold agent-client      # → src/lib/agent-client.ts (call remote agents)
+<pkg-mgr> run harness scaffold agent-prompts     # → src/prompts/index.ts (MCP prompt templates)
+<pkg-mgr> run harness scaffold agent-webhook     # → src/lib/task-queue.ts (async + callback)
+<pkg-mgr> run harness scaffold agent-cost        # → src/lib/cost-tracker.ts (per-call costing)
+
+# Deploy
+<pkg-mgr> run harness scaffold cloudflare        # → wrangler.toml, .dev.vars
+
+# Then continue normal flow:
+<pkg-mgr> run harness worktree:start M<next>     # start the new milestone
+```
+
+The scaffold command generates starter files adapted to the current project name.
+The agent then customizes the generated files (wire tools to existing services, etc.)
+through the normal Task Execution Loop.
 
 ### Continuous project lifecycle
 
@@ -585,6 +995,45 @@ Sprint 2 (Claude Code / Codex)
 Repeat forever.
 ```
 
+### Idle Protocol — All Initial Milestones Complete
+
+When `harness worktree:finish` for the last planned milestone exits cleanly and
+`harness status` shows no ⬜ or 🟡 tasks remaining:
+
+```bash
+# From main repo root (not inside any worktree):
+
+<pkg-mgr> run harness worktree:status   # confirm: no active worktrees, no pending finish jobs
+<pkg-mgr> run harness validate:full     # final green-pass on main branch
+<pkg-mgr> run harness changelog         # generate release notes from [M<n>-id] commits
+<pkg-mgr> run harness schema            # confirm progress.json is valid
+```
+
+Then report to the user:
+> "All milestones are complete. Here's the generated changelog for this sprint.
+> `docs/progress.json` shows N milestones completed. Suggest releasing as vX.Y.Z —
+> confirm and I'll tag it, or choose a different version."
+
+**Human decides the version number.** The agent does not pick or push the tag.
+Once the user confirms:
+
+```bash
+git tag v<version>     # after human confirms version
+git push --tags        # triggers deploy.yml / CI release pipeline
+```
+
+**Post-release archival:**
+```bash
+# Archive the current exec-plans (already done by worktree:finish per milestone,
+# but run this to catch any stragglers):
+mv docs/exec-plans/active/*.md docs/exec-plans/completed/
+git add -A && git commit -m "chore: archive exec-plans for v<version>"
+```
+
+After tagging and archiving, the project enters **Idle**. The agent waits.
+New work enters only via `harness plan:apply` or by a human writing a new plan file.
+Do not invent tasks or start new milestones without an explicit user request.
+
 The repo is the single source of truth. The execution loop doesn't know or care
 whether it's running for the first time or the hundredth time. As long as there's
 a milestone with ⬜ tasks in PLAN.md and a matching entry in progress.json,
@@ -599,4 +1048,5 @@ Come back to claude.ai with this skill. You can:
 - "My AGENTS.md / CLAUDE.md is out of date" → re-generate from current project state
 
 After re-generation, copy the updated files into the project repo and commit them.
+Then run `<pkg-mgr> run harness migrate` from main/root once to refresh harness-managed runtime files and schema.
 The agent will pick up the changes on next session init.

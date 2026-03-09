@@ -40,9 +40,11 @@ extract a module NOW. Every file should have a single, clear purpose.
 - `AGENTS.md` / `CLAUDE.md` — must stay in one file (agents read them whole)
 - `ARCHITECTURE.md`, `docs/site/*.md`, `docs/learnings.md`, any file under `docs/`
 
-If `PLAN.md` grows past ~1000 lines, archive completed milestone sections to
+If `PLAN.md` grows past ~1000 lines, archive completed execution plan files to
 `docs/exec-plans/completed/` rather than splitting the file. The CLI handles this
-automatically via `harness done` when a milestone completes.
+automatically via `worktree:finish` when a milestone completes.
+When upgrading an older project to a newer harness runtime, run `harness migrate`
+once from main/root to backfill the exec-plan folders and schema.
 
 ### 2. Zero Compatibility Code
 No polyfills. No shims. No backward-compat wrappers.
@@ -127,14 +129,85 @@ For Claude Code: this is handled automatically via .claude/settings.json (plansD
 For Codex: when creating a plan, ALWAYS write it to `docs/exec-plans/active/<descriptive-name>.md`.
   Do NOT write plans to ~/.codex/ or any other location outside the project.
 
-Plan files in docs/exec-plans/active/ are detected at Session Init and synced into
-PLAN.md + progress.json. This is how new work enters the execution loop.
-
 Naming convention: `YYYY-MM-DD-<short-description>.md`
 Example: `2026-03-08-add-user-profile-editing.md`
 
-After a plan is synced to PLAN.md, it stays in exec-plans/active/ as reference.
-When the milestone it created is completed, move it to exec-plans/completed/.
+### Adding New Work — Full Flow
+
+1. Enter plan mode (Shift+Tab) → discuss requirements with the user
+2. Before writing the plan, run: `<pkg-mgr> run harness plan:status`
+   This shows: current milestones, progress, what's done/active, next available M number
+3. Write the plan to docs/exec-plans/active/ using PLAN.md milestone format:
+
+   ### M1: Feature Name
+   **Status:** ⬜ Not Started
+   | Task ID | Story | Task | Done When | Status | Commit |
+   |---------|-------|------|-----------|--------|--------|
+   | M1-001  | —     | ...  | ...       | ⬜     | —      |
+
+   Use any milestone numbering (M1, M2...) — plan:apply auto-renumbers to avoid conflicts.
+   If the plan needs architecture changes, document them in the plan file as prose above the tables.
+
+4. Run: `<pkg-mgr> run harness plan:apply`
+   The CLI automatically:
+   - Reads all unsynced plan files
+   - Analyzes current project state (completed, active, pending milestones)
+   - Renumbers milestones to avoid conflicts (M1 in plan → M5 in project if M4 exists)
+   - Resolves dependencies (same apply batch auto-chains in order unless explicit deps override it)
+   - Appends milestones to PLAN.md with correct headers (Status, Branch, Worktree, Depends on)
+   - Updates progress.json (active_milestones, dependency_graph, synced_plans, finish_jobs)
+   - Marks plan file as synced
+
+5. Run: `<pkg-mgr> run harness worktree:start M<next>`
+   The CLI creates worktree → installs → inits → auto-starts first task.
+
+After a plan is applied, the file stays in exec-plans/active/ as reference.
+When every milestone defined in that file is completed, `worktree:finish` auto-moves it to
+`exec-plans/completed/`.
+```
+
+- **Scaffold Templates (CLI)** — When adding new capabilities mid-project, use the
+  harness CLI to inject templates. DO NOT search the web blindly:
+
+```
+## Scaffold Templates — harness scaffold <type>
+
+When the project needs to add a new capability layer (agent tools, skills, deployment config),
+the CLI has built-in templates. These are production-ready patterns, not generic boilerplate.
+
+DO NOT search the web for "how to build MCP server" or "SKILL.md format".
+Run the CLI command — it generates the right files adapted to this project.
+
+| Need | Command | What it generates |
+|------|---------|-------------------|
+| Expose API as agent tools | `harness scaffold mcp` | `src/tools/`, `src/server.ts`, transport config, test skeleton |
+| Make project discoverable | `harness scaffold skill` | `SKILL.md` at project root (OpenClaw / claude.ai compatible) |
+| Generate LLM index | `harness scaffold llms-txt` | `llms.txt` (llmstxt.org spec) — auto-scans project files |
+| A2A agent-to-agent discovery | `harness scaffold agent-card` | `/.well-known/agent.json` (Google A2A protocol) |
+| Tool observability | `harness scaffold agent-observe` | `src/lib/tool-metrics.ts` — call count, latency, errors |
+| Auth + rate limiting | `harness scaffold agent-auth` | `src/middleware/auth.ts` — Bearer token + per-key rate limit |
+| Payment layer | `harness scaffold agent-pay` | x402 (HTTP 402 micropayments) + Stripe metered billing |
+| MCP protocol tests | `harness scaffold agent-test` | Integration tests for full MCP lifecycle + error handling |
+| Schema drift CI | `harness scaffold agent-schema-ci` | CI script comparing SKILL.md tools vs code registry |
+| Tool versioning docs | `harness scaffold agent-version` | `docs/tool-versioning.md` — v1/v2, deprecation flow |
+| Multi-agent client | `harness scaffold agent-client` | `src/lib/agent-client.ts` — discover + call remote agents |
+| MCP Prompts | `harness scaffold agent-prompts` | `src/prompts/index.ts` — pre-built prompt templates |
+| Webhook / long tasks | `harness scaffold agent-webhook` | `src/lib/task-queue.ts` — async tasks + callback pattern |
+| Cost tracking | `harness scaffold agent-cost` | `src/lib/cost-tracker.ts` — per-call cost + audit log |
+| Pre-built agent milestone | `harness scaffold milestone:agent` | Appends 11-task MCP milestone to PLAN.md + progress.json |
+| Cloudflare Workers config | `harness scaffold cloudflare` | `wrangler.toml` (D1/KV/R2), `.dev.vars`, CI deploy |
+
+How to use:
+1. Enter plan mode → discuss what you want to add
+2. Run: <pkg-mgr> run harness scaffold <type>
+3. CLI generates files → you review + adapt to project specifics
+4. Create a plan/milestone for the remaining work (wire up routes, implement tools, etc.)
+5. Resume normal Task Execution Loop
+
+Multiple scaffolds can be combined:
+  <pkg-mgr> run harness scaffold mcp
+  <pkg-mgr> run harness scaffold skill
+  <pkg-mgr> run harness scaffold milestone:agent
 ```
 
 - **Session Init Protocol** — What the agent does FIRST when starting:
@@ -144,52 +217,105 @@ When the milestone it created is completed, move it to exec-plans/completed/.
 
 Run: <pkg-mgr> run harness init
 
-This automatically:
+This automatically cascades through the full startup sequence:
 1. Syncs any new plan files from docs/exec-plans/active/
-2. Runs stale detection
-3. Prints current status (milestone, task, blockers, progress)
+2. If running on main/root and unsynced plans have milestone tables → auto plan:apply (inserts into PLAN.md)
+3. If running inside a worktree and new plans exist → warns and defers plan:apply to main/root
+4. Runs stale detection + milestone board recovery
+5. Prints current status (milestone, task, blockers, progress)
+6. If in a worktree with no current task → auto next → auto start (claims first available)
+7. If NOT in a worktree and there's a pending milestone → prints worktree:start command
 
-If a task was in_progress with uncommitted changes:
-→ run harness validate. Green → commit. Red → fix first.
+After init, the CLI tells the agent exactly what to do:
+  "Started: M3-004 — Add chart components. Write code, then run: harness validate"
+
+Then load memory (agent does this, not the CLI):
+- Read docs/memory/MEMORY.md — long-term project memory
+- Read docs/memory/YYYY-MM-DD.md (today + yesterday) — recent session context
+- If resuming a task: check the daily log for "In Progress" section
 
 Context budget:
-- AGENTS.md / CLAUDE.md + progress.json + current PLAN section: ≤ 30%
+- AGENTS.md / CLAUDE.md + progress.json + current PLAN section: ≤ 25%
+- Memory (MEMORY.md + today's daily log): ≤ 10%
 - Source files for current task: ≤ 30%
-- Remaining ≥ 40% for code generation and reasoning
-- Overloaded? → commit what works, start fresh session.
+- Remaining ≥ 35% for code generation and reasoning
+- Overloaded? → write notes to daily log, commit what works, start fresh session.
 
-After harness init completes, proceed DIRECTLY to the Task Execution Loop.
-Do not wait for user confirmation. Start working immediately.
+After init, proceed DIRECTLY to writing code. Do not wait for user confirmation.
 ```
 
-- **Task Execution Loop** — Run this loop autonomously. Do NOT stop between tasks
-  to ask the user for permission. Keep looping until the milestone is done or you
-  hit a Human quality checkpoint.
+- **Task Execution Loop** — The agent only does 3 things in a loop:
+  1. Write code
+  2. `harness validate` + `git commit`
+  3. `harness done <id>`
+  
+  Everything else is auto-cascaded by the CLI. Do NOT manually run `next` or `start`.
 
 ```
 ## Task Execution Loop
 
-Run this loop continuously. Do NOT pause between tasks.
+The CLI auto-chains commands. The agent's loop is simple:
 
-<pkg-mgr> run harness next        # Find next unblocked task
-<pkg-mgr> run harness start M1-003  # Claim it → auto-updates progress.json + PLAN.md
+  # 1. Write code for the current task (init already started it)
 
-# Write code for the task. Load only relevant files.
+  # 2. Validate + commit
+  <pkg-mgr> run harness validate
+  git add -A && git commit -m "[M1-003] <what you did>"
 
-<pkg-mgr> run harness validate    # lint:fix → lint → type-check → test
-git add -A && git commit -m "[M1-003] <what you did>"
+  # 3. Mark done — CLI auto-cascades:
+  <pkg-mgr> run harness done M1-003
+  #   → ✅ PLAN.md + progress.json updated (including tasks[] array)
+  #   → git checkout . (clean working tree)
+  #   → auto next (find next unblocked task)
+  #   → auto start (claim it → 🟡)
+  #   → prints: "Started: M1-004 — Implement login. Write code, then run: harness validate"
+  #
+  # If no more tasks → full auto-chain:
+  #   → auto merge-gate (validate:full + stale-check + changelog)
+  #   → if green → queue root-side worktree:finish (rebase → merge → archive → push → cleanup)
+  #   → auto worktree:start next milestone (install → init → start M2-001)
+  #   → prints: "Started: M2-001 — ..."
+  #   → Agent continues writing code. Zero manual steps between milestones.
+  #
+  # If all tasks blocked → prints blockers, waits for human
 
-<pkg-mgr> run harness done M1-003   # Complete → auto-updates progress + PLAN + commit hash
+  # Write a brief note to docs/memory/YYYY-MM-DD.md after each task
+  # (1-2 lines: what was done, any gotchas)
 
-# DO NOT STOP HERE. Immediately run harness next and continue.
-# The loop ends when:
-#   - harness next says "milestone complete" → run harness merge-gate
-#   - harness next says "all tasks blocked" → report to user and wait
-#   - A Human quality checkpoint is triggered (security, architecture, merge failure)
+  # 4. Repeat — write code for the next task (already started by done's auto-cascade)
 
 If validate fails 3x:
-<pkg-mgr> run harness block M1-003 "reason it failed"
-# CLI stashes changes, adds blocker. Run harness next to continue with next task.
+  <pkg-mgr> run harness block M1-003 "reason"
+  <pkg-mgr> run harness learn <category> "what went wrong"
+  # block auto-cascades: → auto next → auto start next unblocked task
+  # Agent continues with the next task without manual intervention.
+
+## Milestone Transition
+
+When the last task is done, the CLI auto-runs merge-gate and, on success, queues a
+root-side `worktree:finish` from the main repo:
+
+  # done M1-007 auto-triggers this chain after merge-gate passes:
+  #   → root-side worktree:finish M1
+  #   → rebase + merge + archive completed exec plan + push + remove worktree
+  #   → AUTO: worktree:start M2 (create + install + init + start M2-001)
+  #   → "Started: M2-001 — ..."
+
+The agent does not need to manually close a milestone under the normal flow.
+
+If the agent forgets to merge and starts a new session:
+  harness init  ← detects: all tasks ✅ but milestone not merged
+  #   → auto-finish from main root
+  #   → does NOT auto-start new tasks — forces merge first
+
+## What the agent NEVER needs to manually run:
+  - harness next              ← auto-called by done
+  - harness start <id>        ← auto-called by done (and by init)
+  - harness merge-gate        ← auto-called by done when milestone complete
+  - harness worktree:finish   ← auto-queued by merge-gate after milestone completion
+  - harness worktree:start    ← auto-called by worktree:finish for next milestone
+  - harness plan:apply        ← auto-called by init only on main/root when new plans detected
+  - harness recover           ← auto-called by init
 ```
 
 - **Merge Gate** — When all tasks in a milestone are ✅:
@@ -200,7 +326,8 @@ If validate fails 3x:
 <pkg-mgr> run harness merge-gate
 
 This runs: validate:full + stale-check + changelog.
-If green, follow the printed instructions to merge + tag.
+If green inside a worktree, the CLI queues root-side finish automatically.
+Tagging, if needed, is a separate post-merge release action.
 ```
 
 - **Stale Detection** — Run anytime, or automatic via `harness init`:
@@ -246,9 +373,7 @@ The CLI enforces this — task commands (next/start/done) refuse to run on main.
 
 # From main repo root:
 <pkg-mgr> run harness worktree:start M<n>
-cd ../<project>-m<n>
-<pkg-mgr> install
-<pkg-mgr> run harness init   # registers agent, syncs state
+# → creates worktree, installs deps, runs init, auto-starts first task when possible
 
 # All work happens here with atomic commits
 # Task commands only work inside a worktree — not on main
@@ -257,12 +382,12 @@ cd ../<project>-m<n>
 <pkg-mgr> run harness worktree:rebase
 
 # When complete and all tests pass:
-<pkg-mgr> run harness merge-gate
-cd ../<project>
-<pkg-mgr> run harness worktree:finish M<n>
+<pkg-mgr> run harness done M<n-last-task>
+# → auto-runs merge-gate
+# → queues root-side worktree:finish
 # → checks dependency order (blocks if deps not merged)
 # → rebases onto main (reports conflicts if any)
-# → merges, validates, cleans up worktree
+# → merges, archives completed exec plans, pushes, cleans up worktree
 
 ### Atomic Commits
 Every task follows this exact loop. No shortcuts. No skipping steps.
@@ -289,7 +414,7 @@ Independent milestones can run in parallel (one agent per worktree).
 The CLI coordinates via progress.json agents array:
 - worktree:start checks no other active agent has claimed the milestone
 - init registers the agent with a heartbeat (updated on every command)
-- worktree:status shows all agents, heartbeats, and merge readiness
+- worktree:status shows all agents, heartbeats, auto-finish jobs, and merge readiness
 - Stale agents (heartbeat >2h) are reclaimable
 
 After another milestone merges into main, rebase your worktree:
@@ -313,7 +438,7 @@ Only merge when every gate is green.
 - [ ] No file exceeds 500 lines
 - [ ] PLAN.md updated (tasks marked done, milestone status updated)
 - [ ] Acceptance criteria from PRD verified for each completed story
-- [ ] exec-plans/active/ plan moved to exec-plans/completed/
+- [ ] Completed exec plan auto-archived from `exec-plans/active/` to `exec-plans/completed/`
 - [ ] Production ready: no TODO/FIXME/HACK in committed code
 - [ ] Production ready: all errors handled (no unhandled promise rejections, no bare throws)
 - [ ] Production ready: build produces zero warnings
@@ -452,7 +577,7 @@ Requirements (PRD §4) → Epics (PRD §9) → Stories (PRD §9) → Tasks (belo
 
 ### M1: <Name from Epic E1> (Target: <timeframe>)
 **Status:** ⬜ Not Started
-**Branch:** `milestone/M1`
+**Branch:** `milestone/m1`
 **Worktree:** `../<project>-M1`
 **Covers:** Epic E1 (FR-001, FR-002)
 **Depends on:** None
@@ -465,11 +590,11 @@ Requirements (PRD §4) → Epics (PRD §9) → Stories (PRD §9) → Tasks (belo
 | M1-004 | E1-S01 | Write signup integration test | Test covers valid signup, duplicate email, weak password | ⬜ | — |
 | M1-005 | E1-S02 | Implement email confirmation flow | Clicking link activates account, expired link returns 410 | ⬜ | — |
 | M1-006 | E1-S02 | Write confirmation integration test | Test covers valid confirm, expired link, already confirmed | ⬜ | — |
-| M1-007 | — | Setup CI for auth module | CI runs tests + lint on PR to milestone/M1 | ⬜ | — |
+| M1-007 | — | Setup CI for auth module | CI runs tests + lint on PR to milestone/m1 | ⬜ | — |
 
 ### M2: <Name from Epic E2> (Target: <timeframe>)
 **Status:** ⬜ Not Started
-**Branch:** `milestone/M2`
+**Branch:** `milestone/m2`
 **Worktree:** `../<project>-M2`
 **Covers:** Epic E2 (FR-003, FR-004)
 **Depends on:** M1
@@ -513,7 +638,150 @@ Agent / MCP Server example milestones:
 | M1-003 | E1-S01 | Implement first tool: `search` | Tool accepts query, returns results, handles empty/error states | ⬜ | — |
 | M1-004 | E1-S01 | Add structured error responses | Tool errors return proper MCP error codes, not raw exceptions | ⬜ | — |
 | M1-005 | — | Write integration test (tool call lifecycle) | Test: initialize → tools/list → tools/call → validate response | ⬜ | — |
+| M1-006 | — | Generate SKILL.md + docs/api-reference.md | SKILL.md has all tool names, descriptions, connection methods; api-reference.md has full schemas | ⬜ | — |
+| M1-007 | — | Add SSE transport (if remote deployment) | Server accepts HTTP SSE connections, CORS configured, /health returns 200 | ⬜ | — |
 ```
+
+### SKILL.md — Agent Discovery File (MCP / Agent Tool projects only)
+
+**Always generate SKILL.md at the project root for Agent Tool / MCP Server projects.**
+
+This file is the discovery contract — it tells LLM agents (Claude, Codex, etc.) what this
+tool does and how to use it. Without SKILL.md, agents can't discover the tool.
+
+Structure follows the same YAML frontmatter + markdown body pattern used by claude.ai skills:
+
+```markdown
+---
+name: <server-name>
+description: >
+  <One paragraph: what this tool does, what data/APIs it accesses, what problems it solves.
+  This is what agents read to decide whether to use the tool. Be specific — not "manages data"
+  but "searches and creates GitHub issues via the GitHub API".>
+---
+
+# <Server Name>
+
+## Overview
+
+<2-3 sentences: what this MCP server does and who/what it's for.>
+
+## Connection
+
+### stdio (local — Claude Desktop, Claude Code)
+
+Add to your MCP client config:
+
+```json
+{
+  "mcpServers": {
+    "<server-name>": {
+      "command": "npx",
+      "args": ["<package-name>"],
+      "env": {
+        "API_KEY": "<your-api-key>"
+      }
+    }
+  }
+}
+```
+
+### SSE (remote — claude.ai, web integrations)
+
+```
+URL: https://<your-domain>/sse
+```
+
+Or add as a claude.ai connector via Settings → Connectors → Add MCP Server.
+
+## Required Environment Variables
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `API_KEY` | API key for <service> | Yes |
+| `API_BASE_URL` | Custom API endpoint (default: <default-url>) | No |
+
+## Available Tools
+
+### `<tool-name-1>`
+
+<One sentence: what this tool does.>
+
+**Input:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `query` | string | Yes | Search query |
+| `limit` | number | No | Max results (default: 10) |
+
+**Output:** Array of `{ id, title, url, snippet }`
+
+**Example:**
+```json
+{ "query": "login bug", "limit": 5 }
+```
+
+### `<tool-name-2>`
+
+<One sentence: what this tool does.>
+
+**Input:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `title` | string | Yes | Title of the record |
+| `body` | string | No | Optional description |
+
+**Output:** `{ id, title, created_at, url }`
+
+<Repeat for each tool. Every tool must be listed here.>
+
+## Available Resources (if any)
+
+| URI Pattern | Description |
+|-------------|-------------|
+| `<server>://items/{id}` | Individual item by ID |
+| `<server>://items` | List of all items |
+
+## Error Handling
+
+All tools return structured MCP errors:
+
+| Code | Meaning |
+|------|---------|
+| `INVALID_PARAMS` | Missing or invalid input parameters |
+| `NOT_FOUND` | Requested resource not found |
+| `AUTH_ERROR` | API key missing or invalid |
+| `RATE_LIMITED` | External API rate limit hit — retry after delay |
+| `INTERNAL_ERROR` | Unexpected server error |
+
+## Detailed API Reference
+
+See [docs/api-reference.md](./docs/api-reference.md) for full JSON Schemas,
+response examples, and edge case documentation.
+```
+
+**SKILL.md generation rules:**
+- **Format is OpenClaw-compatible** — uses the same YAML frontmatter + markdown body pattern
+  as OpenClaw's AgentSkills system. This means the generated SKILL.md works with:
+  - claude.ai custom skills (upload as skill folder)
+  - OpenClaw (place in `~/.openclaw/skills/` or workspace `skills/`)
+  - Claude Code (place in project root — Claude Code reads it at startup)
+  - Any agent framework that follows the AgentSkills convention
+- **Every tool must appear** in the "Available Tools" section with input/output tables
+- **Connection section** must include both stdio and SSE if the server supports both
+- **Environment variables** section must list ALL required env vars — agents need this
+  to configure the connection. For OpenClaw, these map to `skills.entries.<key>.env`
+- **Error codes** must match the actual error codes in `src/lib/errors.ts`
+- **Keep it under 200 lines** — this is a discovery file, not full documentation.
+  Point to `docs/api-reference.md` for the complete reference
+- **Update SKILL.md whenever tools change** — add a task to the milestone whenever
+  a tool is added, renamed, or has its schema changed
+
+**docs/api-reference.md** should contain:
+- Full JSON Schema for every tool's input and output
+- Example request/response pairs for each tool
+- Edge cases and error scenarios
+- Rate limiting details (if calling external APIs)
+- Authentication flow details
 
 ### Scaffold Generation
 
@@ -546,13 +814,63 @@ For JS/TS projects, always generate:
       "lint:fix": "eslint . --fix",
       "type-check": "tsc --noEmit",
       "test": "vitest run",
-      "test:integration": "vitest run --project integration",
-      "test:e2e": "vitest run --project e2e",
+      "test:integration": "vitest run tests/integration --passWithNoTests",
+      "test:e2e": "vitest run tests/e2e --passWithNoTests",
       "prepare": "husky"
     }
   }
   ```
   (Adapt command prefix to chosen package manager: `pnpm`, `bun`, or `npm run`)
+
+**E2E testing framework (if project has a UI):**
+
+Choose based on project type:
+- **Web App (any framework):** Playwright (recommended). Faster, multi-browser, better CI support.
+  Install: `<pkg-mgr> add -D @playwright/test` then `npx playwright install`
+  Config: `playwright.config.ts` at project root
+  Scripts: `"test:e2e": "playwright test"` in package.json
+- **Mobile (Expo):** Maestro or Detox. Maestro for flow-level tests, Detox for native interaction.
+  Maestro: `.maestro/` directory with YAML flows. No JS dependency.
+  Detox: `<pkg-mgr> add -D detox` + device config in `.detoxrc.js`
+- **Desktop (Electron):** Playwright with Electron support (`_electron.launch()`).
+  Same `@playwright/test` package, test against the packaged app.
+- **Desktop (Tauri):** WebDriver-based testing via `tauri-driver` + WebdriverIO.
+- **CLI Tool / API / MCP Server:** No E2E framework needed — use integration tests instead.
+  API projects: `supertest` or direct HTTP calls in vitest/pytest.
+
+Playwright config template (web apps):
+```typescript
+// playwright.config.ts
+import { defineConfig, devices } from '@playwright/test';
+
+export default defineConfig({
+  testDir: './tests/e2e',
+  fullyParallel: true,
+  forbidOnly: !!process.env.CI,
+  retries: process.env.CI ? 2 : 0,
+  workers: process.env.CI ? 1 : undefined,
+  reporter: process.env.CI ? 'github' : 'html',
+  use: {
+    baseURL: 'http://localhost:3000',
+    trace: 'on-first-retry',
+  },
+  projects: [
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
+  ],
+  webServer: {
+    command: '<pkg-mgr> run dev',
+    url: 'http://localhost:3000',
+    reuseExistingServer: !process.env.CI,
+  },
+});
+```
+
+For Python web apps (FastAPI/Django): use `playwright` Python package (`pip install playwright`)
+or `pytest-playwright`. Same multi-browser support, Python test syntax.
+
+For Go web apps: use Playwright via `playwright-go` or run Playwright JS tests alongside
+the Go backend (start server in CI, run `npx playwright test` against it).
 
 **Harness CLI (every project — see `references/harness-cli.md`):**
 
@@ -566,7 +884,7 @@ the exact file-by-file implementation. The CLI handles:
 - `harness next` → find next unblocked task (scoped to current worktree's milestone)
 - `harness start <id>` → claim task, auto-update progress.json + PLAN.md
 - `harness validate` → lint:fix → lint → type-check → test
-- `harness validate:full` → + integration + e2e + file-guard
+- `harness validate:full` → + integration/e2e when matching test files exist + file-guard
 - `harness done <id>` → complete task, auto-update progress.json + PLAN.md + commit hash
 - `harness block <id> <reason>` → mark blocked → 🚫
 - `harness reset <id>` → revert task to ⬜ (undo start or unblock)
@@ -574,6 +892,7 @@ the exact file-by-file implementation. The CLI handles:
 - `harness merge-gate` → full validation + changelog
 - `harness worktree:start/finish/rebase/status` → worktree lifecycle + push to remote
 - `harness stale-check` / `file-guard` / `schema` / `changelog`
+- Any shared harness / CI / template change must be replayed in at least one downstream repo or fixture before it is considered closed
 
 Plus `scripts/check-commit-msg.ts` (needs file path arg, kept separate for hooks).
 
@@ -589,25 +908,26 @@ The harness CLI is written in TypeScript and requires `tsx` (Node.js). For non-J
    - Python: `pip install nodeenv && nodeenv .node_env` or just have Node installed globally
    - Go / Rust: Node.js installed alongside Go/Rust toolchain
 
-2. **Alternative:** Generate a simplified `Makefile`-based harness that wraps the core
-   commands using shell scripts. Less feature-rich (no agent registration, no worktree
-   enforcement) but zero Node.js dependency:
-   ```makefile
-   harness-validate: lint type-check test
-   harness-next: @python3 scripts/harness_next.py  # or shell script
-   harness-status: @cat docs/progress.json | python3 -m json.tool
-   ```
-   If using this approach, the full TypeScript CLI features (agent lifecycle, worktree
-   enforcement, stale-check, schema validation) are not available. Note this tradeoff
-   in AGENTS.md / CLAUDE.md.
+2. **Alternative (no Node.js):** Use `references/harness-native.md` to generate:
+   - `scripts/harness.sh` — shell-based CLI covering init, status, validate, next, start,
+     done, block, file-guard, schema, learn. Requires `jq`.
+   - `scripts/check-commit-msg.sh` — commit message validator (replaces check-commit-msg.ts)
+   - `.pre-commit-config.yaml` (Python/Go) or `.githooks/` (Rust) — replaces husky
+   - `.claude/settings.json` adapted for `Bash(bash scripts/harness.sh *)` and
+     `Bash(make *)` instead of `Bash(npx tsx scripts/harness.ts *)`
+   
+   Tradeoff: the native CLI does NOT include worktree management, agent registration,
+   plan:apply, merge-gate auto-chain, or scaffold commands. Note this tradeoff in
+   AGENTS.md / CLAUDE.md. For the full feature set, use option 1.
 
-3. **Validate commands** must be adapted in `scripts/harness/validate.ts`:
+3. **Validate commands** must be adapted in `scripts/harness/validate.ts` (option 1) or
+   the project's Makefile (option 2):
    - Python: `ruff check .` → `ruff check --fix .` → `mypy src/` → `pytest`
    - Go: `golangci-lint run ./...` → `go vet ./...` → `go test -race ./...`
    - Rust: `cargo clippy -- -D warnings` → `cargo check` → `cargo test`
-   The `validate.ts` module runs `${PKG} run lint`, `${PKG} run test`, etc. — it delegates
-   to whatever scripts are defined in package.json (JS) or Makefile (non-JS). Make sure
-   the project's lint/test/type-check commands are wired up correctly.
+   The TypeScript `validate.ts` module runs `${PKG} run lint`, `${PKG} run test`, etc. — it
+   delegates to whatever scripts are defined in package.json (JS) or Makefile (non-JS). Make
+   sure the project's lint/test/type-check commands are wired up correctly.
 
 **Schemas (included in `references/harness-cli.md`):**
 
@@ -647,6 +967,15 @@ Generate husky with THREE hooks (see `references/harness-cli.md` for details):
 - **4-layer enforcement**: pre-commit → commit-msg → pre-push → CI
 
 For Python: use `pre-commit` framework with ruff + mypy hooks.
+See `references/harness-native.md` for the `.pre-commit-config.yaml` template.
+Install: `uv run pre-commit install` (or `pip install pre-commit && pre-commit install`).
+
+For Go: use `pre-commit` framework with golangci-lint + go-fmt hooks.
+See `references/harness-native.md` for the `.pre-commit-config.yaml` template.
+
+For Rust: use git hooks directly (`.githooks/pre-commit` + `.githooks/commit-msg`).
+See `references/harness-native.md` for the hook scripts.
+Configure: `git config core.hooksPath .githooks`
 
 **Claude Code + Codex configuration (every project):**
 
@@ -725,6 +1054,26 @@ Agent:  pauses ONLY at Human quality checkpoints:
 - **Windows:** both configs work identically on Windows. All harness commands run
   through `npx tsx` (Node.js) — no bash dependency.
 
+**Non-Node projects using the native shell CLI — `.claude/settings.json`:**
+```json
+{
+  "plansDirectory": "./docs/exec-plans/active",
+  "permissions": {
+    "allowedTools": [
+      "Read", "Write",
+      "Bash(git *)",
+      "Bash(make *)",
+      "Bash(bash scripts/harness.sh *)",
+      "Bash(bash scripts/check-commit-msg.sh *)"
+    ],
+    "deny": ["Read(./.env)", "Read(./.env.*)"]
+  }
+}
+```
+Add language-specific tools: Python → `"Bash(uv *)"`, `"Bash(python *)"`;
+Go → `"Bash(go *)"`, `"Bash(golangci-lint *)"`;
+Rust → `"Bash(cargo *)"`. See `references/harness-native.md` for the full list.
+
 Both agents end up with plan files in the same location → harness init detects and
 syncs them identically.
 
@@ -774,6 +1123,150 @@ Rules:
 - For mobile (Expo): client-side vars use `EXPO_PUBLIC_` prefix (inlined at build time). Document which vars are public vs server-only in `.env.example`
 - Where to set vars in production: document in `docs/PRD.md` or `docs/deployment.md` with links to the relevant platform dashboards (Vercel env → settings page, EAS → eas.json env field or EAS dashboard)
 
+**Env validation implementation by stack:**
+
+JS/TS — use `@t3-oss/env-nextjs` (Next.js) or `@t3-oss/env-core` (other frameworks) + zod:
+```typescript
+// src/lib/env.ts
+import { createEnv } from '@t3-oss/env-core';
+import { z } from 'zod';
+
+export const env = createEnv({
+  server: {
+    DATABASE_URL: z.string().url(),
+    BETTER_AUTH_SECRET: z.string().min(32),
+    NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+  },
+  client: {
+    // NEXT_PUBLIC_* or EXPO_PUBLIC_* vars
+  },
+  runtimeEnv: process.env,
+});
+```
+Install: `<pkg-mgr> add @t3-oss/env-core zod`
+Alternative (no framework dependency): plain zod schema + `z.parse(process.env)` at startup.
+
+Python — use `pydantic-settings`:
+```python
+# src/<package>/config.py
+from pydantic_settings import BaseSettings
+
+class Settings(BaseSettings):
+    database_url: str
+    better_auth_secret: str
+    debug: bool = False
+
+    model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+
+settings = Settings()  # Validates on import — crashes early if vars missing
+```
+Install: `uv add pydantic-settings`
+
+Go — use `envconfig` or `env`:
+```go
+// internal/config/config.go
+import "github.com/kelseyhightower/envconfig"
+
+type Config struct {
+    DatabaseURL string `envconfig:"DATABASE_URL" required:"true"`
+    Port        int    `envconfig:"PORT" default:"3000"`
+    Debug       bool   `envconfig:"DEBUG" default:"false"`
+}
+
+func Load() (*Config, error) {
+    var cfg Config
+    return &cfg, envconfig.Process("", &cfg)
+}
+```
+
+Rust — use `envy` or `config`:
+```rust
+// src/config.rs
+use serde::Deserialize;
+
+#[derive(Deserialize)]
+pub struct Config {
+    pub database_url: String,
+    pub port: u16,
+    #[serde(default = "default_false")]
+    pub debug: bool,
+}
+fn default_false() -> bool { false }
+
+impl Config {
+    pub fn from_env() -> Result<Self, envy::Error> {
+        dotenvy::dotenv().ok();
+        envy::from_env()
+    }
+}
+```
+
+**Rule:** The app must crash at startup if required env vars are missing or malformed.
+Never silently default a required secret to an empty string.
+
+---
+
+### Security Hardening Checklist
+
+Generate `docs/security.md` for every project that has a backend, API, or user-facing UI.
+The agent should verify these items at every merge-gate. Mark as Human checkpoint if any
+are missing.
+
+**Web Application / API — mandatory items:**
+
+Input validation:
+- Validate and sanitize ALL user input at the boundary (API route handlers, form handlers)
+- Use schema validation (zod, joi, pydantic, etc.) — never trust raw request bodies
+- Parameterized queries only — never string-concatenate user input into SQL/NoSQL queries
+- File uploads: validate MIME type, enforce size limits, scan if possible
+
+HTTP security headers (generate `src/middleware/security.ts` or equivalent):
+- `Strict-Transport-Security: max-age=31536000; includeSubDomains` (HSTS)
+- `X-Content-Type-Options: nosniff`
+- `X-Frame-Options: DENY` (unless embedding is intended)
+- `Content-Security-Policy` — at minimum `default-src 'self'`; tighten per project needs
+- `Referrer-Policy: strict-origin-when-cross-origin`
+- For JS/TS: use `helmet` middleware (Express/Fastify) — it sets sensible defaults
+
+Authentication & authorization:
+- Never store passwords in plaintext — use bcrypt/argon2 with cost factor ≥ 10
+- Session tokens: HttpOnly, Secure, SameSite=Lax (or Strict)
+- Implement rate limiting on auth endpoints (login, signup, password reset)
+- CSRF protection for cookie-based auth (SameSite + CSRF token for non-GET mutations)
+- JWT: validate signature, check expiry, use short-lived access tokens + refresh rotation
+
+API security:
+- CORS: whitelist specific origins — never use `*` in production
+- Rate limiting: per-IP and per-user, at minimum on write endpoints
+- Request size limits: reject oversized payloads before parsing
+- Error responses: never leak stack traces, internal paths, or database details to clients
+
+Secrets management:
+- All secrets in env vars — never in code, config files, or logs (Iron Rule 6)
+- Rotate secrets: document rotation procedure in `docs/security.md`
+- Audit: log access to sensitive operations (auth events, admin actions, data exports)
+
+**Desktop apps (Electron/Tauri) — additional items:**
+- Electron: `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`
+- Validate all IPC payloads — treat renderer as untrusted
+- Auto-updater: verify signatures, use HTTPS-only update feeds
+- CSP in renderer: `script-src 'self'` — no inline scripts
+
+**Mobile apps — additional items:**
+- Never store secrets in app bundle (`EXPO_PUBLIC_*` is visible to decompilers)
+- Use platform secure storage (iOS Keychain / Android Keystore via `expo-secure-store`)
+- Certificate pinning for production API calls (optional but recommended for financial apps)
+- Deep link validation: verify incoming deep link parameters before navigation
+
+**Python/Go/Rust APIs — same principles apply:**
+- Python: use `python-multipart` for safe file uploads, `slowapi` or `limits` for rate limiting
+- Go: use `net/http` middleware for headers, `golang.org/x/time/rate` for rate limiting
+- Rust: use `tower` middleware (Axum) or `actix-web` guards for header injection and rate limiting
+
+The generated `docs/security.md` should include this checklist with checkboxes so the agent
+and human can track completion. The agent marks items done during implementation; human reviews
+security-sensitive changes at merge-gate.
+
 ---
 
 ### progress.json Structure
@@ -800,12 +1293,24 @@ read and debug it without guessing:
       "heartbeat": "2025-01-15T12:30:00Z"
     }
   ],
+  "finish_jobs": [
+    {
+      "milestone": "M1",
+      "status": "running",
+      "requested_at": "2025-01-15T12:31:00Z",
+      "started_at": "2025-01-15T12:31:03Z",
+      "finished_at": null,
+      "requested_by": "agent-macbook-12345",
+      "error": null,
+      "last_update": "2025-01-15T12:31:03Z"
+    }
+  ],
   "active_milestones": [
     {
       "id": "M1",
       "title": "Core Authentication",
       "status": "in_progress",
-      "branch": "milestone/M1",
+      "branch": "milestone/m1",
       "worktree": "../my-project-M1",
       "depends_on": [],
       "started_at": "2025-01-15T10:00:00Z",
@@ -861,6 +1366,7 @@ Field meanings for agents:
 - `depends_on` (milestone): milestone IDs that must be merged before this milestone can merge. `harness worktree:finish` enforces this
 - `worktree`: relative path to the git worktree for this milestone
 - `agents`: array of currently active agents — each agent registers on `harness init`, heartbeat updates on every command, stale after 2h
+- `finish_jobs`: root-side auto-finish queue state — queued/running/failed/succeeded closeout jobs written by `merge-gate` and `worktree:finish`
 - `blockers`: array of blocked tasks with reasons
 - `learnings`: array of logged learnings (via `harness learn`)
 - `dependency_graph`: task-level dependency map — keys are task IDs, values have `depends_on` and `blocks` arrays
@@ -993,14 +1499,17 @@ reading. The SUMMARY.md acts as a universal sidebar. Expand pages as the project
   to the repo, before any code. Verify `.env` patterns are present.
 - CI workflows that run `validate` on every PR and `validate:full` + deploy on merge
 - `docs/frontend-design.md` — **MUST be generated for every project that has a frontend**.
-  Read `/mnt/skills/public/frontend-design/SKILL.md` at generation time and copy its
-  full content into `docs/frontend-design.md` in the output project. This makes the
-  frontend design skill available to Claude Code and Codex, which don't have access to
-  claude.ai's skill paths. Iron Rule 5 in AGENTS.md / CLAUDE.md points to this file.
+  Claude Code and Codex cannot access claude.ai skill paths, so the content must be
+  bundled into the project repo. Generation strategy — try in order:
+  1. Read from the `frontend-design` skill already active in this claude.ai session (preferred).
+  2. Read from a local copy: `~/.agents/skills/frontend-design/SKILL.md` (Linux/macOS) or
+     `C:\Users\<user>\.agents\skills\frontend-design\SKILL.md` (Windows).
+  3. If neither is reachable, generate a minimal fallback: color palette, typography scale,
+     4-point spacing system, component naming conventions, "no generic AI aesthetics" rule.
+  Write the result verbatim to `docs/frontend-design.md`. Iron Rule 5 in AGENTS.md /
+  CLAUDE.md points to this file. Log the strategy used in `docs/learnings.md`.
 
 For monorepos, generate workspace config (pnpm-workspace.yaml / turbo.json / etc.)
 with at least one package or app entry.
 
 ---
-
-

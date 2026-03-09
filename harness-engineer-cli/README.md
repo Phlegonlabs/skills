@@ -10,8 +10,18 @@ Two modes:
 - **Greenfield** — New project from scratch. Product discovery → PRD → scaffold → execution.
 - **Retrofit** — Existing project. Analyze the codebase, add harness layer on top.
 
-Both modes generate a unified CLI (`scripts/harness.ts`) that agents use to
-autonomously loop through tasks: pick → start → code → validate → commit → done → repeat.
+Both modes generate a CLI that agents use to autonomously loop through tasks:
+pick → start → code → validate → commit → done → repeat.
+
+- **Node/TS projects** — TypeScript CLI (`scripts/harness.ts` + `scripts/harness/` modules)
+- **Non-Node projects** (Python, Go, Rust without Node) — Shell CLI (`scripts/harness.sh` + `Makefile`)
+The animated chain map is in [flow-visualizer.html](flow-visualizer.html).
+
+> **`references/replay-protocol.md` is for framework-level development only.**
+> It documents the SOP for verifying changes to this skill's own reference files across
+> downstream fixture repos. It is NOT part of any project's task loop or completion criteria.
+> Per-project completion is defined by the Idle Protocol in `references/skill-execution.md`:
+> all milestones merged → changelog reviewed → human confirms release tag.
 
 ## How to install
 
@@ -111,12 +121,23 @@ Changes take effect on the next agent session. No restart needed — just start 
 harness-engineer-cli/
 ├── SKILL.md                        ← Main skill file (claude.ai reads this)
 ├── README.md                       ← You are here
+├── flow-visualizer.html            ← Interactive workflow chain map (open in browser)
 └── references/                     ← Templates used during generation
-    ├── harness-cli.md              ← The CLI source code + schema + hooks
+    ├── skill-greenfield.md         ← Greenfield workflow (discovery → PRD → scaffold)
+    ├── skill-retrofit.md           ← Existing-project retrofit workflow
+    ├── skill-desktop.md            ← Desktop-specific reference (Electron/Tauri)
+    ├── skill-mobile.md             ← Mobile-specific reference (Expo/EAS)
+    ├── skill-auth.md               ← Auth-specific reference
+    ├── skill-artifacts.md          ← Generated docs / config artifact templates
+    ├── skill-execution.md          ← Post-scaffold runtime + task-loop handoff
+    ├── harness-cli.md              ← The CLI source code + schema + hooks (TypeScript)
+    ├── scaffold-templates.md       ← CLI scaffold command templates (MCP, SKILL.md, Cloudflare, agent)
+    ├── harness-native.md           ← Shell-based CLI alternative for non-Node projects
     ├── eslint-configs.md           ← ESLint flat configs per framework
-    ├── project-configs.md          ← tsconfig, prettier, vitest, Docker, CI configs
+    ├── project-configs.md          ← TS, Python, Go, Rust, workspace, Docker, CI configs
     ├── gitignore-templates.md      ← .gitignore templates per stack
-    └── execution-runtime.md        ← Agent guidelines (context budget, parallel, quality gates)
+    ├── execution-runtime.md        ← Agent guidelines (context budget, parallel, quality gates)
+    └── replay-protocol.md          ← Downstream replay / fixture verification SOP
 ```
 
 ## What gets generated into your project
@@ -132,23 +153,18 @@ your-project/
 │   ├── learnings.md                ← Agent learnings log
 │   └── ...
 ├── scripts/
-│   ├── harness.ts                  ← The CLI entry point — thin command router
-│   ├── check-commit-msg.ts         ← Commit message format enforcer
-│   └── harness/
-│       ├── config.ts               ← Constants, colors, helpers
-│       ├── types.ts                ← All interfaces
-│       ├── state.ts                ← progress.json + PLAN.md I/O
-│       ├── plan-utils.ts           ← Row-level PLAN.md table parser (shared)
-│       ├── recovery.ts             ← Install retry + milestone board recovery
-│       ├── worktree.ts             ← Worktree commands + agent lifecycle
-│       ├── tasks.ts                ← init, status, next, start, done, block, reset
-│       ├── validate.ts             ← lint, type-check, test, file-guard
-│       └── quality.ts              ← merge-gate, stale-check, changelog
+│   ├── harness.ts                  ← [Node/TS] CLI entry point — thin command router
+│   ├── check-commit-msg.ts         ← [Node/TS] Commit message format enforcer
+│   ├── harness/                    ← [Node/TS] CLI modules (config, tasks, quality…)
+│   └── harness.sh                  ← [Non-Node] Shell-based CLI alternative
+├── Makefile                        ← [Non-Node] validate / done / next / block targets
 ├── schemas/
 │   └── progress.schema.json        ← Validates progress.json
 ├── .claude/settings.json           ← Claude Code config (auto mode)
 ├── .codex/config.toml              ← Codex config (auto mode)
-├── .husky/                         ← Git hooks (pre-commit, commit-msg, pre-push)
+├── .husky/                         ← [Node/TS] Git hooks (pre-commit, commit-msg, pre-push)
+├── .pre-commit-config.yaml         ← [Python/Go] Hook alternative to husky
+├── .githooks/                      ← [Rust] Hook alternative to husky
 └── ...                             ← Scaffold (src/, tests/, configs, CI, Docker)
 ```
 
@@ -157,7 +173,11 @@ your-project/
 ```
 # Worktree management (milestone isolation — run from main repo root)
 harness worktree:start <M-id>   Create branch + worktree + install + init + auto-start
-harness worktree:finish <M-id>  Merge milestone → main, remove worktree, update progress
+harness worktree:finish <M-id>  Rebase → merge → archive plans → push → cleanup
+harness worktree:reclaim <M-id> Reclaim a stale/abandoned milestone and reopen its worktree
+harness worktree:status         Show worktrees, agents, auto-finish jobs, and merge readiness
+harness migrate                 Refresh harness-managed runtime folders + schema after upgrades
+harness sync-template           Alias of migrate
 
 # Session (run inside the milestone worktree)
 harness init              Session boot: sync plans, stale check, print status
@@ -168,7 +188,7 @@ harness status            Print current milestone, task, blockers, progress
 harness next              Find and print the next unblocked task
 harness start <id>        Claim a task → auto-updates progress.json + PLAN.md
 harness validate          lint:fix → lint → type-check → test
-harness validate:full     + integration + e2e + file-guard
+harness validate:full     + integration/e2e when matching test files exist + file-guard
 harness done <id>         Complete a task → auto-updates state + commit hash + git checkout .
 harness block <id> <msg>  Mark task blocked, log reason
 
@@ -179,11 +199,64 @@ harness file-guard        Check no source file exceeds 500 lines
 harness schema            Validate progress.json against JSON Schema
 harness changelog         Generate release notes from commit messages
 harness recover           Auto-detect and fix milestone board inconsistencies
+
+# Planning (add new work mid-project)
+harness plan:status       Show project progress overview + pending plan files
+harness plan:apply [file] Parse plan → analyze state → insert milestones + tasks + deps
+
+# Scaffold (inject capability templates — no web search needed)
+harness scaffold mcp            MCP server: src/tools/, server.ts, tests
+harness scaffold skill           SKILL.md agent discovery file
+harness scaffold llms-txt        llms.txt for LLM discoverability
+harness scaffold milestone:agent Pre-built 11-task milestone for agent work
+harness scaffold agent-card      A2A Agent Card (/.well-known/agent.json)
+harness scaffold agent-observe   Tool observability: metrics, latency, errors
+harness scaffold agent-auth      Auth + rate limit for remote SSE
+harness scaffold agent-pay       x402 micropayments + Stripe metered billing
+harness scaffold agent-test      MCP protocol compliance tests
+harness scaffold agent-schema-ci CI: detect SKILL.md vs code schema drift
+harness scaffold agent-version   Tool versioning strategy docs
+harness scaffold agent-client    Multi-agent client: discover + call remotes
+harness scaffold agent-prompts   MCP Prompts: pre-built prompt templates
+harness scaffold agent-webhook   Long-running task + webhook callback
+harness scaffold agent-cost      Per-call cost estimation + audit log
+harness scaffold cloudflare      wrangler.toml + .dev.vars + CI
 ```
 
 ## Requirements
 
+**Node/TS projects (TypeScript CLI):**
 - Node.js 18+
 - Git
 - One of: pnpm, bun, or npm
 - `tsx` (added automatically as a dev dependency)
+
+**Non-Node projects (Shell CLI — Python, Go, Rust):**
+- Git
+- `jq` (JSON processor — for `scripts/harness.sh`)
+- `bash` 4+ (macOS ships bash 3; install bash via Homebrew if needed)
+- Language runtime: Python 3.11+ / Go 1.22+ / Rust stable
+- No Node.js or npm required — the shell CLI handles all harness operations
+
+## Validation Strategy
+
+This repo is a doc-first skill bundle, so template changes should be verified by replaying them
+into representative fixture outputs or downstream repos before being treated as done.
+
+Recommended minimum replay matrix:
+
+- Web app, single-package TypeScript scaffold
+- Desktop app scaffold (`Electron` or `Tauri`)
+- Mixed-language monorepo (`apps/web` in TS + backend in Python, Go, or Rust)
+
+Snapshot or diff at least these generated artifacts:
+
+- `docs/PLAN.md`
+- `docs/progress.json`
+- `schemas/progress.schema.json`
+- `scripts/harness.ts` and `scripts/harness/`
+- Stack-native manifests such as `package.json`, `pyproject.toml`, `go.work`, and `Cargo.toml`
+
+If the change touches harness runtime behavior, CI, or generated workflow rules, replay it in at
+least one real downstream project or fixture repo and confirm the generated project still passes
+`harness validate`.

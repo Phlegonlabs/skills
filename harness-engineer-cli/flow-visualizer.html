@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Harness Engineering — Workflow Chain Map</title>
+<style>
+  :root { --bg: #0d1117; --fg: #c9d1d9; --accent: #58a6ff; --green: #3fb950;
+    --yellow: #d29922; --red: #f85149; --purple: #bc8cff; --dim: #484f58;
+    --card: #161b22; --border: #30363d; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    background: var(--bg); color: var(--fg); line-height: 1.5; padding: 2rem; }
+  h1 { color: var(--accent); font-size: 1.5rem; margin-bottom: 0.5rem; }
+  .subtitle { color: var(--dim); margin-bottom: 2rem; font-size: 0.9rem; }
+  .controls { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+  .controls button { background: var(--card); color: var(--fg); border: 1px solid var(--border);
+    padding: 0.4rem 0.8rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem; transition: all 0.2s; }
+  .controls button:hover { border-color: var(--accent); color: var(--accent); }
+  .controls button.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+  .legend { display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; font-size: 0.8rem; }
+  .legend span { display: flex; align-items: center; gap: 0.3rem; }
+  .legend .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+  .chain { position: relative; padding-left: 2rem; }
+  .phase { margin-bottom: 1.5rem; opacity: 0; transform: translateY(10px);
+    transition: opacity 0.4s ease, transform 0.4s ease; }
+  .phase.visible { opacity: 1; transform: translateY(0); }
+  .phase-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--dim); margin-bottom: 0.4rem; }
+  .node { background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+    padding: 0.6rem 0.9rem; margin-bottom: 0.4rem; cursor: pointer; transition: all 0.2s;
+    position: relative; }
+  .node:hover { border-color: var(--accent); }
+  .node.highlight { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .node-title { font-weight: 600; font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem; }
+  .node-detail { font-size: 0.8rem; color: var(--dim); margin-top: 0.3rem; display: none; }
+  .node.expanded .node-detail { display: block; }
+  .tag { font-size: 0.7rem; padding: 0.1rem 0.4rem; border-radius: 3px; font-weight: 400; }
+  .tag-auto { background: rgba(63,185,80,0.15); color: var(--green); }
+  .tag-human { background: rgba(210,153,34,0.15); color: var(--yellow); }
+  .tag-cli { background: rgba(88,166,255,0.15); color: var(--accent); }
+  .tag-agent { background: rgba(188,140,255,0.15); color: var(--purple); }
+
+  .connector { position: absolute; left: 0.8rem; top: 0; bottom: 0; width: 2px; background: var(--border); }
+  .connector-dot { position: absolute; left: 0.5rem; width: 8px; height: 8px;
+    border-radius: 50%; background: var(--accent); border: 2px solid var(--bg); z-index: 1; }
+
+  .arrow { color: var(--dim); font-size: 0.75rem; padding: 0.1rem 0 0.1rem 1rem; }
+  .arrow.cascade { color: var(--green); }
+  code { background: rgba(110,118,129,0.2); padding: 0.1rem 0.3rem; border-radius: 3px; font-size: 0.8rem; }
+
+  @media (max-width: 600px) { body { padding: 1rem; } .controls { gap: 0.3rem; } }
+</style>
+</head>
+<body>
+
+<h1>Harness Engineering — Workflow Chain Map</h1>
+<p class="subtitle">Click any node to see details. Use the buttons to filter by flow.</p>
+
+<div class="controls">
+  <button class="active" data-filter="all">All</button>
+  <button data-filter="greenfield">Greenfield</button>
+  <button data-filter="retrofit">Retrofit</button>
+  <button data-filter="execution">Execution Loop</button>
+  <button data-filter="parallel">Parallel Agents</button>
+</div>
+
+<div class="legend">
+  <span><span class="dot" style="background:var(--green)"></span> Auto (CLI handles)</span>
+  <span><span class="dot" style="background:var(--yellow)"></span> Human checkpoint</span>
+  <span><span class="dot" style="background:var(--accent)"></span> CLI command</span>
+  <span><span class="dot" style="background:var(--purple)"></span> Agent action</span>
+</div>
+
+<div class="chain" id="chain">
+  <div class="connector"></div>
+</div>
+
+<script>
+const DATA = [
+  // ── Greenfield ─────────────────────────────────────────────
+  { phase: "Phase 1 — Product Discovery", filter: "greenfield", nodes: [
+    { t: "Step 1: Product Type + Vision", tag: "human", d: "ask_user_input → project type (Web/Mobile/Desktop/CLI/Agent). Open-ended vision question." },
+    { t: "Step 2: Product Deep Dive", tag: "human", d: "Structured interview: users, journeys, scope, constraints. 2-3 conversational exchanges." },
+    { t: "Step 3: Research — Web Search", tag: "agent", d: "2-5 web searches: competitors, architecture patterns, tech stack recs, relevant APIs." },
+    { t: "Step 4: Tech Stack Choices", tag: "human", d: "ask_user_input: framework, DB, package manager, monorepo, deploy target, CI/CD, monitoring." },
+  ]},
+  { phase: "Phase 2 — PRD Generation", filter: "greenfield", nodes: [
+    { t: "Generate PRD.md", tag: "agent", d: "Personas, user journeys, FRs with acceptance criteria, NFRs, MoSCoW priorities. Requirement → Epic → Story → Task traceability." },
+    { t: "User reviews PRD", tag: "human", d: "Confirm requirements, priorities, and scope before scaffold generation." },
+  ]},
+  { phase: "Phase 3 — Scaffold Generation", filter: "greenfield", nodes: [
+    { t: "Load skill-artifacts.md", tag: "agent", d: "Read artifact templates: AGENTS.md, ARCHITECTURE.md, PLAN.md, progress.json, configs." },
+    { t: "Generate all project files", tag: "agent", d: "AGENTS.md + CLAUDE.md, ARCHITECTURE.md, PLAN.md, progress.json, scripts/harness.ts, schemas/, configs, scaffold." },
+    { t: "Phase 3 Exit Gate ✓", tag: "auto", d: "Pre-flight check: all artifacts exist, task IDs match dependency graph, schema valid, commands match runtime." },
+  ]},
+
+  // ── Retrofit ───────────────────────────────────────────────
+  { phase: "Retrofit — Analyze", filter: "retrofit", nodes: [
+    { t: "Analyze existing project", tag: "agent", d: "Read package.json/pyproject.toml, detect framework, test setup, CI, linter configs, directory structure." },
+    { t: "Ask clarifying questions", tag: "human", d: "ask_user_input: tech stack, package manager. Auto-detect from lockfile if uploaded." },
+  ]},
+  { phase: "Retrofit — Generate", filter: "retrofit", nodes: [
+    { t: "Generate harness layer", tag: "agent", d: "Add AGENTS.md, CLAUDE.md, ARCHITECTURE.md, docs/, scripts/harness.ts, schemas/. NEVER overwrite existing configs." },
+    { t: "Generate lightweight PRD", tag: "agent", d: "Snapshot of what exists, not a design doc. Module inventory, tech debt detection." },
+    { t: "Present and review", tag: "human", d: "Show file tree of additions, preserved configs, tech debt items. User confirms." },
+  ]},
+
+  // ── Execution Loop ─────────────────────────────────────────
+  { phase: "Phase 4 — Session Init", filter: "execution", nodes: [
+    { t: "<code>harness init</code>", tag: "cli", d: "Auto-cascade: sync plans → plan:apply (if new) → recover → register agent → print status → auto-start task." },
+    { t: "Load memory", tag: "agent", d: "Read MEMORY.md + today's daily log. Context budget: ≤40% utilization." },
+  ]},
+  { phase: "Phase 4 — Task Loop (repeat)", filter: "execution", nodes: [
+    { t: "1. Write code", tag: "agent", d: "Implement the current task. Follow Iron Rules. Stay within context budget." },
+    { t: "2. <code>harness validate</code> + <code>git commit</code>", tag: "cli", d: "lint:fix → lint → type-check → test. If pass → commit with [Mn-NNN] prefix." },
+    { t: "3. <code>harness done &lt;id&gt;</code>", tag: "cli", d: "Auto-cascade: update PLAN.md + progress.json → git checkout . → next → start next task." },
+    { t: "↳ If validate fails 3x", tag: "human", d: "harness block → harness learn → auto-starts next unblocked task. Human reviews blocker." },
+  ]},
+  { phase: "Phase 4 — Milestone Transition", filter: "execution", nodes: [
+    { t: "Last task done → merge-gate", tag: "auto", d: "Auto-triggered: validate:full + stale-check + changelog + schema. All must pass." },
+    { t: "worktree:finish", tag: "auto", d: "Root-side: rebase on main → re-validate → merge → archive exec plans → push → cleanup worktree." },
+    { t: "Auto worktree:start next milestone", tag: "auto", d: "Detect next eligible milestone → create branch + worktree → install → init → start first task." },
+    { t: "↳ If merge-gate fails", tag: "human", d: "Report failure, pause. Human reviews. Agent cannot force-merge." },
+  ]},
+
+  // ── Parallel ───────────────────────────────────────────────
+  { phase: "Parallel — Multi-Agent", filter: "parallel", nodes: [
+    { t: "Agent 1: worktree:start M1", tag: "cli", d: "Creates isolated worktree. Agent registered in progress.json with heartbeat." },
+    { t: "Agent 2: worktree:start M3", tag: "cli", d: "M3 has no dependency on M1 → runs in parallel. Separate worktree." },
+    { t: "Agent 1 finishes M1 → merge", tag: "auto", d: "merge-gate → worktree:finish → M1 merged into main." },
+    { t: "Agent 2 rebases M3 onto main", tag: "cli", d: "worktree:rebase → resolve conflicts if any → continue." },
+    { t: "Stale heartbeat (>2h) → reclaim", tag: "auto", d: "worktree:status shows STALE. Another agent can worktree:reclaim." },
+  ]},
+
+  // ── Ongoing ────────────────────────────────────────────────
+  { phase: "Ongoing — Perpetual Loop", filter: "execution", nodes: [
+    { t: "All milestones done → Idle", tag: "auto", d: "Agent reports: 'All work complete. Ready for new tasks.' Waits for user." },
+    { t: "User adds new work (plan mode)", tag: "human", d: "Describe feature/fix/refactor. Plan file saved to docs/exec-plans/active/." },
+    { t: "plan:apply → new milestone", tag: "auto", d: "harness init detects new plan → parse → insert into PLAN.md + progress.json → worktree:start → loop resumes." },
+  ]},
+];
+
+const chain = document.getElementById('chain');
+
+function render(filter) {
+  chain.querySelectorAll('.phase').forEach(el => el.remove());
+
+  const phases = filter === 'all' ? DATA : DATA.filter(d => d.filter === filter);
+  phases.forEach((phase, pi) => {
+    const div = document.createElement('div');
+    div.className = 'phase';
+    div.dataset.filter = phase.filter;
+
+    let html = `<div class="phase-label">${phase.phase}</div>`;
+    phase.nodes.forEach((n, ni) => {
+      const tagClass = { auto:'tag-auto', human:'tag-human', cli:'tag-cli', agent:'tag-agent' }[n.tag] || '';
+      const tagLabel = { auto:'Auto', human:'Human', cli:'CLI', agent:'Agent' }[n.tag] || n.tag;
+      html += `
+        <div class="node" onclick="this.classList.toggle('expanded')">
+          <div class="node-title">${n.t} <span class="tag ${tagClass}">${tagLabel}</span></div>
+          <div class="node-detail">${n.d}</div>
+        </div>`;
+      if (ni < phase.nodes.length - 1) {
+        const isCascade = n.tag === 'auto' || n.tag === 'cli';
+        html += `<div class="arrow ${isCascade ? 'cascade' : ''}">↓${isCascade ? ' auto-cascade' : ''}</div>`;
+      }
+    });
+
+    div.innerHTML = html;
+    chain.appendChild(div);
+
+    // Stagger animation
+    setTimeout(() => div.classList.add('visible'), 60 * pi);
+  });
+}
+
+// Filter buttons
+document.querySelectorAll('.controls button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.controls button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    render(btn.dataset.filter);
+  });
+});
+
+render('all');
+</script>
+</body>
+</html>

@@ -229,6 +229,89 @@ import '@testing-library/jest-dom/vitest';
 
 ---
 
+## Monorepo Workspace Config
+
+### pnpm-workspace.yaml
+
+```yaml
+packages:
+  - 'apps/*'
+  - 'packages/*'
+```
+
+### Turborepo — turbo.json (optional — add when 3+ workspaces or CI performance matters)
+
+```json
+{
+  "$schema": "https://turbo.build/schema.json",
+  "globalDependencies": [".env"],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", ".next/**", "build/**"]
+    },
+    "lint": {
+      "dependsOn": ["^build"]
+    },
+    "type-check": {
+      "dependsOn": ["^build"]
+    },
+    "test": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    }
+  }
+}
+```
+
+Install: `<pkg-mgr> add -D turbo -w` (workspace root)
+
+Root package.json scripts when using Turborepo:
+```json
+{
+  "scripts": {
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "type-check": "turbo type-check",
+    "test": "turbo test",
+    "dev": "turbo dev",
+    "validate": "turbo lint type-check test",
+    "harness": "tsx scripts/harness.ts"
+  }
+}
+```
+
+Without Turborepo (simpler — use for 1-2 workspaces):
+```json
+{
+  "scripts": {
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "dev": "pnpm -r dev",
+    "validate": "pnpm -r lint && pnpm -r run type-check && pnpm -r test",
+    "harness": "tsx scripts/harness.ts"
+  }
+}
+```
+
+**When to use Turborepo:**
+- 3+ workspace packages
+- CI taking >3 minutes due to redundant builds
+- Teams working on different packages in parallel
+- Remote caching needed (Vercel Remote Cache or self-hosted)
+
+**When to skip Turborepo:**
+- 1-2 workspace packages (pnpm -r is fine)
+- Solo developer
+- Project doesn't have a build step (pure API / CLI)
+
+---
+
 ## Docker
 
 ### Dockerfile (Node.js multi-stage)
@@ -392,6 +475,12 @@ jobs:
       #     apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       #     command: deploy
 
+      # Cloudflare D1 migrations (run before deploy if using D1):
+      # - uses: cloudflare/wrangler-action@v3
+      #   with:
+      #     apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      #     command: d1 migrations apply <db-name> --remote
+
       # Fly.io:
       # - uses: superfly/flyctl-actions/setup-flyctl@master
       # - run: flyctl deploy --remote-only
@@ -481,10 +570,63 @@ name = "<project-name>"
 compatibility_date = "2025-01-01"
 pages_build_output_dir = "./out"
 
-# Cloudflare Workers — wrangler.toml
+# Cloudflare Workers — wrangler.toml (minimal)
 name = "<project-name>"
 main = "src/index.ts"
 compatibility_date = "2025-01-01"
+
+# Cloudflare Workers — wrangler.toml (full-stack with D1 + KV + R2)
+# Use this when the project needs database, cache, and/or object storage.
+# Uncomment the bindings the project actually uses.
+name = "<project-name>"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# D1 Database (SQLite at edge)
+# Run: wrangler d1 create <project-name>-db
+# Then paste the returned database_id below.
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "<project-name>-db"
+# database_id = "<from wrangler d1 create>"
+
+# KV Namespace (key-value cache)
+# Run: wrangler kv namespace create CACHE
+# [[kv_namespaces]]
+# binding = "CACHE"
+# id = "<from wrangler kv namespace create>"
+
+# R2 Bucket (S3-compatible object storage)
+# Run: wrangler r2 bucket create <project-name>-uploads
+# [[r2_buckets]]
+# binding = "UPLOADS"
+# bucket_name = "<project-name>-uploads"
+
+# Queues (async task processing)
+# [[queues.producers]]
+# queue = "<project-name>-tasks"
+# binding = "TASK_QUEUE"
+# [[queues.consumers]]
+# queue = "<project-name>-tasks"
+
+# Cron Triggers
+# [triggers]
+# crons = ["0 * * * *"]  # every hour
+
+# Environment-specific overrides
+# [env.staging]
+# name = "<project-name>-staging"
+# [env.staging.vars]
+# ENVIRONMENT = "staging"
+# [env.production]
+# name = "<project-name>"
+# [env.production.vars]
+# ENVIRONMENT = "production"
+
+# Local development env vars (create .dev.vars, NOT .env)
+# .dev.vars is Cloudflare's equivalent of .env — wrangler reads it automatically.
+# Never commit .dev.vars. Add to .gitignore.
 
 # Fly.io — fly.toml
 app = "<project-name>"
@@ -596,12 +738,40 @@ GitLab CI/CD settings → Variables.
 
 ## Python equivalents
 
-### pyproject.toml (ruff + mypy + pytest)
+### pyproject.toml (project metadata + build + ruff + mypy + pytest)
 
 ```toml
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "<package-name>"
+version = "0.1.0"
+description = "Short project description"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+  "mypy",
+  "pytest",
+  "pytest-cov",
+  "ruff",
+]
+
+[project.scripts]
+<app-name> = "<package_name>.cli:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/<package_name>"]
+
 [tool.ruff]
 target-version = "py312"
 line-length = 100
+
+[tool.ruff.lint]
 select = [
   "E",   # pycodestyle errors
   "W",   # pycodestyle warnings
@@ -628,25 +798,32 @@ disallow_untyped_defs = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-v --tb=short --strict-markers"
+pythonpath = ["src"]
 ```
 
 ### Makefile (Python)
 
 ```makefile
-.PHONY: lint lint-fix type-check test validate
+.PHONY: install dev lint lint-fix type-check test validate
+
+install:
+	uv sync
+
+dev:
+	uv run python -m <package_name>.cli
 
 lint:
-	ruff check .
+	uv run ruff check .
 
 lint-fix:
-	ruff check --fix .
-	ruff format .
+	uv run ruff check --fix .
+	uv run ruff format .
 
 type-check:
-	mypy src/
+	uv run mypy src/
 
 test:
-	pytest
+	uv run pytest
 
 validate: lint type-check test
 ```
@@ -654,6 +831,25 @@ validate: lint type-check test
 ---
 
 ## Go equivalents
+
+### go.mod (single-module project)
+
+```go
+module github.com/<org>/<repo>
+
+go 1.24
+```
+
+### go.work (multi-module or mixed-language monorepo)
+
+```go
+go 1.24
+
+use (
+	./apps/api
+	./tools/migrations
+)
+```
 
 ### golangci-lint (.golangci.yml)
 
@@ -691,7 +887,10 @@ linters-settings:
 ### Makefile (Go)
 
 ```makefile
-.PHONY: lint lint-fix type-check test validate build
+.PHONY: tidy lint lint-fix type-check test test-integration validate build
+
+tidy:
+	go mod tidy
 
 lint:
 	golangci-lint run ./...
@@ -719,6 +918,41 @@ build:
 
 ## Rust equivalents
 
+### Cargo.toml (workspace root)
+
+```toml
+[workspace]
+members = ["crates/core", "apps/cli"]
+resolver = "3"
+
+[workspace.package]
+edition = "2024"
+version = "0.1.0"
+
+[workspace.dependencies]
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tracing = "0.1"
+```
+
+### Cargo.toml (workspace member)
+
+```toml
+[package]
+name = "<crate-name>"
+edition.workspace = true
+version.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+```
+
 ### clippy.toml
 
 ```toml
@@ -743,26 +977,377 @@ expect_used = "warn"
 ### Makefile (Rust)
 
 ```makefile
-.PHONY: lint lint-fix type-check test validate build
+.PHONY: fmt lint lint-fix type-check test validate build
+
+fmt:
+	cargo fmt --all
 
 lint:
-	cargo clippy -- -D warnings
+	cargo clippy --workspace --all-targets --all-features -- -D warnings
 
 lint-fix:
 	cargo clippy --fix --allow-dirty
-	cargo fmt
+	cargo fmt --all
 
 type-check:
-	cargo check
+	cargo check --workspace --all-targets
 
 test:
-	cargo test
+	cargo test --workspace --all-targets
 
 validate: lint type-check test
 
 build:
-	cargo build --release
+	cargo build --workspace --release
 ```
+
+---
+
+## Mixed-language monorepo orchestration
+
+### Makefile (TS frontend + Python backend example)
+
+```makefile
+.PHONY: install validate test dev
+
+install:
+	corepack enable && pnpm install --frozen-lockfile
+	cd apps/api && uv sync
+
+validate:
+	pnpm --dir apps/web lint
+	pnpm --dir apps/web test -- --run
+	cd apps/api && uv run ruff check .
+	cd apps/api && uv run mypy src
+	cd apps/api && uv run pytest
+
+test:
+	pnpm --dir apps/web test -- --run
+	cd apps/api && uv run pytest
+
+dev:
+	pnpm --dir apps/web dev
+```
+
+Use the root `Makefile` or `justfile` as the human and agent entrypoint, but keep package-native
+files in each app: `package.json` for Node workspaces, `pyproject.toml` for Python, `go.work` or
+`go.mod` for Go, and Cargo workspaces for Rust.
+
+---
+
+## Structured Logger Templates
+
+Generate `src/lib/logger.ts` (or equivalent) for every project. Iron Rule 7 bans `console.log`
+in production code — all logging goes through the structured logger.
+
+### Node.js / TypeScript — pino (recommended)
+
+```typescript
+// src/lib/logger.ts
+import pino from 'pino';
+
+export const logger = pino({
+  level: process.env.LOG_LEVEL ?? 'info',
+  transport: process.env.NODE_ENV === 'development'
+    ? { target: 'pino-pretty', options: { colorize: true } }
+    : undefined,
+  formatters: {
+    level: (label) => ({ level: label }),
+  },
+  base: {
+    service: process.env.SERVICE_NAME ?? '<project-name>',
+    env: process.env.NODE_ENV ?? 'development',
+  },
+});
+
+export type Logger = typeof logger;
+```
+
+Install: `<pkg-mgr> add pino` and `<pkg-mgr> add -D pino-pretty`
+
+Usage: `logger.info({ userId }, 'User signed in')` — always structured, never string templates.
+
+### Python — structlog (recommended)
+
+```python
+# src/<package>/logger.py
+import structlog
+import logging
+import sys
+
+def setup_logging(level: str = "INFO", json_output: bool = False) -> None:
+    processors = [
+        structlog.contextvars.merge_contextvars,
+        structlog.processors.add_log_level,
+        structlog.processors.TimeStamper(fmt="iso"),
+        structlog.processors.StackInfoRenderer(),
+    ]
+    if json_output:
+        processors.append(structlog.processors.JSONRenderer())
+    else:
+        processors.append(structlog.dev.ConsoleRenderer())
+
+    structlog.configure(
+        processors=processors,
+        wrapper_class=structlog.make_filtering_bound_logger(getattr(logging, level)),
+        logger_factory=structlog.PrintLoggerFactory(file=sys.stderr),
+    )
+
+logger = structlog.get_logger()
+```
+
+Install: `uv add structlog`
+
+Usage: `logger.info("user_signed_in", user_id=user_id)` — key-value pairs, not f-strings.
+
+### Go — slog (stdlib, Go 1.21+)
+
+```go
+// internal/logger/logger.go
+package logger
+
+import (
+    "log/slog"
+    "os"
+)
+
+func New(jsonOutput bool) *slog.Logger {
+    var handler slog.Handler
+    opts := &slog.HandlerOptions{Level: slog.LevelInfo}
+
+    if jsonOutput {
+        handler = slog.NewJSONHandler(os.Stderr, opts)
+    } else {
+        handler = slog.NewTextHandler(os.Stderr, opts)
+    }
+
+    return slog.New(handler)
+}
+```
+
+Usage: `logger.Info("user signed in", "user_id", userID)` — stdlib, zero dependencies.
+
+### Rust — tracing (recommended)
+
+```rust
+// src/logger.rs
+use tracing_subscriber::{fmt, EnvFilter};
+
+pub fn init() {
+    let filter = EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| EnvFilter::new("info"));
+
+    fmt()
+        .with_env_filter(filter)
+        .with_target(true)
+        .json()  // Remove .json() for human-readable dev output
+        .init();
+}
+```
+
+Install: add `tracing`, `tracing-subscriber` with `json` and `env-filter` features to `Cargo.toml`.
+
+Usage: `tracing::info!(user_id = %user_id, "user signed in");` — structured spans and events.
+
+### Rules
+
+- Every project generates the logger module at scaffold time — not as a later task
+- `console.log` / `print()` / `fmt.Println` / `println!` are banned in production code
+- In development mode: human-readable output (colored, pretty-printed)
+- In production: JSON output (for log aggregation — Datadog, CloudWatch, Grafana, etc.)
+- Always include: timestamp, log level, service name, and structured context fields
+- Error logs must include the error object/traceback, not just the message string
+
+---
+
+## Non-Node CI — GitHub Actions
+
+### Python ci.yml
+
+```yaml
+name: CI
+on:
+  pull_request:
+    branches: [main, 'milestone/*']
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: uv sync
+      - run: make validate
+
+      - name: File guard
+        run: bash scripts/harness.sh file-guard
+
+      - name: Schema check
+        run: bash scripts/harness.sh schema
+```
+
+### Python deploy.yml
+
+```yaml
+name: Deploy
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: uv sync
+      - run: make validate
+
+      # Uncomment ONE deploy target:
+
+      # Docker (Fly.io / Cloud Run / VPS):
+      # - run: docker build -t $REGISTRY/$IMAGE:${{ github.sha }} .
+      # - run: docker push $REGISTRY/$IMAGE:${{ github.sha }}
+
+      # PyPI publish:
+      # - run: uv build
+      # - run: uv publish --token ${{ secrets.PYPI_TOKEN }}
+```
+
+### Go ci.yml
+
+```yaml
+name: CI
+on:
+  pull_request:
+    branches: [main, 'milestone/*']
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+
+      - run: make validate
+
+      - name: File guard
+        run: bash scripts/harness.sh file-guard
+
+      - name: Schema check
+        run: bash scripts/harness.sh schema
+```
+
+### Go deploy.yml
+
+```yaml
+name: Deploy
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+      - run: make validate
+
+      # Uncomment ONE:
+
+      # Docker:
+      # - run: docker build -t $REGISTRY/$IMAGE:${{ github.sha }} .
+      # - run: docker push $REGISTRY/$IMAGE:${{ github.sha }}
+
+      # Binary release (GitHub Releases):
+      # - run: make build
+      # - uses: softprops/action-gh-release@v2
+      #   with:
+      #     files: bin/*
+```
+
+### Rust ci.yml
+
+```yaml
+name: CI
+on:
+  pull_request:
+    branches: [main, 'milestone/*']
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - uses: Swatinem/rust-cache@v2
+
+      - run: make validate
+
+      - name: File guard
+        run: bash scripts/harness.sh file-guard
+
+      - name: Schema check
+        run: bash scripts/harness.sh schema
+```
+
+### Rust deploy.yml
+
+```yaml
+name: Deploy
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: make validate
+
+      # Uncomment ONE:
+
+      # Docker:
+      # - run: docker build -t $REGISTRY/$IMAGE:${{ github.sha }} .
+      # - run: docker push $REGISTRY/$IMAGE:${{ github.sha }}
+
+      # Binary release (cross-compile):
+      # - uses: taiki-e/upload-rust-binary-action@v1
+      #   with:
+      #     bin: <app-name>
+      #     tar: unix
+      #     zip: windows
+```
+
+**Adapt:** If the project uses the TypeScript CLI with Node.js (recommended), add
+`actions/setup-node` + `npm install tsx` before the harness commands, and replace
+`bash scripts/harness.sh` with `npx tsx scripts/harness.ts`.
 
 ---
 
@@ -870,10 +1455,11 @@ COPY --from=build /app/target/release/<app-name> /bin/app
 1. Read this file BEFORE generating any config — never write configs from memory
 2. Always use the strictest settings (strict: true, strictTypeChecked, etc.)
 3. Adapt path aliases, ignores, and plugins to the specific project
-4. Package manager commands must match the user's choice (pnpm/bun/npm)
+4. Package manager commands must match the user's choice (pnpm/bun/npm for JS; uv for Python; go for Go; cargo for Rust)
 5. Docker base images should match the chosen runtime version
-6. CI workflows must match the chosen package manager setup action
+6. CI workflows must match the chosen language and package manager — use the Node.js CI templates for JS/TS projects and the non-Node CI templates for Python/Go/Rust projects
 7. Never downgrade strictness. If a rule causes errors, fix the code, not the config.
+8. For non-Node projects using the native shell CLI, use the non-Node `.claude/settings.json` variant below
 
 ---
 
@@ -906,6 +1492,31 @@ This config enables **autonomous execution**:
 - Pre-approves git and package manager commands
 - Blocks reading .env files (Iron Rule 6: secrets never touch agent context)
 
+### Non-Node variant — .claude/settings.json
+
+For projects using the native shell CLI (`scripts/harness.sh`) instead of the TypeScript CLI:
+
+```json
+{
+  "plansDirectory": "./docs/exec-plans/active",
+  "permissions": {
+    "allowedTools": [
+      "Read", "Write",
+      "Bash(git *)",
+      "Bash(make *)",
+      "Bash(bash scripts/harness.sh *)",
+      "Bash(bash scripts/check-commit-msg.sh *)"
+    ],
+    "deny": ["Read(./.env)", "Read(./.env.*)"]
+  }
+}
+```
+
+Add language-specific tools to `allowedTools`:
+- Python: `"Bash(uv *)"`, `"Bash(python *)"`, `"Bash(ruff *)"`, `"Bash(mypy *)"`
+- Go: `"Bash(go *)"`, `"Bash(golangci-lint *)"`
+- Rust: `"Bash(cargo *)"`, `"Bash(rustup *)"`
+
 ## Codex — .codex/config.toml
 
 ```toml
@@ -931,12 +1542,15 @@ project_doc_max_bytes = 65536
 ```
 Plan mode → plan file lands in docs/exec-plans/active/
   ↓
-Session Init → detects new plan file
+Main-root Session Init or explicit plan:apply → detects new plan file
   ↓
 Sync → parse plan → add to PRD + PLAN.md + progress.json
   ↓
 Task Execution Loop → runs the new milestone
   ↓
-Milestone complete → move plan to docs/exec-plans/completed/
-```
+Milestone complete → worktree:finish auto-archives completed execution plan files to docs/exec-plans/completed/
 
+After copying newer harness runtime files into an existing project, run
+`harness migrate` once from main/root to refresh the runtime schema and
+exec-plan directories.
+```

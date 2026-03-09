@@ -36,6 +36,8 @@ Phase 5: Automated Testing (embedded in Phase 4 task loop)
   → Per-milestone: + integration + e2e tests (validate:full)
   → Product acceptance: verify PRD criteria covered by tests
   → CI: validate on PR, validate:full + deploy on merge to main
+  → Harness/runtime template changes: replay against at least one fixture or downstream
+    project before calling the template change complete
 
 Phase 6: Documentation Site (evolves with project)
   → docs/site/ in GitBook-compatible format
@@ -61,6 +63,7 @@ Use `ask_user_input` for the product type, then ask an open-ended follow-up.
    - Options: `Web App`, `Mobile (Expo / React Native)`, `Desktop App`, `CLI Tool`, `Agent Tool / MCP Server`
 
 If **Mobile** is selected → read `references/skill-mobile.md` now before proceeding.
+If **Desktop App** is selected → read `references/skill-desktop.md` now before proceeding.
 
 **Then ask in prose (open-ended, do NOT use ask_user_input):**
 > "Tell me about this product — who is it for, what problem does it solve, and what does
@@ -111,6 +114,10 @@ Based on everything from Steps 1-2, run **2–5 web searches** to gather:
 Synthesize into a brief conversational summary: what you found, common patterns, and
 your recommendations. This informs the user before they make tech stack decisions.
 
+For **Desktop App** projects, `references/skill-desktop.md` is the primary reference.
+Use web search only for version-sensitive items such as packaging, updater/signing,
+notarization, or plugin-specific setup for the chosen desktop framework.
+
 ### Step 4: Refine — Tech Stack Choices
 
 Use `ask_user_input` with options tailored by research. No generic lists.
@@ -123,11 +130,27 @@ Use `ask_user_input` with options tailored by research. No generic lists.
 2. **Framework / stack** (multi_select): Based on research, here are the top fits:
    - Populate with 3–4 researched recommendations specific to this product
    - Example for Web App SaaS: `Next.js + Tailwind`, `Remix + Prisma`, `Nuxt 3 + tRPC`, `Other`
+   - Example for Web App SaaS (Cloudflare-first): `Next.js (OpenNext) + Cloudflare`, `Hono + Cloudflare Workers + D1`, `Remix + Cloudflare Pages`, `Other`
+   - Example for API / Backend (edge): `Hono + Cloudflare Workers`, `Elysia + Bun`, `Fastify`, `Other`
    - Example for CLI Tool: `Node.js (Commander.js)`, `Python (Click/Typer)`, `Go (Cobra)`, `Rust (Clap)`
    - Example for Agent Tool: `MCP Server (TypeScript)`, `LangGraph (Python)`, `CrewAI`, `Other`
+   - **Cloudflare full-stack note:** When the user mentions Cloudflare, edge computing, or low-latency
+     global deployment, prioritize Cloudflare-native stacks:
+     - **Frontend:** Next.js via OpenNext adapter, Remix, Astro, or SvelteKit on Cloudflare Pages
+     - **Backend / API:** Hono (lightweight, Workers-native), itty-router, or Remix loaders on Pages Functions
+     - **Database:** Cloudflare D1 (SQLite at edge), Turso (libSQL), or Drizzle ORM + D1
+     - **KV / Cache:** Cloudflare KV, Cloudflare R2 (S3-compatible object storage)
+     - **Auth:** Better Auth, Lucia, or Cloudflare Access
+     - **Queue / Cron:** Cloudflare Queues, Cron Triggers
+     - **Config files to generate:** `wrangler.toml`, `.dev.vars` (local env), `compatibility_flags`
+     - **Search:** `cloudflare workers <framework> 2025` during research phase
 
 3. **Database** (single_select, only if Database selected):
    - Example: `PostgreSQL + Prisma`, `Supabase`, `MongoDB`, `SQLite`
+   - Example (Cloudflare): `Cloudflare D1 + Drizzle`, `Turso (libSQL) + Drizzle`, `Supabase`, `Other`
+   - Note: If deploy target is Cloudflare Workers/Pages, strongly recommend D1 or Turso —
+     traditional PostgreSQL requires an external connection (Neon, Supabase) since Workers
+     can't hold persistent TCP connections. D1 is zero-config and co-located at the edge.
 
 **ask_user_input call 2 (JS/TS projects only):**
 
@@ -161,6 +184,7 @@ Use `ask_user_input` with options tailored by research. No generic lists.
      - CLI / Package: `npm registry`, `PyPI`, `Homebrew`, `GitHub Releases`
    - **Example combos by project type:**
      - Next.js SaaS: `Vercel`, `Cloudflare Pages`, `VPS (Hetzner/DO)`, `Other`
+     - Full-stack (Cloudflare): `Cloudflare Pages + Workers + D1`, `Cloudflare Workers (Hono)`, `Other`
      - API / Backend: `Railway`, `Fly.io`, `VPS (Hetzner/DO)`, `Other`
      - Full-stack (Docker): `Fly.io`, `VPS (Hetzner/DO)`, `AWS ECS`, `Other`
      - Static site / JAMstack: `Cloudflare Pages`, `Vercel`, `Netlify`, `Other`
@@ -200,6 +224,29 @@ Use `ask_user_input` with options tailored by research. No generic lists.
    - This determines: how many env files to generate (.env.development, .env.staging, .env.production),
      what CI/CD pipelines to set up, and how EAS build profiles are named (for mobile)
 
+### Reference injection based on Step 4 answers
+
+After completing all ask_user_input calls in Step 4, load the relevant platform references
+**before** generating the PRD or any scaffold:
+
+```
+If project uses authentication (any user login, OAuth, sessions, API keys):
+  → Read references/skill-auth.md NOW and keep it active through Phase 3.
+  → This determines: auth library choice, session strategy, OAuth provider setup,
+    DB schema for user/session/account tables, and env vars for secrets.
+
+If project runtime is NOT Node/JS/TS (i.e. Python, Go, Rust, or mixed-language monorepo):
+  → Read references/harness-native.md for the shell CLI implementation.
+  → Phase 3 generates scripts/harness.sh instead of scripts/harness.ts.
+  → Phase 3 also generates a Makefile with validate, done, next, block targets.
+  → NOTE: harness-native.md does not cover worktree management or plan:apply —
+    those steps require a human operator during multi-milestone work.
+
+If project runtime IS Node/JS/TS (or a monorepo with a Node root):
+  → The default TypeScript CLI applies. Read references/harness-cli.md during Phase 3.
+  → All worktree, plan:apply, scaffold, and merge-gate commands are available.
+```
+
 ---
 
 ### Handling "Other" Selections
@@ -209,7 +256,7 @@ Use `ask_user_input` with options tailored by research. No generic lists.
 > know you want to use."
 
 Then do a **targeted web search** for that stack:
-1. Search: `<user's stack> production best practices 2024`
+1. Search: `<user's stack> production best practices <current year>`
 2. Search: `<user's stack> project structure`
 3. Check if the stack suits the project type. If it's a mismatch (e.g., user says
    "Django" for a real-time mobile app), say so directly:
@@ -225,7 +272,7 @@ Then do a **targeted web search** for that stack:
 > you already have or prefer."
 
 Then do a **targeted web search**:
-1. Search: `<user's platform> deploy <framework> 2024`
+1. Search: `<user's platform> deploy <framework> <current year>`
 2. Search: `<user's platform> CI CD setup`
 3. Generate the appropriate platform config file (or note if one isn't needed).
    If the platform is unusual or undocumented, document the deploy steps in
@@ -335,7 +382,22 @@ Populate actual NFRs based on project discovery. The above are COMMON defaults f
 | NFR-002 | Performance | Tool response time | < 5s for most tools, timeout after 30s | Must |
 | NFR-003 | Security | Input validation | All tool inputs validated against JSON Schema | Must |
 | NFR-004 | Observability | Structured logging | JSON logs with tool name, duration, success/failure | Must |
-| NFR-005 | Monitoring | Error tracking | Sentry integrated | Should |
+| NFR-005 | Discoverability | SKILL.md | SKILL.md at project root, all tools documented | Must |
+| NFR-006 | Discoverability | API reference | docs/api-reference.md with full JSON Schemas per tool | Must |
+| NFR-007 | Observability | Tool metrics | Call count, latency, error rate per tool (`scaffold agent-observe`) | Should |
+| NFR-008 | Security | Auth + rate limit | Bearer token auth + per-key rate limit on remote SSE | Must (if remote) |
+| NFR-009 | Compatibility | Dual transport | stdio (local) + SSE (remote) transports | Should |
+| NFR-010 | Discoverability | A2A Agent Card | `/.well-known/agent.json` for agent-to-agent discovery | Should |
+| NFR-011 | Discoverability | llms.txt | llms.txt (llmstxt.org) indexes project for LLMs | Should |
+| NFR-012 | Quality | Protocol compliance tests | Full MCP lifecycle tested: initialize → list → call → error | Must |
+| NFR-013 | Quality | Schema drift CI | CI detects SKILL.md vs code tool mismatch, fails build | Should |
+| NFR-014 | Compatibility | Tool versioning | Breaking changes = new tool name, deprecation window ≥ 4 weeks | Should |
+| NFR-015 | Reliability | Long-running tasks | Webhook callback for tools > 30s, poll-able task status | Should (if applicable) |
+| NFR-016 | Discoverability | MCP Prompts | Pre-built prompt templates for complex tool usage patterns | Could |
+| NFR-017 | Observability | Cost tracking | Per-call cost estimation + audit log for paid external APIs | Should (if paid APIs) |
+| NFR-018 | Monetization | Payment layer | x402 (per-request micropayments) and/or Stripe metered billing | Could |
+| NFR-019 | Compatibility | Multi-agent client | Can discover + call remote agents via A2A/MCP with retry | Could |
+| NFR-020 | Monitoring | Error tracking | Sentry integrated | Should |
 
 **Desktop App defaults:**
 | ID | Category | Requirement | Metric | Priority |
@@ -453,6 +515,68 @@ Incorporate all feedback. Then ask explicitly:
 Do not auto-proceed. Phase 3 generates a lot of files — the user must consciously
 sign off on the plan before the agent starts building.
 
+### Phase 2.5: Convert PRD Epics → Initial PLAN.md (runs before Phase 3 scaffold)
+
+This is the bridge from PRD to execution. Before generating any project files, convert
+the PRD's Epic/Story breakdown into a harness-format plan file that will seed PLAN.md.
+
+**Step 1 — Map Epics → Milestones, Stories → Tasks:**
+
+For each Epic in PRD §9 (Epics & Stories Breakdown):
+- One Epic = one Milestone block
+- Each Story in the epic becomes one or more task rows
+- Story estimate S → 1 task, M → 2–3 tasks, L → 4–6 tasks, XL → split into a new epic
+- Task names must be imperative verbs: "Create user model", "Add signup endpoint"
+- "Done When" column comes directly from the Story's acceptance criteria
+
+**Step 2 — Write `docs/exec-plans/active/001-initial-setup.md`** using this format:
+
+```markdown
+### M1: <Epic name>
+**Status:** ⬜ Not Started
+**Branch:** milestone/m1
+**Depends on:** none
+
+| Task ID | Story | Task | Done When | Status | Commit |
+|---------|-------|------|-----------|--------|--------|
+| M1-001  | E1-S01 | Create user model + migration | User table exists in DB, migration runs | ⬜ | — |
+| M1-002  | E1-S01 | Add email uniqueness constraint | Duplicate email returns 409 | ⬜ | — |
+| M1-003  | E1-S02 | Implement signup endpoint | POST /auth/signup creates user, returns 201 | ⬜ | — |
+
+### M2: <Next epic name>
+**Status:** ⬜ Not Started
+**Branch:** milestone/m2
+**Depends on:** M1
+...
+```
+
+Rules:
+- Milestone IDs are sequential: M1, M2, M3…
+- Each task ID is `M<n>-<3-digit-seq>`: M1-001, M1-002…
+- `Depends on:` lists the milestone ID(s) that must merge before this one can start.
+  Wire them to mirror PRD epic dependencies, or mark `none` for the first milestone.
+- Do NOT put design or documentation tasks in milestones — those happen continuously.
+  Exception: if the PRD explicitly scopes docs as a deliverable (e.g. API reference site).
+
+**Step 3 — Apply the plan to PLAN.md:**
+
+This is the ONLY way to populate PLAN.md. Do not write to PLAN.md directly.
+Instruct the user to run the following command after they copy the generated files:
+
+```bash
+<pkg-mgr> run harness plan:apply docs/exec-plans/active/001-initial-setup.md
+```
+
+`plan:apply` parses the exec-plan file, renumbers milestones to avoid collisions, inserts
+them into `docs/PLAN.md`, updates `docs/progress.json` (active_milestones + dependency_graph),
+and records the file in `synced_plans` to prevent duplicate application.
+
+**If the project uses a non-Node runtime (Python / Go / Rust):**
+The CLI is not available during bootstrap. Instead, the plan file content is appended
+directly into `docs/PLAN.md` under `## Milestones` during Phase 3 scaffold generation.
+The agent running inside the project will run `make plan-apply FILE=...` if the Makefile
+supports it, or manually sync `progress.json` on first `make init`.
+
 ---
 
 ## Phase 3: Generate Project Artifacts
@@ -470,6 +594,9 @@ sign off on the plan before the agent starts building.
 │   ├── progress.json            ← machine-readable cross-session state
 │   ├── learnings.md             ← agent learnings log (human-readable)
 │   ├── frontend-design.md       ← frontend design skill (read before any UI work)
+│   ├── memory/                  ← persistent agent memory (OpenClaw-inspired)
+│   │   ├── MEMORY.md            ← curated long-term memory (decisions, patterns, gotchas)
+│   │   └── .gitkeep             ← daily logs (YYYY-MM-DD.md) created per session
 │   ├── design-docs/
 │   │   └── .gitkeep
 │   ├── exec-plans/
@@ -588,11 +715,13 @@ sign off on the plan before the agent starts building.
 **Monorepo generation rules:**
 - Pre-populate `apps/` and `packages/` based on the user's answer to the follow-up question.
   Only generate the packages they mentioned — don't invent extra ones.
-- Each workspace package gets its own `package.json` with a scoped name:
+- Each JS/TS workspace package gets its own `package.json` with a scoped name:
   `@<project-name>/web`, `@<project-name>/api`, `@<project-name>/ui`, etc.
 - Root `package.json` must have `"private": true` and workspace scripts
   (e.g. `"build": "pnpm -r build"` or `"build": "turbo build"`).
-- `pnpm-workspace.yaml` always includes both `apps/*` and `packages/*`.
+- For JS/TS-only monorepos, `pnpm-workspace.yaml` includes both `apps/*` and `packages/*`.
+  For mixed-language monorepos, list only Node-managed workspaces there and keep Python / Go /
+  Rust packages on their native manifests and workspace files.
 - Add `turbo.json` only if the user's project has 3+ workspaces or mentions CI performance.
   Otherwise keep it simple with `pnpm -r` scripts.
 - `harness.ts` at the root runs validate across ALL workspaces in sequence.
@@ -605,13 +734,130 @@ sign off on the plan before the agent starts building.
   - Breaking changes to a `packages/` entry require updating all consumers in the same PR
   - New feature area → new workspace under `apps/` or `packages/` (don't bloat existing ones)
 
+**Mixed-language monorepo rules:**
+- Keep one harness runtime at the repo root, but let each non-JS app own its native toolchain:
+  `pyproject.toml`, `go.mod` / `go.work`, or `Cargo.toml`.
+- Add a root `Makefile` or `justfile` as the cross-language operator interface for
+  `install`, `validate`, `test`, and `dev`. Do not pretend `pnpm` can orchestrate Python / Go /
+  Rust by itself.
+- Put cross-language contracts in a neutral package such as `packages/contracts/` using
+  OpenAPI, JSON Schema, SQL migrations, or protobuf. Do not share source files directly across
+  languages.
+- In AGENTS.md / CLAUDE.md, spell out the per-app validate commands explicitly:
+  `pnpm --dir apps/web test`, `uv run pytest`, `go test ./...`, `cargo test`, etc.
+
+**Example mixed-language monorepo (TS frontend + Python backend):**
+
+```
+<project-name>/
+├── AGENTS.md
+├── CLAUDE.md
+├── docs/
+├── apps/
+│   ├── web/
+│   │   ├── package.json
+│   │   └── src/
+│   └── api/
+│       ├── pyproject.toml
+│       ├── src/
+│       └── tests/
+├── packages/
+│   └── contracts/
+│       ├── openapi.yaml
+│       └── schemas/
+├── scripts/
+│   ├── harness.ts
+│   └── harness/
+├── package.json              ← root Node tooling + harness runtime only
+├── pnpm-workspace.yaml       ← includes apps/web and JS packages only
+├── Makefile                  ← install / validate / test across all languages
+└── README.md
+```
+
 ---
 
 ### Project-Type-Specific Scaffolds
 
 The file structure above is the **Web App default**. For other project types, replace
 the `src/` layout and adjust which files are generated. The harness layer (docs/, scripts/,
-schemas/, .husky/, .claude/, .codex/) stays identical for every project type.
+schemas/, .claude/, .codex/) stays identical for every project type. The git hook setup
+varies by runtime: `.husky/` for Node/TS projects, `.pre-commit-config.yaml` for Python/Go,
+`.githooks/` for Rust (see `references/harness-native.md` for non-Node details).
+
+### API Style Scaffold Differences (Web App + Backend)
+
+The `src/` layout changes based on the API style chosen in Phase 2:
+
+**REST API (Express / Fastify / Hono):**
+```
+src/
+├── routes/                ← one file per resource (users.ts, posts.ts)
+│   └── index.ts           ← route registry
+├── controllers/           ← request → validate → service → response
+├── services/              ← business logic (framework-agnostic)
+├── models/                ← DB models / Prisma schema re-exports
+├── middleware/             ← auth, error handler, rate limiter, security headers
+├── validators/            ← zod / joi schemas for request bodies
+└── lib/                   ← logger, errors, env, config
+```
+Generate: `validators/` with zod schemas matching each route's request/response.
+Generate: OpenAPI spec (`docs/openapi.yaml`) — auto-generate from zod using `zod-to-openapi`
+or hand-write. The AGENTS.md should point to this file for API reference.
+
+**tRPC (Next.js / standalone):**
+```
+src/
+├── server/
+│   ├── routers/           ← one file per domain (users.ts, posts.ts)
+│   │   └── index.ts       ← root router (mergeRouters)
+│   ├── procedures/        ← shared procedure builders (public, authed, admin)
+│   ├── context.ts         ← request context (session, DB)
+│   └── trpc.ts            ← initTRPC + middleware
+├── client/                ← tRPC client hooks (if separate frontend)
+│   └── trpc.ts
+└── lib/                   ← logger, errors, env, config
+```
+Key: input/output schemas use zod — co-located with each router file.
+No `controllers/` or `validators/` — tRPC handles both via procedure definitions.
+No OpenAPI spec needed (unless exposing a public API — then use `trpc-openapi`).
+
+**GraphQL (Apollo / Yoga / Pothos):**
+```
+src/
+├── schema/
+│   ├── types/             ← one file per type (User.ts, Post.ts)
+│   │   └── index.ts       ← merged type defs
+│   ├── resolvers/         ← one file per type (users.ts, posts.ts)
+│   │   └── index.ts       ← merged resolvers
+│   ├── inputs/            ← input types + validation
+│   └── schema.ts          ← buildSchema / makeExecutableSchema
+├── services/              ← business logic (shared with resolvers)
+├── context.ts             ← request context (session, dataloaders)
+├── middleware/             ← auth, error formatting
+└── lib/                   ← logger, errors, env, config
+```
+Generate: `codegen.ts` for TypeScript type generation from schema (if schema-first).
+Recommend Pothos for code-first (TypeScript-native) or schema-first with `graphql-codegen`.
+Warn: N+1 queries — always use DataLoader pattern for relational data.
+
+**No separate API (Next.js API routes / Remix loaders):**
+```
+src/app/
+├── api/                   ← Next.js route handlers
+│   ├── users/
+│   │   └── route.ts       ← GET, POST handlers
+│   └── auth/
+│       └── [...all]/
+│           └── route.ts
+├── (pages)/               ← page components with server actions
+└── lib/                   ← server-only utilities, DB client
+```
+No separate backend — server logic lives in API routes and server actions.
+Validation: zod schemas in `src/lib/validators/` shared between client and server.
+
+For any **Desktop App**, read `references/skill-desktop.md` before generating files.
+The layouts below are only the canonical tree shape; the desktop reference contains the
+security, IPC/command, updater, and packaging rules.
 
 **If CLI Tool:**
 
@@ -662,31 +908,52 @@ Additional files for CLI projects:
 **If Agent Tool / MCP Server:**
 
 ```
-src/
-├── server.ts              ← MCP server entry point (stdio or SSE transport)
-├── tools/                 ← one file per tool
-│   ├── index.ts           ← tool registry
-│   ├── search.ts          ← example: search tool
-│   └── create.ts          ← example: create tool
-├── resources/             ← MCP resources (if applicable)
-│   └── index.ts
-├── prompts/               ← MCP prompt templates (if applicable)
-│   └── index.ts
-├── lib/                   ← shared utilities
-│   ├── errors.ts
-│   ├── logger.ts
-│   ├── config.ts
-│   └── api-client.ts      ← external API client (if tool calls external services)
-└── index.ts               ← entry point: start server
+<project-name>/
+├── SKILL.md               ← Agent discovery file — how LLMs find and use this tool
+├── AGENTS.md + CLAUDE.md  ← Developer agent instructions (same as other project types)
+├── src/
+│   ├── server.ts              ← MCP server entry point (stdio or SSE transport)
+│   ├── tools/                 ← one file per tool
+│   │   ├── index.ts           ← tool registry
+│   │   ├── search.ts          ← example: search tool
+│   │   └── create.ts          ← example: create tool
+│   ├── resources/             ← MCP resources (if applicable)
+│   │   └── index.ts
+│   ├── prompts/               ← MCP prompt templates (if applicable)
+│   │   └── index.ts
+│   ├── lib/                   ← shared utilities
+│   │   ├── errors.ts
+│   │   ├── logger.ts
+│   │   ├── config.ts
+│   │   └── api-client.ts      ← external API client (if tool calls external services)
+│   └── index.ts               ← entry point: start server
+├── docs/
+│   ├── PRD.md
+│   ├── PLAN.md
+│   └── api-reference.md       ← Tool schemas, input/output examples, error codes
+├── tests/
+│   ├── tools/                 ← one test file per tool
+│   └── integration/           ← MCP protocol lifecycle tests
+├── scripts/
+│   └── harness.ts + harness/  ← harness CLI (same as other project types)
+└── schemas/
+    └── progress.schema.json
 ```
 
 Additional files for MCP/Agent projects:
+- `SKILL.md`: **Always generate this.** It's the discovery file — tells agents what this
+  tool does, what tools are available, how to connect, and what inputs/outputs to expect.
+  See SKILL.md template in `skill-artifacts.md`.
 - `package.json`: `"type": "module"`, `"bin": { "<server-name>": "./dist/index.js" }`
-- Transport config: stdio (default for Claude Desktop) or SSE (for web integrations)
+- Transport config: stdio (default for Claude Desktop) or SSE (for web integrations / claude.ai)
+- `docs/api-reference.md`: Auto-generated or hand-written tool reference with JSON Schema
+  for every tool — this is what the SKILL.md points to for detailed specs
 - **No frontend-design.md** — no UI
 - **No middleware/** — MCP servers don't use HTTP middleware
 - If deploying as Docker: include Dockerfile + compose for self-hosting
 - If publishing to npm: include `bin` field for `npx <server-name>` usage
+- If deploying as remote SSE server (e.g. for claude.ai connectors): include SSE transport
+  setup, CORS config, health endpoint at `/health`, and connection URL in SKILL.md
 
 ```json
 // Example MCP server package.json:
@@ -748,18 +1015,22 @@ Desktop notes:
 - **Include frontend-design.md** — desktops have UI
 - Electron: `electron-builder` or `electron-forge` for packaging
 - Tauri: `tauri build` for packaging
-- Run web search for latest `<Electron|Tauri> project structure best practices`
-  before generating scaffold — these frameworks evolve quickly
+- Use `references/skill-desktop.md` as the default source of truth
+- Only run targeted web search for release-signing, updater, notarization, or version-specific
+  plugin/build details that are not already covered there
 
 **If Python project (CLI or API):**
 
 ```
+pyproject.toml
+uv.lock
+Makefile
 src/
 ├── <package_name>/
 │   ├── __init__.py
 │   ├── cli.py             ← entry point (click/typer)
-│   ├── commands/           ← one file per command group
-│   ├── lib/                ← shared utilities
+│   ├── commands/          ← one file per command group
+│   ├── lib/               ← shared utilities
 │   └── config.py
 tests/
 ├── unit/
@@ -768,16 +1039,22 @@ tests/
 ```
 
 Python notes:
-- Use `pyproject.toml` for all config (ruff, mypy, pytest, build — see project-configs.md)
-- **Harness CLI**: the harness scripts are still TypeScript — add `tsx` + `node` as dev
-  dependency via `pip install nodeenv` or require Node.js installed. Alternative: generate
-  a `scripts/harness.py` equivalent (simplified — init, validate, status only) and use
-  `Makefile` targets as the primary interface: `make validate`, `make test`, `make harness-next`
+- Use `pyproject.toml` for project metadata, build backend, Ruff, mypy, pytest, and
+  CLI entrypoints (see `project-configs.md`)
+- Default package manager: `uv` unless the user already standardized on Poetry or PDM
+- **Harness CLI decision:** If Node.js is available (recommended), use the TypeScript CLI
+  as-is — it manages docs and git workflow without needing to understand Python source.
+  If the user explicitly refuses Node.js, use `references/harness-native.md` to generate
+  `scripts/harness.sh` (shell-based CLI) + `.pre-commit-config.yaml` (replaces husky).
+  Note the feature tradeoffs in AGENTS.md / CLAUDE.md.
 - `Makefile` replaces `package.json scripts` as the command interface
 
 **If Go project:**
 
 ```
+go.mod / go.work
+Makefile
+.golangci.yml
 cmd/
 ├── <app-name>/
 │   └── main.go            ← entry point
@@ -794,9 +1071,84 @@ tests/
 Go notes:
 - Use `golangci-lint` for linting (see project-configs.md)
 - Use `go test ./...` for testing
-- **Harness CLI**: same as Python — either require Node.js for tsx, or generate a
-  simplified `scripts/harness.sh` bash wrapper, or use Makefile targets
+- Use `go.work` when the repo has multiple Go modules or the Go service lives inside a larger
+  monorepo. Use a single root `go.mod` for standalone Go projects.
+- **Harness CLI decision:** same as Python — use TypeScript CLI with Node.js (recommended),
+  or `references/harness-native.md` for the shell-based alternative if Node.js is unwanted.
 - Dockerfile: `FROM golang:1.22-alpine AS build` → `FROM alpine:3.19` (multi-stage)
 
 ---
 
+**If Rust project (CLI or service):**
+
+```
+Cargo.toml
+Cargo.lock
+clippy.toml
+Makefile
+src/
+├── main.rs                ← binary entry point
+├── lib.rs                 ← optional shared library surface
+└── commands/              ← clap commands or service modules
+crates/                    ← optional workspace members for larger projects
+tests/
+└── integration/
+```
+
+Rust notes:
+- Use a root Cargo workspace when the project has multiple crates or lives inside a larger
+  monorepo. Keep shared versions and common dependencies in `[workspace.dependencies]`.
+- Generate `clippy.toml`, run `cargo fmt`, `cargo clippy -- -D warnings`, and `cargo test`
+  through the root `Makefile`.
+- For CLI binaries, default to `clap` derive APIs. For services, keep HTTP/runtime setup in
+  `src/main.rs` and domain logic in library crates or modules.
+- **Harness CLI decision:** same as Python/Go — use TypeScript CLI with Node.js (recommended),
+  or `references/harness-native.md` for the shell-based alternative. Rust projects use
+  `.githooks/` instead of pre-commit framework (see harness-native.md).
+- If the project is `Tauri`, the Rust side already lives under `src-tauri/`; still apply the
+  same lint, test, and workspace rules.
+
+---
+
+### Phase 3 Exit Gate — Pre-flight Checklist
+
+**Do not hand off to Phase 4 or load `skill-execution.md` until this checklist is complete.**
+
+Required artifacts:
+
+- `AGENTS.md` and `CLAUDE.md` both exist and are byte-for-byte identical
+- `ARCHITECTURE.md`, `docs/PRD.md`, `docs/PLAN.md`, `docs/progress.json`, and
+  `docs/learnings.md` exist
+- `schemas/progress.schema.json` exists and matches the generated `progress.json` shape
+- CLI entry point exists for the chosen runtime:
+  - **Node/TS:** `scripts/harness.ts` and all referenced `scripts/harness/` modules
+  - **Non-Node (native):** `scripts/harness.sh` (executable) and `Makefile` with `validate` target
+- Stack-native manifests exist for the chosen runtime:
+  `package.json`, `pyproject.toml`, `go.mod` / `go.work`, `Cargo.toml`, `tauri.conf.json`, etc.
+- The generated test layout exists: at minimum `tests/unit/`, plus integration/e2e folders when
+  the stack uses them
+- `.claude/settings.json`, `.codex/config.toml`, `.gitignore`, and `.env.example` are present
+- Git hook setup is present for the chosen runtime:
+  - **Node/TS projects:** `.husky/` with `pre-commit`, `commit-msg`, `pre-push` hooks
+  - **Non-Node projects (native CLI):** `.pre-commit-config.yaml` (Python/Go) or `.githooks/`
+    (Rust) as specified in `harness-native.md` — `.husky/` is NOT required and must NOT
+    be listed as missing for these projects
+
+Required consistency checks:
+
+- `PLAN.md` task IDs match the dependency graph and active milestone state in `progress.json`
+- Every task marked available in `progress.json` actually exists in `PLAN.md`
+- `progress.schema.json` includes every required field written by the scaffold
+- The quick-start commands in `AGENTS.md` / `CLAUDE.md` match the actual package manager and
+  runtime chosen in Phase 1
+- Desktop projects include the shell-specific files from `skill-desktop.md`
+- Mixed-language monorepos include the root orchestration file (`Makefile` or `justfile`) plus
+  native manifests in each app
+- Non-Node projects using the native CLI: `scripts/harness.sh` exists and is executable,
+  `Makefile` has a `validate` target, `.pre-commit-config.yaml` or `.githooks/` is set up,
+  and `.claude/settings.json` uses `Bash(bash scripts/harness.sh *)` instead of
+  `Bash(npx tsx scripts/harness.ts *)`
+
+If any artifact is missing, repair it in **Phase 3**. Do not defer missing files to execution.
+Phase 4 assumes the scaffold is internally consistent; a missing file such as
+`schemas/progress.schema.json` or a broken task graph is a scaffold bug, not an execution task.
