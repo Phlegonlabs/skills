@@ -1,6 +1,5 @@
 ---
 name: harness-engineer-cli
-version: 2026.03.10
 description: >
   Bootstrap a complete agent-first project OR retrofit an existing project with the harness
   framework — AGENTS.md, CLAUDE.md, execution plans, PRD, and automation scripts, all based
@@ -29,6 +28,44 @@ pointing to deeper sources of truth. All project knowledge lives in the repo as 
 discoverable artifacts — because if an agent can't see it, it doesn't exist.
 Generated `AGENTS.md` / `CLAUDE.md` always include fixed `Interaction Rules` and fixed
 `Iron Rules`; project-specific sections fill in the rest.
+
+---
+
+## Discovery Gate
+
+Treat the initial questioning flow as a **blocking gate**, not a courtesy. When this skill
+triggers, override any default "start implementing immediately" bias until the mode-specific
+intake is complete.
+
+- **Greenfield:** Do NOT create files, scaffolds, commands, plans, or architecture docs before
+  completing Phase 1 in `references/skill-greenfield.md`. If the user already gave some of the
+  answers, restate them briefly and ask only for the missing pieces.
+- **Retrofit:** Do NOT write the harness layer until Retrofit Step 1 has inspected the repo and
+  collected the missing context needed to describe the existing system accurately.
+- **No structured prompt tool:** If `ask_user_input` is unavailable, ask the prose equivalent in
+  short batches. Do NOT silently skip the questions just because the runtime is a plain terminal.
+- **Conversation shape:** Ask 1 structured prompt or 1-3 prose questions at a time, wait for the
+  answer, then continue. For Web / Mobile / Desktop projects, ask UI decisions one by one after
+  the frontend direction is set so the user can react to each visual choice separately. Do NOT
+  collapse the rest of discovery into one giant questionnaire unless the user explicitly asks for
+  that format.
+- **Structured prompt style:** When using `ask_user_input`, lead with one short PM-style sentence
+  in prose, then ask only 2-3 curated options per question. Treat longer option inventories as
+  internal candidate pools to narrow from, not as menus to dump onto the user.
+- **Greenfield cadence:** For new projects, start with the project name and short introduction,
+  do an early research pass, ask the PM-style follow-up questions, do a second targeted research
+  pass, summarize your recommendations, and only then move into stack-choice prompts.
+- **Frontend-first sequencing:** For Web / Mobile / Desktop projects, ask about the frontend
+  direction first, then ask the UI brief one decision at a time, and only after that move into backend / API /
+  database / deploy detail. Do NOT dump the whole architecture questionnaire in one turn.
+- **Framework neutrality:** Do NOT silently default web projects to `Next.js`. Treat it as one
+  option among several valid web stacks, and only choose it when the user explicitly asks for it
+  or the discovered constraints make it the best fit.
+- **Before generation:** Summarize the captured brief and remaining assumptions before moving into
+  PRD or scaffold generation. If a critical assumption is still open, ask instead of guessing.
+
+Mode selection only chooses the intake path. It does **not** authorize scaffold generation by
+itself.
 
 ---
 

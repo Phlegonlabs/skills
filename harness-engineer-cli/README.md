@@ -278,8 +278,10 @@ pwsh scripts/bump-version.ps1 -Version 2026.03.11  # explicit version
 This updates:
 
 - `VERSION`
-- `SKILL.md` (frontmatter `version`)
 - `README.md` (`Skill version`)
+
+If a legacy `version:` line still exists in `SKILL.md` frontmatter, the script removes it
+as part of the bump.
 
 ## Self-Iteration + Self-Correction
 

@@ -36,43 +36,68 @@ $nextVersion = if ($Version) {
   $nextDate.ToString('yyyy.MM.dd')
 }
 
-if ($currentVersion -eq $nextVersion) {
-  Write-Host "No-op: VERSION is already $currentVersion"
-  return
+$versionUpdated = $currentVersion -ne $nextVersion
+if ($versionUpdated) {
+  Set-Content -Path $versionPath -Value $nextVersion -Encoding utf8
 }
-
-Set-Content -Path $versionPath -Value $nextVersion -Encoding utf8
 
 $skillContent = Get-Content $skillPath -Raw
-$updatedSkill = [regex]::Replace($skillContent, '(?m)^version:\s*.*$', "version: $nextVersion")
-if ($updatedSkill -eq $skillContent) {
-  throw "Failed to update SKILL.md version line"
+$updatedSkill = [regex]::Replace($skillContent, '(?m)^version:\s*.*\r?\n', '')
+$skillUpdated = $updatedSkill -ne $skillContent
+if ($skillUpdated) {
+  Set-Content -Path $skillPath -Value $updatedSkill -Encoding utf8
 }
-Set-Content -Path $skillPath -Value $updatedSkill -Encoding utf8
 
 $readmeContent = Get-Content $readmePath -Raw
 $backtick = '`'
 $replacement = "Skill version: $backtick$nextVersion$backtick"
+$readmeVersionMatch = [regex]::Match($readmeContent, '(?m)^Skill version:\s*`[^`]*`$')
+if (-not $readmeVersionMatch.Success) {
+  throw "Failed to find README.md Skill version line"
+}
 $updatedReadme = [regex]::Replace(
   $readmeContent,
   '(?m)^Skill version:\s*`[^`]*`$',
   $replacement
 )
-if ($updatedReadme -eq $readmeContent) {
-  throw "Failed to update README version line"
+$readmeUpdated = $updatedReadme -ne $readmeContent
+if ($readmeUpdated) {
+  Set-Content -Path $readmePath -Value $updatedReadme -Encoding utf8
 }
-Set-Content -Path $readmePath -Value $updatedReadme -Encoding utf8
+
+$updatedFiles = [System.Collections.Generic.List[string]]::new()
+if ($versionUpdated) {
+  $updatedFiles.Add('VERSION') | Out-Null
+}
+if ($skillUpdated) {
+  $updatedFiles.Add('SKILL.md (removed legacy frontmatter version)') | Out-Null
+}
+if ($readmeUpdated) {
+  $updatedFiles.Add('README.md') | Out-Null
+}
+
+if ($updatedFiles.Count -eq 0) {
+  Write-Host "No-op: VERSION is already $currentVersion and no legacy version metadata needed cleanup"
+  return
+}
 
 # Append audit entry
 $auditFile = Join-Path $PSScriptRoot ".." "SKILL-AUDIT.md"
 if (Test-Path $auditFile) {
     $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm"
-    $auditEntry = "`n---`n`n## $timestamp — bump-version`n`n- **Action:** Version bump`n- **Previous version:** $currentVersion`n- **New version:** $nextVersion`n- **Changed files:** VERSION, SKILL.md, README.md`n"
+    $changedFiles = ($updatedFiles -join ', ')
+    $auditEntry = "`n---`n`n## $timestamp — bump-version`n`n- **Action:** Version bump`n- **Previous version:** $currentVersion`n- **New version:** $nextVersion`n- **Changed files:** $changedFiles`n"
     Add-Content -Path $auditFile -Value $auditEntry
 }
 
 Write-Host "Version bump: $currentVersion -> $nextVersion"
 Write-Host "Updated:"
-Write-Host " - $versionPath"
-Write-Host " - $skillPath"
-Write-Host " - $readmePath"
+if ($versionUpdated) {
+  Write-Host " - $versionPath"
+}
+if ($skillUpdated) {
+  Write-Host " - $skillPath (removed legacy frontmatter version)"
+}
+if ($readmeUpdated) {
+  Write-Host " - $readmePath"
+}

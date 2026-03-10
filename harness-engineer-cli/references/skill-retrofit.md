@@ -6,6 +6,10 @@ let agents work autonomously on future tasks.
 
 ### Retrofit Step 1: Analyze the Existing Project
 
+Treat this intake as mandatory. Do NOT generate harness files until you have inspected the
+available repo context and asked the missing clarifying questions needed to describe the
+existing project correctly.
+
 Ask the user to upload or describe their project. Key files to request:
 
 - `package.json` / `pyproject.toml` / `go.mod` (to understand stack + deps)
@@ -20,11 +24,12 @@ If the user describes verbally, ask clarifying questions about:
 
 If your runtime does not provide `ask_user_input` (for example Codex in a plain terminal session),
 ask the same questions in prose and continue from the user's answers.
+Ask in short batches, not one giant form. If the repo already answers a question, skip it.
 
 **ask_user_input:**
 1. **Tech stack** (multi_select): What does this project use?
    - Adapt options based on what you can see from uploaded files
-   - Example: `TypeScript`, `React / Next.js`, `Node.js API`, `Python`, `Go`
+   - Example: `TypeScript`, `React`, `Next.js`, `Remix`, `Nuxt`, `Node.js API`, `Python`, `Go`
 
 2. **Package manager** (single_select, JS/TS only):
    - Options: `pnpm`, `bun`, `npm`

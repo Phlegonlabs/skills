@@ -78,24 +78,19 @@ if ($Version) {
 $skillContent = Get-Content $skillPath -Raw
 $readmeContent = Get-Content $readmePath -Raw
 
-$skillVersionMatch = [regex]::Match($skillContent, '(?m)^version:\s*(\S+)\s*$')
 $readmeVersionMatch = [regex]::Match($readmeContent, '(?m)^Skill version:\s*`([^`]+)`\s*$')
 
-if (-not $skillVersionMatch.Success) {
-  Add-Fail 'SKILL.md version field missing'
-} else {
-  $skillVersion = $skillVersionMatch.Groups[1].Value
-  if ($skillVersion -ne $version) {
-    if ($AutoFix) {
-      Ensure-VersionSync $version
-      Add-Pass "Synced SKILL.md and README.md version from VERSION"
-      $fixedItems.Add("SKILL.md / README.md version synced from VERSION")
-    } else {
-      Add-Fail "SKILL.md version mismatch: SKILL.md=$skillVersion, VERSION=$version"
-    }
+if ($skillContent -match '(?m)^version:\s*\S+\s*$') {
+  if ($AutoFix) {
+    Ensure-VersionSync $version
+    Add-Pass 'Removed legacy SKILL.md frontmatter version field'
+    $fixedItems.Add('SKILL.md — removed legacy frontmatter version field')
+    $skillContent = Get-Content $skillPath -Raw
   } else {
-    Add-Pass "SKILL.md version matches VERSION"
+    Add-Fail 'SKILL.md contains a legacy frontmatter version field'
   }
+} else {
+  Add-Pass 'SKILL.md has no legacy frontmatter version field'
 }
 
 if (-not $readmeVersionMatch.Success) {
@@ -106,7 +101,7 @@ if (-not $readmeVersionMatch.Success) {
     if ($AutoFix) {
       Ensure-VersionSync $version
       Add-Pass "Synced README.md version from VERSION"
-      $fixedItems.Add("SKILL.md / README.md version synced from VERSION")
+      $fixedItems.Add("README.md version synced from VERSION")
     } else {
       Add-Fail "README.md version mismatch: README.md=$readmeVersion, VERSION=$version"
     }
@@ -273,6 +268,86 @@ if ($skillDirect -and $artifactDirect -and $greenfieldDirect -and -not $artifact
   Add-Pass 'frontend-design fallback guidance is consistent across SKILL, artifacts, and greenfield exit gate'
 } else {
   Add-Fail 'frontend-design fallback guidance is inconsistent across SKILL/artifacts/greenfield'
+}
+
+$frameworkNeutralityChecks = @(
+  ($skillContent -match [regex]::Escape('Do NOT silently default web projects to `Next.js`')),
+  ($greenfieldContent -match [regex]::Escape('Do NOT default every Web App to `Next.js`.')),
+  ($greenfieldContent -match [regex]::Escape('compare at least 3 realistic candidates'))
+)
+if (($frameworkNeutralityChecks | Where-Object { -not $_ }).Count -eq 0) {
+  Add-Pass 'web stack selection is explicitly framework-neutral and not hardcoded to Next.js'
+} else {
+  Add-Fail 'web stack selection drifted back toward an implicit Next.js default'
+}
+
+$sequencingChecks = @(
+  ($skillContent -match [regex]::Escape('Frontend-first sequencing:')),
+  ($skillContent -match [regex]::Escape('ask UI decisions one by one')),
+  ($greenfieldContent -match [regex]::Escape('Never present all of Step 5 in one message.')),
+  ($greenfieldContent -match [regex]::Escape('the order is mandatory:')),
+  ($greenfieldContent -match [regex]::Escape('frontend shape (`Q1` + `Q2`)')),
+  ($greenfieldContent -match [regex]::Escape('UI brief (`Q11`–`Q16`, asked one by one)')),
+  ($greenfieldContent -match [regex]::Escape('Do NOT show the user the full numbered list up front.')),
+  ($greenfieldContent -match [regex]::Escape('before any')),
+  ($greenfieldContent -match [regex]::Escape('backend/database/deploy questions'))
+)
+if (($sequencingChecks | Where-Object { -not $_ }).Count -eq 0) {
+  Add-Pass 'greenfield questioning flow is staged and frontend-first instead of one giant questionnaire'
+} else {
+  Add-Fail 'greenfield questioning flow lost the staged frontend-first sequencing rule'
+}
+
+$discoveryCadenceChecks = @(
+  ($skillContent -match [regex]::Escape('Greenfield cadence:')),
+  ($greenfieldContent -match [regex]::Escape('Phase 1: Product Discovery (interactive — 5 steps)')),
+  ($greenfieldContent -match [regex]::Escape('### Step 1: Project Name + Intro')),
+  ($greenfieldContent -match [regex]::Escape('### Step 2: Research Pass 1 — Early Market Scan')),
+  ($greenfieldContent -match [regex]::Escape('### Step 3: Product Deep Dive')),
+  ($greenfieldContent -match [regex]::Escape('### Step 4: Research Pass 2 — Targeted Recommendations')),
+  ($greenfieldContent -match [regex]::Escape('### Step 5: Refine — Tech Stack Choices')),
+  ($greenfieldContent -match [regex]::Escape("First, what’s the project called, and how would you describe it in a few sentences?")),
+  ($greenfieldContent -match [regex]::Escape('run a quick first-pass web search before asking deeper PM questions')),
+  ($greenfieldContent -match [regex]::Escape('run a second, more targeted research pass')),
+  ($greenfieldContent -match [regex]::Escape('best options and why'))
+)
+if (($discoveryCadenceChecks | Where-Object { -not $_ }).Count -eq 0) {
+  Add-Pass 'greenfield discovery now follows name/introduction -> research -> PM deep dive -> targeted research -> recommendations'
+} else {
+  Add-Fail 'greenfield discovery cadence drifted away from the name/introduction first and two-pass research flow'
+}
+
+$structuredPromptChecks = @(
+  ($skillContent -match '2-3 curated options'),
+  ($greenfieldContent -match '2-3 curated options'),
+  ($greenfieldContent -match 'six sequential ask_user_input'),
+  ($greenfieldContent -match 'one UI decision at a time'),
+  ($greenfieldContent -match 'Project family'),
+  ($greenfieldContent -match 'Lead-in before `Q11`:'),
+  ($greenfieldContent -match 'Lead-in before `Q16`:')
+)
+if (($structuredPromptChecks | Where-Object { -not $_ }).Count -eq 0) {
+  Add-Pass 'structured prompts are now constrained to PM-style 2-3 option choices instead of long menus'
+} else {
+  Add-Fail 'structured prompt guidance drifted away from the 2-3 curated option PM-style format'
+}
+
+$suggestedOpenerCount = (Select-String -Path $greenfieldPath -Pattern 'Suggested opener:' -SimpleMatch | Measure-Object).Count
+$conversationStyleChecks = @(
+  ($greenfieldContent -match [regex]::Escape('Suggested conversational delivery:')),
+  ($greenfieldContent -match [regex]::Escape('Do NOT paste raw `Q1`–`Q17` numbering')),
+  ($greenfieldContent -match [regex]::Escape('Ask the UI brief one decision at a time.')),
+  ($greenfieldContent -match [regex]::Escape('Preferred prose sequence for plain terminal flows:')),
+  ($greenfieldContent -match [regex]::Escape('First UI question: do you want to lean on a component system like shadcn, Radix, MUI, Chakra, etc., or keep it mostly custom?')),
+  ($greenfieldContent -match [regex]::Escape('Sixth UI question: do you want light-first, dark-first, or both themes?')),
+  ($greenfieldContent -match [regex]::Escape('Sound like a product manager steering discovery, not a survey bot reading categories.')),
+  ($greenfieldContent -match [regex]::Escape('Your job here is to sound like a PM narrowing ambiguity: short follow-ups, clear reframing,')),
+  ($suggestedOpenerCount -ge 6)
+)
+if (($conversationStyleChecks | Where-Object { -not $_ }).Count -eq 0) {
+  Add-Pass 'greenfield step 5 includes concrete conversational phrasing instead of only abstract question labels'
+} else {
+  Add-Fail 'greenfield step 5 lost the concrete conversational phrasing examples'
 }
 
 $uiBriefChecks = @(
@@ -504,7 +579,8 @@ if (-not $hasScaffoldTodoLeak -and $hasNeutralScaffoldHint) {
 }
 
 $expoGreenfieldChecks = @(
-  '**Expo / React Native special case:** `bun (recommended)`, `yarn`, `npm`, `pnpm (only if the user explicitly accepts EAS monorepo caveats)`',
+  '**Expo / React Native special case:**',
+  'surface 2-3 choices from: `bun (recommended)`, `yarn`, `npm`, `pnpm (only if the user explicitly accepts EAS monorepo caveats)`',
   'If the selected frontend stack is Expo / React Native and the project is EAS-first or likely to become a monorepo, recommend `bun` or `yarn`.',
   'If monorepo and the selected stack is **Expo / React Native**: recommend `bun` or `yarn`'
 )

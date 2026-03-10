@@ -5,11 +5,12 @@ For new projects from scratch. Full product discovery → PRD → scaffold → e
 ### Greenfield Workflow Overview
 
 ```
-Phase 1: Product Discovery (interactive — 4 steps)
-  Step 1: Product Type + Vision → ask_user_input + open-ended prose
-  Step 2: Product Deep Dive → structured product review interview
-  Step 3: Research → web search for competitors, tech stacks, best practices
-  Step 4: Tech Stack Choices → ask_user_input informed by research
+Phase 1: Product Discovery (interactive — 5 steps)
+  Step 1: Project Name + Intro → ask for the project name and a short product intro
+  Step 2: Research Pass 1 → quick web scan to establish market/category context
+  Step 3: Product Deep Dive → PM-style follow-up interview based on the brief + pass 1
+  Step 4: Research Pass 2 → targeted web search + recommendation summary after the interview
+  Step 5: Tech Stack Choices → ask_user_input informed by both research passes
 
 Phase 2: Product Requirements Review (generate PRD)
   → FRs with acceptance criteria, NFRs, MoSCoW prioritization
@@ -54,32 +55,89 @@ Ongoing: Perpetual Development Loop
 
 ## Phase 1: Product Discovery (Interactive)
 
-### Step 1: Product Type + Vision
+Phase 1 is mandatory. Do NOT write repo files, generate scaffolds, emit setup commands, or draft
+the PRD/PLAN until this phase is complete. If the user already front-loaded part of the brief,
+confirm the known pieces and ask only for the missing ones.
+
+### Step 1: Project Name + Intro
+
+Start with the project name and a short introduction before anything else. Do NOT begin with
+stack questions or a category menu. The first user-facing turn in greenfield mode should feel
+like a PM asking for the product pitch, not a framework selector.
 
 Whenever this guide says `ask_user_input`, use it if your runtime supports structured prompts.
 If your runtime does not provide `ask_user_input` (for example Codex in a plain terminal session),
 ask the same question in normal prose and continue from the user's answer.
 
-Use `ask_user_input` for the product type, then ask an open-ended follow-up.
+Ask for the name and intro first. Only use `ask_user_input` to disambiguate the product family
+if the intro does not already make it obvious.
+Do NOT merge Step 1 and Step 3 into one mega-prompt; ask Step 1, wait, then move into research.
+Sound like a product manager steering discovery, not a survey bot reading categories.
 
-**ask_user_input:**
-1. **Project type** (single_select): What are you building?
-   - Options: `Web App`, `Mobile (Expo / React Native)`, `Desktop App`, `CLI Tool`, `Agent Tool / MCP Server`
+Suggested PM-style lead-in:
+> "First, what’s the project called, and how would you describe it in a few sentences? I want the name and the product pitch before I narrow anything else."
+
+Ask in prose first:
+> "What’s the project name, and how would you describe it in 2-4 sentences? If you already know whether this is a web app, mobile app, desktop app, CLI, or agent/MCP tool, include that too."
+
+Wait for the user's response. Extract:
+- project name
+- short product intro / positioning
+- any already-known product family or surface
+
+If the product family is already clear from the intro, skip the structured prompt entirely and
+proceed to Step 2. If it is still ambiguous, use the short disambiguation flow below.
+
+Suggested PM-style disambiguation lead-in:
+> "I have the name and the pitch. I just want to place it in the right product bucket before I do a quick market scan."
+
+**ask_user_input disambiguation flow (keep each question to 2-3 curated choices):**
+1. **Project family** (single_select): Which bucket is this closest to?
+   - Options: `UI product`, `Developer / CLI tool`, `Agent / MCP server`
+
+2. **UI surface** (single_select, only if `UI product` was selected): Which surface are we designing first?
+   - Options: `Web app`, `Mobile app`, `Desktop app`
+
+Mapping:
+- `UI product` + `Web app` → `Web App`
+- `UI product` + `Mobile app` → `Mobile (Expo / React Native)`
+- `UI product` + `Desktop app` → `Desktop App`
+- `Developer / CLI tool` → `CLI Tool`
+- `Agent / MCP server` → `Agent Tool / MCP Server`
 
 If **Mobile** is selected → read `references/skill-mobile.md` now before proceeding.
 If **Desktop App** is selected → read `references/skill-desktop.md` now before proceeding.
 
-**Then ask in prose (open-ended, do NOT use ask_user_input):**
-> "Tell me about this product — who is it for, what problem does it solve, and what does
-> success look like for the first version?"
+### Step 2: Research Pass 1 — Early Market Scan
 
-Wait for the user's response before proceeding.
+After Step 1, run a quick first-pass web search before asking deeper PM questions. The goal is
+not to lock the stack yet. The goal is to build context so the next questions are sharper.
 
-### Step 2: Product Deep Dive
+Run **2–4 web searches** based on the project name, product intro, and category. Search by:
+- the project name (if distinctive / already public)
+- the problem category (if the project is new and the name is not useful yet)
+- close competitors or analog products
+- language users use to describe this category
+
+Gather:
+- likely competitors / adjacent products
+- common expectations for a v1 in this category
+- obvious product patterns or positioning angles
+- any early red flags or over-saturated directions
+
+Then send a short recap in prose, for example:
+> "I did a quick first pass on the category so I’m not asking blind questions. Here’s what looks common, what seems differentiated, and what I want to clarify with you next."
+
+Do NOT jump into stack choices yet. Use this pass to improve the quality of Step 3.
+
+### Step 3: Product Deep Dive
 
 Based on the user's vision, conduct a structured product review interview. The goal is to
 extract enough information to write a rigorous PRD. Ask in prose — this is a conversation,
 not a form.
+Your job here is to sound like a PM narrowing ambiguity: short follow-ups, clear reframing,
+and only the next missing question.
+Use the output of Step 2 to ask sharper questions and reference relevant analogs when useful.
 
 Cover these areas (adapt based on what the user already told you — skip what's known):
 
@@ -105,6 +163,14 @@ Cover these areas (adapt based on what the user already told you — skip what's
 
 Don't ask all of these at once — have a natural conversation. Usually 2-3 exchanges
 cover everything. Extract what you can from earlier messages and only ask what's missing.
+If the brief is still underspecified, keep interviewing instead of skipping ahead to research
+or scaffold generation.
+
+Suggested PM-style follow-ups:
+- "Who is the first real user you care about here, and what’s the one thing they need to get done without friction?"
+- "If we cut this down to a believable v1, what would you refuse to launch without?"
+- "What’s the part you explicitly do not want me to design or build into v1 yet?"
+- "Are there any hard constraints I should treat as non-negotiable before I recommend stack or architecture?"
 
 **Page inventory (Web App / Mobile / Desktop only):**
 
@@ -132,42 +198,112 @@ This list drives Phase 3 scaffold and `docs/design.md` generation.
 > Skip this page inventory collection entirely for **CLI Tool** and **Agent/MCP Server**
 > project types.
 
-### Step 3: Research — Web Search
+### Step 4: Research Pass 2 — Targeted Recommendations
 
-Based on everything from Steps 1-2, run **2–5 web searches** to gather:
+After the user has answered the deep-dive questions and shared any page lists, materials, or
+constraints, run a second, more targeted research pass.
 
-- **Competitors / similar products**: What exists? What's their stack? What do users love/hate?
-- **Architecture patterns**: What's the proven approach for this type of product?
-- **Tech stack recommendations**: What's current, well-supported, and fits the constraints?
-- **Relevant APIs / services**: Auth, payments, hosting, etc.
+Run **2–5 web searches** to gather:
+- **Competitors / similar products**: What exists? What do users love/hate? What patterns repeat?
+- **Architecture patterns**: What is the proven approach for this refined product shape?
+- **Tech stack recommendations**: What is current, well-supported, and actually fits the constraints?
+- **Relevant APIs / services**: Auth, payments, search, analytics, hosting, edge services, etc.
 
-Synthesize into a brief conversational summary: what you found, common patterns, and
-your recommendations. This informs the user before they make tech stack decisions.
+Synthesize into a conversational recommendation summary. The output should sound like:
+- what looks promising now that the scope is clearer
+- what looks risky / overbuilt / unnecessary for v1
+- what stack or architecture directions now seem strongest
+- what you would recommend the user choose next
+
+This is the step where you tell the user, in plain language, "Given what you told me and what I
+found, here are the best options and why." Only after that move into structured choices.
 
 For **Desktop App** projects, `references/skill-desktop.md` is the primary reference.
 Use web search only for version-sensitive items such as packaging, updater/signing,
 notarization, or plugin-specific setup for the chosen desktop framework.
 
-### Step 4: Refine — Tech Stack Choices
+### Step 5: Refine — Tech Stack Choices
 
 Use `ask_user_input` with options tailored by research when available. If your runtime does
 not provide `ask_user_input`, ask the same questions in prose. No generic lists.
 
-**ask_user_input call 1 (adapt options to research results):**
+Global structured-prompt rule:
 
-1. **Tech layers** (multi_select): Which layers does this project need?
-   - Options: `Frontend`, `Backend / API`, `Database`, `CI/CD Pipeline`
+- Every `ask_user_input` question in Step 5 should expose only **2-3 curated options**.
+- Start each structured prompt with one short PM-style lead-in in prose.
+- If you have a larger internal option pool, narrow it first using the user's earlier answers
+  and research summary. Do NOT dump the whole pool into the prompt.
+- If the choice set is still too broad, ask a prose narrowing question first, then show the
+  final 2-3 options.
+
+Question delivery rule:
+
+- Never present all of Step 5 in one message.
+- Ask one stage, wait for the answer, summarize the decision, then ask the next stage.
+- For **Web App / Mobile / Desktop** projects, the order is mandatory:
+  1. frontend shape (`Q1` + `Q2`)
+  2. UI brief (`Q11`–`Q16`, asked one by one)
+  3. backend / API / database (`Q3` + targeted follow-ups)
+  4. package manager / monorepo (`Q4` + `Q5`)
+  5. deploy / CI / ops (`Q6`–`Q10`)
+  6. companion skill (`Q17`)
+- For **CLI Tool / Agent Tool / MCP Server** projects, skip the frontend/UI stages and start
+  with the backend/runtime stages.
+- Do NOT show the user the full numbered list up front. Use the numbering here as internal
+  structure for the skill, not as a form to paste verbatim.
+
+Suggested conversational delivery:
+
+- Start the frontend stage with natural prose, for example:
+  - "I’ll lock the frontend direction first. Is this more like a dashboard, a content-heavy site, or a product app shell?"
+  - "On the frontend, are you leaning toward something like Next.js / Remix / Nuxt / Vite, or do you want me to narrow the best 3 options for you?"
+- Move into the UI brief in the next turn, for example:
+  - "Before we touch backend choices, I want to lock the UI direction one decision at a time so we can react to each choice."
+  - "I’ll start with the component/style system, then layout, then references, then density and theme."
+- Only after that ask backend/data questions tied to the frontend answer, for example:
+  - "Given that frontend choice, do you want the backend inside the same app, a separate API, or a hosted backend like Supabase?"
+- Keep each stage to 1-3 questions/prompts. For the UI brief, ask one decision at a time and
+  summarize what is now fixed before moving to the next one.
+- Do NOT paste raw `Q1`–`Q17` numbering unless the user explicitly asks for the full checklist.
+
+Framework selection rule:
+
+- Do NOT default every Web App to `Next.js`.
+- For web products, compare at least 3 realistic candidates that match the brief
+  (for example `Next.js`, `Remix`, `Nuxt`, `SvelteKit`, `Astro`, or `React + Vite` depending on
+  whether the product is app-like, content-heavy, edge-first, or SPA-first).
+- Recommend `Next.js` only when the user explicitly wants it or when its tradeoffs match the
+  discovered needs better than the alternatives.
+- When the best fit is uncertain, present the tradeoff briefly before asking the user to choose.
+
+**Stage 1 — frontend shape (ask first for Web / Mobile / Desktop):**
+
+Ask `Q1` and `Q2` first. For UI projects, stop after `Q2`, wait for the user's answer, then run
+the UI brief (`Q11`–`Q16`) before returning to backend/data questions.
+
+Suggested opener:
+> "I’ll pin down the frontend direction first. Is this product closer to a dashboard, a content site, or an app shell? Then I’ll narrow the framework options for that shape."
+
+**ask_user_input call 1 (adapt options to research results; 2-3 options per question):**
+
+1. **Product shape** (single_select): Which shape is this closest to?
+   - Curate 2-3 options from: `Dashboard / app shell`, `Content / marketing`, `Workflow / wizard`, `Marketplace / ecommerce`, `Mixed / not sure`
 
 2. **Framework / stack** (multi_select): Based on research, here are the top fits:
-   - Populate with 3–4 researched recommendations specific to this product
-   - Example for Web App SaaS: `Next.js + Tailwind`, `Remix + Prisma`, `Nuxt 3 + tRPC`, `Other`
-   - Example for Web App SaaS (Cloudflare-first): `Next.js (OpenNext) + Cloudflare`, `Hono + Cloudflare Workers + D1`, `Remix + Cloudflare Pages`, `Other`
-   - Example for API / Backend (edge): `Hono + Cloudflare Workers`, `Elysia + Bun`, `Fastify`, `Other`
-   - Example for CLI Tool: `Node.js (Commander.js)`, `Python (Click/Typer)`, `Go (Cobra)`, `Rust (Clap)`
-   - Example for Agent Tool: `MCP Server (TypeScript)`, `LangGraph (Python)`, `CrewAI`, `Other`
-   - **Cloudflare full-stack note:** When the user mentions Cloudflare, edge computing, or low-latency
-     global deployment, prioritize Cloudflare-native stacks:
-     - **Frontend:** Next.js via OpenNext adapter, Remix, Astro, or SvelteKit on Cloudflare Pages
+   - Populate with **2-3** researched recommendations specific to this product
+   - Example for Web App SaaS: `Remix + Tailwind`, `Next.js + Tailwind`, `Nuxt 3 + Tailwind`
+   - Example for Web App SaaS (Cloudflare-first): `Remix + Cloudflare Pages`, `Astro + Cloudflare Pages`, `Next.js (OpenNext) + Cloudflare`
+   - Example for SPA-first dashboard: `React + Vite + TanStack Router`, `Next.js`, `SvelteKit`
+   - Example for content-heavy web product: `Astro`, `Nuxt 3`, `Remix`
+   - Example for API / Backend (edge): `Hono + Cloudflare Workers`, `Elysia + Bun`, `Fastify`
+   - Example for CLI Tool: `Node.js (Commander.js)`, `Python (Click/Typer)`, `Go (Cobra)`
+   - Example for Agent Tool: `MCP Server (TypeScript)`, `LangGraph (Python)`, `CrewAI`
+   - For Web / Mobile / Desktop projects, use this question to narrow the **frontend shell**
+     first. Do NOT bundle backend/runtime/database choices into the same prompt.
+   - **Internal candidate pool for Cloudflare-first projects:** When the user mentions Cloudflare,
+     edge computing, or low-latency global deployment, prioritize Cloudflare-native stacks from
+     the following pool, then surface only the best 2-3:
+     - **Frontend:** Remix, Astro, SvelteKit, or Next.js via OpenNext adapter on Cloudflare Pages
      - **Backend / API:** Hono (lightweight, Workers-native), itty-router, or Remix loaders on Pages Functions
      - **Database:** Cloudflare D1 (SQLite at edge), Turso (libSQL), or Drizzle ORM + D1
      - **KV / Cache:** Cloudflare KV, Cloudflare R2 (S3-compatible object storage)
@@ -176,26 +312,48 @@ not provide `ask_user_input`, ask the same questions in prose. No generic lists.
      - **Config files to generate:** `wrangler.toml`, `.dev.vars` (local env), `compatibility_flags`
      - **Search:** `cloudflare workers <framework> 2025` during research phase
 
-3. **Database** (single_select, only if Database selected):
-   - Example: `PostgreSQL + Prisma`, `Supabase`, `MongoDB`, `SQLite`
-   - Example (Cloudflare): `Cloudflare D1 + Drizzle`, `Turso (libSQL) + Drizzle`, `Supabase`, `Other`
+**Stage 2 — backend / API / data (only after frontend choice for UI projects):**
+
+For Web / Mobile / Desktop projects, ask this stage only after the user has answered the UI brief.
+Tailor the backend suggestions to the chosen frontend/runtime instead of showing a generic list.
+
+Suggested opener:
+> "Now that the frontend direction is clearer, let’s decide how much backend you want behind it: same app, separate API, or managed backend."
+
+Backend shape is usually better as a short PM-style prose follow-up than a separate numbered
+form field. Ask it conversationally, for example:
+- "Do you want the backend to live inside the same app, split into a separate API, or stay mostly managed through something like Supabase?"
+
+3. **Database / data layer** (single_select, only if the product needs app data):
+   - Curate 2-3 options from: `PostgreSQL + Prisma/Drizzle`, `Supabase`, `MongoDB`, `SQLite`, `Cloudflare D1 + Drizzle`, `Turso (libSQL) + Drizzle`
    - Note: If deploy target is Cloudflare Workers/Pages, strongly recommend D1 or Turso —
      traditional PostgreSQL requires an external connection (Neon, Supabase) since Workers
      can't hold persistent TCP connections. D1 is zero-config and co-located at the edge.
 
-**ask_user_input call 2 (JS/TS projects only):**
+Use short targeted follow-ups in prose when needed, for example:
+- "Since you picked `Next.js`, do you want the backend inside route handlers / server actions, or as a separate API?"
+- "Since you picked `React + Vite`, do you want a separate API service, or a hosted backend like Supabase?"
+- "Since this is Cloudflare-first, do you want to keep everything at the edge, or allow a separate origin API?"
+
+**Stage 3 — workspace / runtime refinement:**
+
+Suggested opener:
+> "Implementation-wise, do you want this repo to stay simple, or do you expect multiple apps/packages early and want the workspace structured for that now?"
+
+**ask_user_input call 2 (JS/TS projects only; 2-3 options per question):**
 
 4. **Package manager** (single_select): Which package manager?
-   - For most JS/TS projects: `pnpm`, `bun`, `npm`
-   - **Expo / React Native special case:** `bun (recommended)`, `yarn`, `npm`, `pnpm (only if the user explicitly accepts EAS monorepo caveats)`
+   - For most JS/TS projects, surface 2-3 choices from: `pnpm`, `bun`, `npm`
+   - **Expo / React Native special case:** surface 2-3 choices from: `bun (recommended)`, `yarn`, `npm`, `pnpm (only if the user explicitly accepts EAS monorepo caveats)`
    - If the selected frontend stack is Expo / React Native and the project is EAS-first or likely to become a monorepo, recommend `bun` or `yarn`. Do NOT recommend `pnpm` by default for Expo.
    - Skip for Python/Go/Rust projects
 
 5. **Monorepo** (single_select): Do you want a monorepo structure?
    - Options: `Yes — monorepo (apps/ + packages/)`, `No — single package`
    - Recommend monorepo if: the project has multiple layers (e.g. web + API + mobile),
-     the user mentioned wanting to add features / apps later, or the stack is Next.js +
-     separate backend, or the product has a clear public package (SDK, shared UI lib, etc.)
+     the user mentioned wanting to add features / apps later, or the frontend and backend are
+     intentionally split into separate deploy units, or the product has a clear public package
+     (SDK, shared UI lib, etc.)
    - If monorepo and the selected stack is **Expo / React Native**: recommend `bun` or `yarn`
      workspaces. Use `pnpm` only when the user explicitly accepts the EAS caveats from
      `references/skill-mobile.md`.
@@ -206,42 +364,46 @@ not provide `ask_user_input`, ask the same questions in prose. No generic lists.
      Use the answer to pre-populate the initial workspace structure
    - Store choice as `MONOREPO=true/false` — referenced throughout scaffold generation
 
-**ask_user_input call 3 (deploy + ops — DO NOT SKIP):**
+**Stage 4 — deploy / CI / ops (DO NOT SKIP):**
+
+Suggested opener:
+> "Last major architecture choice: where do you actually want this to run, and do you want the deploy flow to stay very managed or be more infra-controlled?"
+
+**ask_user_input call 3 (deploy + ops — DO NOT SKIP; 2-3 options per question):**
 
 6. **Deploy target** (single_select): Where will this run?
-   - Populate with 3–4 options relevant to the project type based on research.
-     Always include `Other` as last option.
-   - **Full reference list — pick the best fits for the project type:**
+   - Surface 2-3 best-fit options relevant to the project type based on research.
+   - **Internal candidate pool — pick from this, do not show all at once:**
      - Managed platforms (zero infra): `Vercel`, `Cloudflare Pages/Workers`, `Netlify`, `Railway`, `Render`
      - Container platforms: `Fly.io`, `AWS ECS/Fargate`, `Google Cloud Run`, `Azure Container Apps`
      - VPS / self-hosted: `VPS (Hetzner/DigitalOcean/Linode)`, `Self-hosted (Coolify/Dokku/Kamal)`
      - Serverless: `AWS Lambda`, `Cloudflare Workers`, `Supabase Edge Functions`
      - Mobile: `EAS (Expo Application Services)` — standard for Expo
      - CLI / Package: `npm registry`, `PyPI`, `Homebrew`, `GitHub Releases`
-   - **Example combos by project type:**
-     - Next.js SaaS: `Vercel`, `Cloudflare Pages`, `VPS (Hetzner/DO)`, `Other`
-     - Full-stack (Cloudflare): `Cloudflare Pages + Workers + D1`, `Cloudflare Workers (Hono)`, `Other`
-     - API / Backend: `Railway`, `Fly.io`, `VPS (Hetzner/DO)`, `Other`
-     - Full-stack (Docker): `Fly.io`, `VPS (Hetzner/DO)`, `AWS ECS`, `Other`
-     - Static site / JAMstack: `Cloudflare Pages`, `Vercel`, `Netlify`, `Other`
-     - Agent / MCP tool: `Docker self-hosted`, `Cloud Run`, `Fly.io`, `Other`
+   - Example curated sets by project type:
+     - React SSR / full-stack web app: `Vercel`, `Cloudflare Pages`, `VPS (Hetzner/DO)`
+     - Full-stack (Cloudflare): `Cloudflare Pages + Workers + D1`, `Cloudflare Workers (Hono)`, `VPS fallback`
+     - API / Backend: `Railway`, `Fly.io`, `VPS (Hetzner/DO)`
+     - Static site / JAMstack: `Cloudflare Pages`, `Vercel`, `Netlify`
+     - Agent / MCP tool: `Docker self-hosted`, `Cloud Run`, `Fly.io`
 
 7. **Deployment method** (single_select): How should it be packaged and deployed?
-   - Options depend on the deploy target chosen in #6:
-   - **Vercel / Netlify**: `Git push auto-deploy (managed)`, `CLI deploy (vercel / netlify deploy)`
-   - **Cloudflare Pages**: `Git push auto-deploy`, `Wrangler CLI deploy`
-   - **Cloudflare Workers**: `Wrangler CLI`, `Git push via Pages Functions`
-   - **Fly.io / Railway / Render**: `Docker container`, `Buildpack (auto-detect)`
-   - **VPS (Hetzner/DO/Linode)**: `Docker Compose + SSH deploy`, `Kamal (zero-downtime Docker)`, `Coolify (self-hosted PaaS)`, `Dokku (self-hosted Heroku)`
-   - **AWS ECS / Cloud Run**: `Docker container + CI push to registry`
-   - **AWS Lambda**: `Serverless Framework`, `SST`, `SAM`
-   - **Mobile (EAS)**: `EAS Build (managed)` — typically the only answer
-   - **CLI / Package**: `npm publish`, `GitHub Release + binary`, `Docker image`
+   - Surface 2-3 options depending on the deploy target chosen in #6.
+   - Candidate pool:
+     - **Vercel / Netlify**: `Git push auto-deploy (managed)`, `CLI deploy (vercel / netlify deploy)`
+     - **Cloudflare Pages**: `Git push auto-deploy`, `Wrangler CLI deploy`
+     - **Cloudflare Workers**: `Wrangler CLI`, `Git push via Pages Functions`
+     - **Fly.io / Railway / Render**: `Docker container`, `Buildpack (auto-detect)`
+     - **VPS (Hetzner/DO/Linode)**: `Docker Compose + SSH deploy`, `Kamal (zero-downtime Docker)`, `Coolify (self-hosted PaaS)`, `Dokku (self-hosted Heroku)`
+     - **AWS ECS / Cloud Run**: `Docker container + CI push to registry`
+     - **AWS Lambda**: `Serverless Framework`, `SST`, `SAM`
+     - **Mobile (EAS)**: `EAS Build (managed)` — typically the only answer
+     - **CLI / Package**: `npm publish`, `GitHub Release + binary`, `Docker image`
    - This determines: Dockerfile generation, platform config files (vercel.json / wrangler.toml /
      fly.toml / docker-compose.yml / kamal deploy.yml), build commands, CI deploy steps
 
 8. **CI/CD pipeline** (single_select): Which CI/CD provider?
-   - Options: `GitHub Actions`, `GitLab CI`, `None (manual deploy for now)`
+   - Surface 2-3 choices from: `GitHub Actions`, `GitLab CI`, `None (manual deploy for now)`
    - Default: `GitHub Actions` if repo is on GitHub
    - Note: some targets have built-in CI (Vercel/Netlify/Cloudflare auto-deploy on git push).
      Even then, still generate a CI workflow for `harness validate` on PR — deploy can be
@@ -249,51 +411,105 @@ not provide `ask_user_input`, ask the same questions in prose. No generic lists.
    - This determines: which workflow files to generate (.github/workflows/ vs .gitlab-ci.yml),
      how deploy triggers are configured, and how secrets/env vars are referenced
 
-**ask_user_input call 4 (monitoring + environments):**
+**Stage 5 — monitoring / environments:**
+
+Suggested opener:
+> "For v1 operations, do you want to keep it light, or do you already want staging, monitoring, and structured logs in place?"
+
+**ask_user_input call 4 (monitoring + environments; 2-3 options per question):**
 
 9. **Monitoring & analytics** (multi_select): Which operational layers do you want?
-   - Options: `Error tracking (Sentry)`, `Analytics (Google Analytics / Posthog)`, `Health checks + uptime`, `Structured logging`
+   - Surface 2-3 grouped choices such as: `Keep it minimal for v1`, `Error tracking + logs`, `Error tracking + analytics + uptime`
 
 10. **Environments** (multi_select): Which deployment environments do you need?
-   - Options: `development (local)`, `staging / preview`, `production`
+   - Surface 2-3 choices from: `development + production`, `development + staging + production`, `production-first for now`
    - Default: all three. Deselect staging if project is very early/solo
    - This determines: how many env files to generate (.env.development, .env.staging, .env.production),
      what CI/CD pipelines to set up, and how EAS build profiles are named (for mobile)
 
+**Stage 1B — UI brief (ask immediately after Stage 1 for frontend/UI projects):**
+
+Even though this section is numbered later for reference stability, ask it **before** any
+backend/database/deploy questions for Web / Mobile / Desktop projects.
+Ask the UI brief one decision at a time. This keeps the conversation natural and gives the user
+room to react to each visual choice separately before the next one.
+
+Suggested opener:
+> "Before we get into backend, I want to lock the UI direction one choice at a time so we can shape it like a real product review, not a bulk questionnaire."
+
+Preferred prose sequence for plain terminal flows:
+- Start with: "First UI question: do you want to lean on a component system like shadcn, Radix, MUI, Chakra, etc., or keep it mostly custom?"
+- Then ask: "Second UI question: should this feel minimal, enterprise, bold, playful, editorial, or something else?"
+- Then ask: "Third UI question: is the main layout more like a dashboard, landing page, admin/table-heavy app, docs/content site, ecommerce flow, wizard, or a mix?"
+- Then ask: "Fourth UI question: are there any products, brands, screenshots, or moodboards I should preserve or borrow from?"
+- Then ask: "Fifth UI question: should the interface feel spacious, balanced, or dense?"
+- Then ask: "Sixth UI question: do you want light-first, dark-first, or both themes?"
+
+When `ask_user_input` is unavailable, prefer the prose sequence above over pasting the raw
+`Q11`-`Q16` labels. Keep the numbered questions below as the internal mapping so the captured
+answers still map cleanly into `docs/frontend-design.md`.
+
 **ask_user_input call 5 (frontend/UI projects only — skip for CLI Tool and Agent/MCP Server):**
+
+When structured prompts are available, present the UI brief as **six sequential ask_user_input
+turns**. Ask exactly one UI decision at a time so the user can respond like they are in a real
+PM review conversation.
+
+Lead-in before `Q11`:
+> "First UI decision: let’s pick the component/style system."
+
+Lead-in before `Q12`:
+> "Next UI decision: what overall feel should the product have?"
+
+Lead-in before `Q13`:
+> "Next UI decision: what’s the dominant layout pattern?"
+
+Lead-in before `Q14`:
+> "Next UI decision: what should anchor the visual references?"
+
+Lead-in before `Q15`:
+> "Next UI decision: how dense should the interface feel?"
+
+Lead-in before `Q16`:
+> "Last UI decision: what theme posture should the system follow?"
 
 > Only ask these questions if the project type selected in Step 1 is **Web App**, **Mobile App**, or **Desktop App**. Skip entirely for CLI Tool and Agent/MCP Server.
 
 11. **UI Component Library** (single_select): Which component library will you use?
-   - Populate options based on the framework selected in call 1:
-   - **Next.js / React / Remix:** `Shadcn/ui + Tailwind CSS (recommended)`, `Radix UI + Tailwind CSS`, `Material UI (MUI)`, `Chakra UI`, `Ant Design`, `None / custom CSS`
-   - **Nuxt / Vue:** `Nuxt UI + Tailwind CSS`, `Shadcn-vue + Tailwind CSS`, `Vuetify`, `PrimeVue`, `None / custom CSS`
-   - **SvelteKit:** `Shadcn-svelte + Tailwind CSS`, `Skeleton UI`, `None / custom CSS`
-   - **Mobile (Expo / React Native):** `NativeWind (Tailwind)`, `React Native Paper`, `Tamagui`, `Gluestack UI`, `None / custom`
-   - **Desktop (Electron / Tauri):** `Shadcn/ui + Tailwind CSS`, `Radix UI + Tailwind CSS`, `None / custom`
-   - Always append `Other` as last option
+   - Show **2-3 curated options** based on the framework selected in call 1.
+   - Internal candidate pool:
+     - **Next.js / React / Remix:** `Shadcn/ui + Tailwind CSS`, `Radix UI + Tailwind CSS`, `Material UI (MUI)`, `Chakra UI`, `Ant Design`, `None / custom CSS`
+     - **Nuxt / Vue:** `Nuxt UI + Tailwind CSS`, `Shadcn-vue + Tailwind CSS`, `Vuetify`, `PrimeVue`, `None / custom CSS`
+     - **SvelteKit:** `Shadcn-svelte + Tailwind CSS`, `Skeleton UI`, `None / custom CSS`
+     - **Mobile (Expo / React Native):** `NativeWind (Tailwind)`, `React Native Paper`, `Tamagui`, `Gluestack UI`, `None / custom`
+     - **Desktop (Electron / Tauri):** `Shadcn/ui + Tailwind CSS`, `Radix UI + Tailwind CSS`, `None / custom`
 
 12. **Design Aesthetic** (single_select): What's the overall look and feel?
-    - Options: `Minimal / clean (neutral tones, lots of whitespace)`, `Modern SaaS (subtle gradients, card-based)`, `Bold / expressive (strong colors, personality)`, `Corporate / enterprise (dense, data-rich)`, `Playful / consumer (rounded, colorful, approachable)`, `Undecided — generate a sensible default`
+    - Show **2-3 curated options** from: `Minimal / clean`, `Modern SaaS`, `Bold / expressive`, `Corporate / enterprise`, `Playful / consumer`, `Undecided — generate a sensible default`
 
 13. **Primary Layout Pattern** (single_select): What's the dominant screen layout?
-    - Options: `SaaS dashboard (sidebar nav + main content area)`, `Marketing / landing page (hero + sections)`, `Admin / data table heavy`, `Docs / content site`, `E-commerce (product grid + checkout)`, `Single-page / wizard flow`, `Mixed — multiple patterns in one app`
+    - Show **2-3 curated options** from: `SaaS dashboard`, `Marketing / landing page`, `Admin / data table heavy`, `Docs / content site`, `E-commerce`, `Single-page / wizard flow`, `Mixed — multiple patterns in one app`
     - This determines: the primary navigation structure, page skeleton, and layout constraints written into `docs/frontend-design.md`
 
 14. **Visual References / Brand Anchors** (single_select): What should anchor the UI direction?
-    - Options: `Existing product / brand UI to preserve`, `External references / moodboard`, `No references — derive from the product brief`
+    - Show 2-3 choices from: `Existing product / brand UI to preserve`, `External references / moodboard`, `No references — derive from the product brief`
     - If the first or second option is chosen, ask in prose for the concrete inputs:
       file paths, URLs, screenshots, or a short list of products to reference.
 
 15. **Content Density** (single_select): How dense should the interface feel?
-    - Options: `Spacious / editorial`, `Balanced (recommended)`, `Dense / data-rich`
+    - Show 2-3 choices from: `Spacious / editorial`, `Balanced`, `Dense / data-rich`
 
 16. **Theme Preference** (single_select): What theme posture should the preview and UI system follow?
-    - Options: `Light-first (recommended)`, `Dark-first`, `Support both themes`
+    - Show 2-3 choices from: `Light-first`, `Dark-first`, `Support both themes`
 
 Treat questions 11–16 as the **hybrid UI brief**. Questions 11–13 choose the broad
 design system direction; questions 14–16 stabilize the output so the generated UI docs
 and preview converge on a repeatable result.
+
+**Stage 6 — companion skill choice:**
+
+Suggested opener:
+> "One last project-level choice: do you want me to generate a companion SKILL.md so other agents can discover and operate this project cleanly?"
 
 **ask_user_input call 6 (all project types):**
 
@@ -307,9 +523,28 @@ and preview converge on a repeatable result.
 
 Store the answer as `COMPANION_SKILL=true|false`.
 
-### Reference injection based on Step 4 answers
+### Phase 1 Exit Gate
 
-After completing all ask_user_input calls in Step 4, load the relevant platform references
+Do NOT leave Phase 1 until all applicable inputs below are captured or explicitly marked
+as intentionally undecided:
+
+- Project name and short product introduction
+- Project type and first-version success definition
+- Early market scan / research pass 1 shared back to the user
+- Primary users and core jobs-to-be-done
+- V1 must-haves, later ideas, and explicit non-goals
+- Hard constraints (platform, performance, security/compliance, offline, etc.)
+- Page inventory for Web/Mobile/Desktop projects
+- Targeted recommendation summary / research pass 2 shared back to the user
+- Stack / deploy / CI / monitoring / environment choices from Step 5
+- Companion skill choice
+
+Before Phase 2, send a short discovery recap with the decisions and assumptions you captured.
+If a critical item is still unclear, ask a follow-up instead of generating artifacts.
+
+### Reference injection based on Step 5 answers
+
+After completing all ask_user_input calls in Step 5, load the relevant platform references
 **before** generating the PRD or any scaffold:
 
 ```
@@ -1873,9 +2108,9 @@ Required consistency checks:
   runtime chosen in Phase 1
 - **Frontend / UI projects** (web, mobile, desktop): `docs/frontend-design.md` exists and
   AGENTS.md Iron Rule 5 references it. If it was not generated via an active `frontend-design`
-  skill session or a local copy, it must still be generated directly from the Phase 1 Step 4
+  skill session or a local copy, it must still be generated directly from the Phase 1 Step 5
   call 5 answers — do not fall back to a generic minimal template. See SKILL.md strategy.
-  The file **must reflect call 5 (design) answers** from Phase 1 Step 4:
+  The file **must reflect call 5 (design) answers** from Phase 1 Step 5:
   - "Component System" section: names the chosen component library (Q11) and import conventions
   - "Visual Language" section: documents color tone, spacing, and font style (Q12 aesthetic)
   - "Layout Patterns" section: documents the primary navigation structure and page skeleton (Q13)
