@@ -20,6 +20,17 @@ Switch into managed worktree mode only when:
 A project can start serially and switch to worktree mode later. Do not create worktrees
 preemptively when the dependency graph is still linear.
 
+## Scaffold Boundary
+
+Treat the scaffold as foundation only, especially at the start of M1.
+
+- Placeholder files, page shells, docs, schemas, config, stubs, and empty integrations are not
+  evidence that a milestone is already done.
+- Judge completion from the PLAN row's `Done When` outcome, plus working code and validation,
+  not from the mere existence of scaffolded files.
+- If the scaffold created a shell for the task, the execution milestone still owns the real
+  behavior, integration, and production-hardening work.
+
 ---
 
 ## Parallel Worktree Protocol
@@ -83,7 +94,7 @@ Performance degrades beyond ~40% context utilization. Budget:
 - Never load entire codebase, entire PLAN, or entire PRD
 - Load only files relevant to the current task
 - Load `docs/frontend-design.md` before any frontend task
-- Load `docs/design.md` before changing a specific page, screen, route, tab, or navigation flow
+- Load `docs/design.md` before changing a specific page, screen, route, tab, navigation flow, or overall app shell / wireframe structure
 - Treat `docs/design-preview.html` as a human-review / drift-check artifact, not as the implementation source of truth; open it only when validating visual direction with a human or checking UI drift
 - If a task changes navigation, page structure, theme, density, or component hierarchy, update the relevant UI docs and regenerate `docs/design-preview.html` before closing the task
 - Load `docs/memory/MEMORY.md` at session start — if >200 lines, load only recent entries

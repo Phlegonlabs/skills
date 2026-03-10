@@ -18,6 +18,17 @@ Before starting tasks, choose the runtime mode:
 The project can switch from serial mode to worktree mode later. Do not create worktrees
 preemptively for a linear plan.
 
+### Scaffold Boundary Before First Milestone
+
+Treat Phase 3 output as foundation only.
+
+- The scaffold may already contain route shells, config, docs, schemas, test folders, provider
+  stubs, and placeholder modules.
+- Those files do NOT mean the milestone is already complete.
+- A task is only done when its `Done When` criteria are actually satisfied in behavior,
+  integration, and validation, not when a scaffold file happens to exist.
+- If the scaffold created a shell for a feature, the milestone still owns the real implementation.
+
 ### The Agent's Entire Workflow (Auto-Cascading CLI)
 
 The CLI auto-chains commands. The agent only needs to run 3 commands in a loop.
@@ -490,7 +501,7 @@ docs/gitbook/
 21. **Staleness is a bug** — `harness stale-check` catches it. Don't wait for humans.
 22. **Parallel when the graph justifies it** — Independent milestones can run in parallel. When parallel mode is active: one agent, one worktree.
 23. **Modularize proactively, not reactively** — Don't wait for 500 lines. Split at ~250 if a file has multiple responsibilities. Every module = one purpose. The CLI itself models this: 1 entry point + 6 focused modules, none exceeding 350 lines. If the CLI follows its own rule, so does all project code.
-24. **Frontend = frontend-design + design docs** — All frontend reads `docs/frontend-design.md` first, and reads `docs/design.md` before changing a specific page or screen.
+24. **Frontend = frontend-design + design docs** — All frontend reads `docs/frontend-design.md` first, and reads `docs/design.md` before changing a specific page, screen, or overall app shell / navigation layout.
 25. **UI artifacts stay in sync** — If a task changes navigation, page structure, theme, density, or component hierarchy, update the relevant UI docs and regenerate `docs/design-preview.html` before closing the task.
 26. **Desktop release docs stay in sync** — If a desktop task changes packaging target, signing/notarization, updater channel, or release workflow, update `docs/release.md` before closing the task.
 27. **The loop is perpetual** — Bootstrap, execute, idle, add work, repeat forever.

@@ -62,6 +62,11 @@ intake is complete.
   Only include the minimal dependency set required for the generated scaffold and harness runtime
   to exist. Add feature/integration packages when the milestone that needs them actually starts,
   unless the user explicitly asks for a fully bootstrapped repo immediately.
+- **Foundation-only scaffold policy:** Phase 3 lays the project foundation only. Do NOT treat
+  scaffold output as completion of product milestones. Placeholder pages, route shells, provider
+  stubs, schemas, docs, configs, and empty integrations are setup work, not delivered features.
+  Seed milestones so their task rows still represent real implementation/integration outcomes, and
+  keep them `Not Started` until execution satisfies the `Done When` criteria.
 - **Frontend-first sequencing:** For Web / Mobile / Desktop projects, ask about the frontend
   direction first, then ask the UI brief one decision at a time, and only after that move into backend / API /
   database / deploy detail. Do NOT dump the whole architecture questionnaire in one turn.
@@ -192,6 +197,9 @@ This skill is split into focused reference files to avoid loading everything upf
   Log which strategy was used as a note in `docs/learnings.md`.
   For every frontend project, keep the UI artifact chain consistent:
   `docs/frontend-design.md` → `docs/design.md` → `docs/design-preview.html`.
+  `docs/frontend-design.md` defines the global design system and style direction.
+  `docs/design.md` translates that into the product-specific wireframe: overall app shell,
+  navigation, global layout regions, and per-page/screen contracts.
   The HTML preview is a **mid-fi styled static preview**, not a pure wireframe and
   not production code.
 - GitBook / project-intro companion docs: for ALL new projects, generate `docs/gitbook/`

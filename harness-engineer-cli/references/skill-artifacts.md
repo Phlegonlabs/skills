@@ -82,9 +82,9 @@ No exceptions. Even for "small" UI changes.
 
 When generating or editing a **specific page or screen**, also read the corresponding
 entry in `docs/design.md` (generated in Phase 3 for Web App / Mobile / Desktop projects).
-`docs/design.md` contains the authoritative page inventory: routes, purpose, key elements,
-auth gates, and navigation structure. Do not add pages not listed there without updating
-`docs/design.md` first.
+`docs/design.md` contains the authoritative product wireframe: overall app shell, global layout
+regions, navigation structure, page contracts, and auth gates. Do not add pages, major layout
+shifts, or shell changes not captured there without updating `docs/design.md` first.
 
 When a task changes UI structure or visual direction:
 - Route, navigation, or screen-state changes → update `docs/design.md`
@@ -124,6 +124,9 @@ Dynamically generate these sections:
   `When you're ready to start milestone 1: bun install`
   then `bun dev`, instead of collapsing everything into `bun install && bun dev`.
   Include `docker-compose up -d` if Docker is configured.
+- **Scaffold boundary** — State explicitly that Phase 3 created the foundation only.
+  Placeholder routes, stubs, schemas, docs, hooks, and config files do NOT satisfy PLAN tasks.
+  A milestone is only complete when its `Done When` outcome is true in real code/runtime behavior.
 - **Repository map** — Pointers to the actual docs in THIS project.
 - **Architecture rules** — Dependency layers, module boundaries, import restrictions
   specific to THIS project's domain. Derived from ARCHITECTURE.md.
@@ -1606,8 +1609,10 @@ reading. The SUMMARY.md acts as a universal sidebar. Update pages as the project
   Write the project-specific result to `docs/frontend-design.md`. Iron Rule 5 in AGENTS.md /
   CLAUDE.md points to this file. Log the strategy used in `docs/learnings.md`.
 - `docs/design.md` — **MUST be generated for every project that has a frontend**.
-  It is the route/screen authority for execution agents and must include each page's
-  purpose, primary action, key elements, and critical states (`loading`, `empty`, `error`).
+  It is the product wireframe + route/screen authority for execution agents and must include:
+  the overall app shell, global layout regions, navigation model, design-direction summary,
+  and each page's purpose, primary action, key elements, critical states (`loading`, `empty`,
+  `error`), and layout notes.
 - `docs/design-preview.html` — **MUST be generated for every project that has a frontend**.
   This is the human review artifact: a self-contained, mid-fi styled static preview derived
   from `docs/frontend-design.md` + `docs/design.md`. It should show layout, typography,

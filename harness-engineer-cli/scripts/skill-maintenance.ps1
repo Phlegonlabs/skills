@@ -337,6 +337,28 @@ if (($deferredDependencyChecks | Where-Object { -not $_ }).Count -eq 0) {
   Add-Fail 'dependency/install guidance drifted back toward pre-milestone bootstrap'
 }
 
+$foundationOnlyChecks = @(
+  ($skillContent -match [regex]::Escape('Foundation-only scaffold policy:')),
+  ($skillContent -match [regex]::Escape('Placeholder pages, route shells, provider')),
+  ($skillContent -match [regex]::Escape('empty integrations are setup work, not delivered features.')),
+  ($greenfieldContent -match [regex]::Escape('Task rows must describe real implementation outcomes, not scaffold shell creation that')),
+  ($greenfieldContent -match [regex]::Escape('### Phase 3 Foundation-Only Scope')),
+  ($greenfieldContent -match [regex]::Escape('A seeded milestone remains `⬜ Not Started` after scaffold.')),
+  ($greenfieldContent -match [regex]::Escape('No milestone task is treated as complete solely because the scaffold generated placeholder')),
+  ($greenfieldContent -match [regex]::Escape('This scaffold is foundation-only. The milestone plan is still ahead of us; placeholder')),
+  ($artifactContent -match [regex]::Escape('**Scaffold boundary** — State explicitly that Phase 3 created the foundation only.')),
+  ($artifactContent -match [regex]::Escape('do NOT satisfy PLAN tasks')),
+  ($execContent -match [regex]::Escape('### Scaffold Boundary Before First Milestone')),
+  ($execContent -match [regex]::Escape('A task is only done when its `Done When` criteria are actually satisfied in behavior,')),
+  ($execRuntimeContent -match [regex]::Escape('## Scaffold Boundary')),
+  ($execRuntimeContent -match [regex]::Escape('Judge completion from the PLAN row''s `Done When` outcome, plus working code and validation,'))
+)
+if (($foundationOnlyChecks | Where-Object { -not $_ }).Count -eq 0) {
+  Add-Pass 'scaffold and execution docs agree that Phase 3 is foundation-only and never auto-completes milestone work'
+} else {
+  Add-Fail 'foundation-only scaffold boundary drifted or milestone completion became too loose'
+}
+
 $structuredPromptChecks = @(
   ($skillContent -match '2-3 curated options'),
   ($greenfieldContent -match '2-3 curated options'),
@@ -395,10 +417,13 @@ if ($missingUiSections.Count -eq 0) {
 
 $hasPrimaryAction = $greenfieldContent -match '\*\*Primary action:\*\*'
 $hasCriticalStates = $greenfieldContent -match '\*\*Critical states:\*\*'
-if ($hasPrimaryAction -and $hasCriticalStates) {
-  Add-Pass 'docs/design.md format requires primary_action and critical_states'
+$hasProductWireframe = $greenfieldContent -match '## Product Wireframe'
+$hasDesignDirectionContext = $greenfieldContent -match '## Design Direction in Context'
+$hasLayoutNotes = $greenfieldContent -match '\*\*Layout notes:\*\*'
+if ($hasPrimaryAction -and $hasCriticalStates -and $hasProductWireframe -and $hasDesignDirectionContext -and $hasLayoutNotes) {
+  Add-Pass 'docs/design.md format now covers whole-product wireframe, design context, and per-page contract details'
 } else {
-  Add-Fail 'docs/design.md format is missing primary_action and/or critical_states requirements'
+  Add-Fail 'docs/design.md format is missing wireframe/design-context and/or per-page contract requirements'
 }
 
 $midFiPreviewGreenfield = $greenfieldContent -match 'mid-fi styled static preview'
@@ -419,7 +444,7 @@ if ($missingRetrofitUiBundle.Count -eq 0) {
 
 $runtimeUiChecks = @(
   'Load `docs/frontend-design.md` before any frontend task',
-  'Load `docs/design.md` before changing a specific page, screen, route, tab, or navigation flow',
+  'Load `docs/design.md` before changing a specific page, screen, route, tab, navigation flow, or overall app shell / wireframe structure',
   'Treat `docs/design-preview.html` as a human-review / drift-check artifact, not as the implementation source of truth',
   'If a task changes navigation, page structure, theme, density, or component hierarchy, update the relevant UI docs and regenerate `docs/design-preview.html` before closing the task'
 )

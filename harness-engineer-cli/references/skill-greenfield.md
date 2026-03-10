@@ -172,13 +172,13 @@ Suggested PM-style follow-ups:
 - "What’s the part you explicitly do not want me to design or build into v1 yet?"
 - "Are there any hard constraints I should treat as non-negotiable before I recommend stack or architecture?"
 
-**Page inventory (Web App / Mobile / Desktop only):**
+**Design inventory (Web App / Mobile / Desktop only):**
 
 After mapping core journeys, ask in prose:
 
-> "Do you have a design document or wireframes that list your pages/screens?
+> "Do you have a design document or wireframes that show the overall app structure and list your pages/screens?
 > If so, share the file path and I'll read it now.
-> If not — list your main pages/screens with a one-line description of each.
+> If not — describe the overall layout/wireframe in a few lines, then list your main pages/screens with a one-line description of each.
 > Example: 'Dashboard — shows active projects and stats;
 >            Settings — user profile and billing preferences;
 >            Project Detail — view and edit tasks for one project'"
@@ -188,12 +188,14 @@ After mapping core journeys, ask in prose:
   bullet points, or numbered lists that describe screens/pages/routes.
 - If the user provides an **inline description**: parse it directly.
 - If the user says **"not sure yet"**: use the core journeys from Step 2 to infer a
-  minimal page list (1 page per primary journey + a settings page). Confirm with the user
-  before proceeding.
+  minimal design inventory: an app shell / wireframe summary plus a minimal page list
+  (1 page per primary journey + a settings page). Confirm with the user before proceeding.
 
-Store the result as an internal **page inventory list** — each entry has:
-  `{ route, name, purpose, accessible_to, key_elements, primary_action, critical_states }`
-This list drives Phase 3 scaffold and `docs/design.md` generation.
+Store the result as an internal **design inventory bundle**:
+- `wireframe_summary`: `{ app_shell, nav_model, global_regions, primary_flows, responsive_notes }`
+- `style_application_summary`: `{ visual_summary, hierarchy_notes, interaction_tone, emphasis_rules }`
+- `pages[]`: `{ route, name, purpose, accessible_to, key_elements, primary_action, critical_states, layout_notes }`
+This bundle drives Phase 3 scaffold and `docs/design.md` generation.
 
 > Skip this page inventory collection entirely for **CLI Tool** and **Agent/MCP Server**
 > project types.
@@ -900,6 +902,11 @@ Rules:
 - Each task ID is `M<n>-<3-digit-seq>`: M1-001, M1-002…
 - `Depends on:` lists the milestone ID(s) that must merge before this one can start.
   Wire them to mirror PRD epic dependencies, or mark `none` for the first milestone.
+- Task rows must describe real implementation outcomes, not scaffold shell creation that
+  Phase 3 already handles. Do NOT write tasks like "create dashboard page file" or
+  "add auth config stub" if the scaffold is going to generate those shells anyway.
+  Instead target the real milestone work: wiring logic, integrating services, handling
+  success/empty/error states, persistence, permissions, and validation.
 - Do NOT put design or documentation tasks in milestones — those happen continuously.
   Exception: if the PRD explicitly scopes docs as a deliverable (e.g. API reference site).
 
@@ -1006,6 +1013,23 @@ Phase 3 is a scaffold pass, not a full environment bootstrap.
 - In generated quick-start docs, present install/sync as a "when you're ready to start the
   first milestone" activation step, not as something that must already have happened inside
   Phase 3.
+
+### Phase 3 Foundation-Only Scope
+
+Phase 3 creates the base repo, not the first feature release.
+
+- Generate the harness/runtime shell, docs, config, validation pipeline, env examples,
+  CI wiring, and any framework-required route/screen/module skeletons.
+- Keep generated product files skeletal and inert unless working behavior is required for the
+  scaffold itself to boot. A shell may exist; the milestone still owns the real feature.
+- Do NOT implement milestone business logic in Phase 3. That includes auth flows, billing,
+  dashboard data queries, provider integrations, queue workers, production copy, analytics
+  wiring, or any other feature whose real acceptance criteria belong to a milestone.
+- If a file must exist early for structure coherence, keep it neutral and foundation-only.
+  A page shell, repository interface, adapter stub, migration placeholder, or provider config
+  shell is acceptable. Marking the milestone done because that shell exists is not.
+- A seeded milestone remains `⬜ Not Started` after scaffold. File existence is not evidence
+  of completion; only the milestone's `Done When` outcomes are.
 
 ### File Structure
 
@@ -1215,11 +1239,27 @@ Phase 3 is a scaffold pass, not a full environment bootstrap.
 
 ### docs/design.md Format (Web App / Mobile / Desktop)
 
-Generate this file from the page inventory collected in Phase 1 Step 2.
-This is the **authoritative page reference** for Phase 4 execution agents.
+Generate this file from the design inventory collected in Phase 1 Step 2 plus
+the project's `docs/frontend-design.md`.
+This is the **authoritative product wireframe + page reference** for Phase 4 execution agents.
 
 ```markdown
 # Design — <Project Name>
+
+## Product Wireframe
+
+**App shell:** <overall shell model — e.g. marketing shell, dashboard shell, tabbed mobile shell>
+**Navigation model:** <sidebar / top nav / bottom tabs / stacked flow / split pane>
+**Global regions:** <header, sidebar, content column, inspector, footer, etc.>
+**Primary flows:** <core movement through the product in 3-5 bullets>
+**Responsive notes:** <how layout collapses or changes across desktop/tablet/mobile>
+
+## Design Direction in Context
+
+**Visual summary:** <how the chosen style should feel in this specific product>
+**Hierarchy notes:** <where emphasis, whitespace, density, and CTA weight should sit>
+**Interaction tone:** <calm / operational / editorial / playful / enterprise / etc.>
+**Style anchors:** <specific brand/UI references to preserve or emulate>
 
 ## Pages
 
@@ -1229,6 +1269,7 @@ This is the **authoritative page reference** for Phase 4 execution agents.
 **Primary action:** <the main thing a user should do on this screen>
 **Key elements:** <main sections or UI components>
 **Critical states:** `loading`, `empty`, `error` (+ any route-specific state like `first-run` or `permission-denied`)
+**Layout notes:** <how this page uses the global shell / regions / hierarchy>
 
 ### /<route> — <Page Name>
 ...
@@ -1252,13 +1293,17 @@ This is the **authoritative page reference** for Phase 4 execution agents.
 ```
 
 **Generation rules:**
-- Derive content from the page inventory collected in Phase 1 Step 2.
-  Do not invent pages not mentioned by the user or implied by the journeys.
+- Derive `Product Wireframe` and `Design Direction in Context` from the design inventory
+  collected in Phase 1 Step 2 and the final `docs/frontend-design.md`.
+- Do not invent pages not mentioned by the user or implied by the journeys.
 - Keep each page entry concrete — "shows a list of user projects with filter/sort" not
   "displays content".
 - Every page must name exactly one `Primary action`.
 - Every page must include `loading`, `empty`, and `error` in `Critical states`,
   plus any extra state implied by the workflow.
+- Every page must include `Layout notes` describing how it sits inside the global wireframe.
+- `docs/design.md` is not page-only. It must describe the whole product wireframe and how the
+  visual style applies across the product, not just list routes.
 - The Navigation Structure table must match the scaffold's nav component.
 - Auth Gates table must match the middleware/route guard generated in the scaffold.
 
@@ -1267,7 +1312,7 @@ This is the **authoritative page reference** for Phase 4 execution agents.
 ### Page File Scaffolding (Web App / Mobile / Desktop)
 
 Instead of leaving `(pages)/` or `app/` empty, generate one skeleton file per page
-from the `docs/design.md` page inventory.
+from the `docs/design.md` design inventory and overall wireframe contract.
 
 **Next.js App Router:**
 ```
@@ -2133,6 +2178,9 @@ Required consistency checks:
 - The initial scaffold only declares the minimal dependency set needed for the generated code,
   harness runtime, and validation toolchain. Milestone-specific feature/integration packages are
   deferred until the milestone that implements them
+- No milestone task is treated as complete solely because the scaffold generated placeholder
+  files, route shells, stubs, schemas, or config. Product milestones stay pending until their
+  `Done When` criteria are actually met in execution
 - **Frontend / UI projects** (web, mobile, desktop): `docs/frontend-design.md` exists and
   AGENTS.md Iron Rule 5 references it. If it was not generated via an active `frontend-design`
   skill session or a local copy, it must still be generated directly from the Phase 1 Step 5
@@ -2195,6 +2243,9 @@ After the Phase 3 Exit Gate passes and all artifacts are generated:
    > visual direction, density, and CTA hierarchy look right
    > before I begin Phase 4 execution.
    > Path: `<absolute-or-relative path to docs/design-preview.html>`"
+   >
+   > "This scaffold is foundation-only. The milestone plan is still ahead of us; placeholder
+   > files and shells are not treated as completed feature work."
 
 2. **Wait for explicit user confirmation** before loading `skill-execution.md` or starting
    Phase 4. Do not auto-proceed.
