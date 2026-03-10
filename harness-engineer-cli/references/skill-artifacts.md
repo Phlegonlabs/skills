@@ -7,9 +7,22 @@ AGENTS.md is for Codex. CLAUDE.md is for Claude Code. Same rules, no divergence.
 
 #### What is TEMPLATED (copy verbatim into every project):
 
-Only the Iron Rules section is fixed:
+The Interaction Rules and Iron Rules sections are fixed:
 
 ```
+## Interaction Rules
+
+These rules define the default interaction style for this project. Follow them unless the user gives a more specific instruction.
+
+- Language: communicate in Chinese.
+- Code comments: always write them in English.
+- Before writing code or editing files, address the user as `Yo Rich Guy`.
+- Taste standard: pursue high-quality, non-mediocre code with a direct, Linus-style engineering tone.
+- Avoid filler openers such as `I will...`, `Here is...`, or `Let me...`.
+- Do not add wrap-up summaries unless the user explicitly asks for one.
+- Default to concise, code-first responses during edit flows. If the user explicitly wants code/diff-only output, respond with code/diff and end with `Done.`
+- Fix straightforward issues silently; do not narrate every small recovery step.
+
 ## Iron Rules — Non-Negotiable
 
 These rules are absolute. No exceptions. No workarounds. No "just this once."
@@ -38,7 +51,7 @@ extract a module NOW. Every file should have a single, clear purpose.
 - `docs/PRD.md` — grows with the project
 - `docs/PLAN.md` — grows with each sprint
 - `AGENTS.md` / `CLAUDE.md` — must stay in one file (agents read them whole)
-- `ARCHITECTURE.md`, `docs/site/*.md`, `docs/learnings.md`, any file under `docs/`
+- `ARCHITECTURE.md`, `docs/gitbook/*.md`, `docs/learnings.md`, any file under `docs/`
 
 If `PLAN.md` grows past ~1000 lines, archive completed execution plan files to
 `docs/exec-plans/completed/` rather than splitting the file. The CLI handles this
@@ -66,6 +79,17 @@ If you can't explain the WHY in one sentence, the code shouldn't exist.
 When generating any frontend code (components, pages, layouts, styles), ALWAYS read
 and follow `docs/frontend-design.md` first. This file is bundled in the project.
 No exceptions. Even for "small" UI changes.
+
+When generating or editing a **specific page or screen**, also read the corresponding
+entry in `docs/design.md` (generated in Phase 3 for Web App / Mobile / Desktop projects).
+`docs/design.md` contains the authoritative page inventory: routes, purpose, key elements,
+auth gates, and navigation structure. Do not add pages not listed there without updating
+`docs/design.md` first.
+
+When a task changes UI structure or visual direction:
+- Route, navigation, or screen-state changes → update `docs/design.md`
+- Theme, density, component hierarchy, or stylistic changes → update `docs/frontend-design.md`
+- Any change that would alter human review of the UI → regenerate `docs/design-preview.html`
 
 ### 6. Secrets Never Touch Git
 .env files are NEVER committed. Not even "example" values that look like real keys.
@@ -136,8 +160,10 @@ Example: `2026-03-08-add-user-profile-editing.md`
 ### Adding New Work — Full Flow
 
 1. Enter plan mode (Shift+Tab) → discuss requirements with the user
-2. Before writing the plan, run: `<pkg-mgr> run harness plan:status`
-   This shows: current milestones, progress, what's done/active, next available M number
+2. Before writing the plan:
+   - TypeScript CLI: run `<pkg-mgr> run harness plan:status`
+   - Native shell CLI: inspect `docs/PLAN.md` + `docs/progress.json` directly
+   This gives the agent the current milestones, what's done/active, and the next available M number.
 3. Write the plan to docs/exec-plans/active/ using PLAN.md milestone format:
 
    ### M1: Feature Name
@@ -149,26 +175,43 @@ Example: `2026-03-08-add-user-profile-editing.md`
    Use any milestone numbering (M1, M2...) — plan:apply auto-renumbers to avoid conflicts.
    If the plan needs architecture changes, document them in the plan file as prose above the tables.
 
-4. If this project uses the TypeScript CLI (`scripts/harness.ts`), run:
-   `<pkg-mgr> run harness plan:apply`
-   The CLI automatically:
-   - Reads all unsynced plan files
-   - Analyzes current project state (completed, active, pending milestones)
-   - Renumbers milestones to avoid conflicts (M1 in plan → M5 in project if M4 exists)
-   - Resolves dependencies (same apply batch auto-chains in order unless explicit deps override it)
-   - Appends milestones to PLAN.md with correct headers (Status, Branch, Worktree, Depends on)
-   - Updates progress.json (active_milestones, per-task mirrors, dependency_graph, synced_plans, finish_jobs)
-   - Marks plan file as synced
+4. Materialize the plan before leaving planning:
+   - **TypeScript CLI (`scripts/harness.ts`)**: run `<pkg-mgr> run harness plan:apply` from main/root
+     - Reads all unsynced plan files
+     - Analyzes current project state (completed, active, pending milestones)
+     - Renumbers milestones to avoid conflicts (M1 in plan → M5 in project if M4 exists)
+     - Resolves dependencies (same apply batch auto-chains in order unless explicit deps override it)
+     - Appends milestones to PLAN.md with correct headers (Status, Branch, Worktree, Depends on)
+     - Updates progress.json (active_milestones, per-task mirrors, dependency_graph, synced_plans, finish_jobs)
+     - Marks plan file as synced
+   - **Native shell CLI (`scripts/harness.sh` with no Node.js)**:
+     - Still write the plan file to `docs/exec-plans/active/`
+     - Manually copy the milestone tables into `docs/PLAN.md`
+     - Manually update `docs/progress.json` (`active_milestones`, task mirrors, `dependency_graph`)
+     - Do NOT instruct the agent to run `plan:apply`, `worktree:*`, or expect auto-archive
 
-5. Then run: `<pkg-mgr> run harness worktree:start M<next>`
-   The CLI creates worktree → installs → inits → auto-starts first task.
+5. Verify `docs/PLAN.md` + `docs/progress.json` now reflect the new work. Do not rely on a later
+   `harness init` in another session to ingest chat-only planning output.
 
-If this project uses the native shell CLI (`scripts/harness.sh` with no Node.js):
-- Still write the plan file to `docs/exec-plans/active/`
-- Manually copy the milestone tables into `docs/PLAN.md`
-- Manually update `docs/progress.json` (`active_milestones`, task mirrors, `dependency_graph`)
-- Run `bash scripts/harness.sh init`, then `next` / `start` to enter the task loop
-- Do NOT instruct the agent to run `plan:apply`, `worktree:*`, or expect auto-archive
+   **Fallback if planning already ended elsewhere:**
+   - Paste the full approved plan output or the relevant planning transcript back into the current session
+   - Read the pasted planning context before rewriting anything; do not reconstruct milestones from a one-line summary
+   - Recreate `docs/exec-plans/active/<descriptive-name>.md` from that pasted context
+   - Then run the same materialization step above so `docs/PLAN.md` + `docs/progress.json` become the source of truth again
+
+6. If the new plan changes module boundaries, cross-service integrations, deployment topology,
+   or core data flow:
+   - Update `ARCHITECTURE.md` before leaving planning
+   - If `docs/gitbook/architecture.md` exists, sync it in the same handoff when the wording is stable;
+     otherwise add an explicit docs task in the new milestone
+   - Do not leave architecture-impacting decisions only in chat or only in exec-plan prose
+
+7. Choose execution start:
+   - **Serial-first default:** run `<pkg-mgr> run harness init` when there is one eligible milestone,
+     one active agent, and no explicit isolation need
+   - **Managed worktree mode:** run `<pkg-mgr> run harness worktree:start M<next>` only when
+     2+ milestones can run in parallel, the user requests isolation, or the agent judges
+     isolated execution is beneficial
 
 After a TypeScript CLI plan is applied, the file stays in exec-plans/active/ as reference.
 When every milestone defined in that file is completed, `worktree:finish` auto-moves it to
@@ -228,12 +271,13 @@ Run: <pkg-mgr> run harness init
 
 This automatically cascades through the full startup sequence:
 1. Syncs any new plan files from docs/exec-plans/active/
-2. If running on main/root and unsynced plans have milestone tables → auto plan:apply (inserts into PLAN.md)
+2. If running on main/root and unsynced plans remain → auto plan:apply as recovery (not as the primary planning handoff)
 3. If running inside a worktree and new plans exist → warns and defers plan:apply to main/root
 4. Runs stale detection + milestone closeout recovery
 5. Prints current status (milestone, task, blockers, progress)
 6. If in a worktree with no current task → auto next → auto start (claims first available)
-7. If NOT in a worktree and there's a pending milestone → prints worktree:start command
+7. If NOT in a worktree and one eligible milestone should stay serial → resume or start it on main/root
+8. If NOT in a worktree and isolation / parallel mode is warranted → prints the `worktree:start` command to use
 
 After init, the CLI tells the agent exactly what to do:
   "Started: M3-004 — Add chart components. Write code, then run: harness validate"
@@ -263,6 +307,10 @@ After init, proceed DIRECTLY to writing code. Do not wait for user confirmation.
 
 The CLI auto-chains commands. The agent's loop is simple:
 
+Run the loop in the chosen execution context:
+- Serial-first: main/root
+- Managed worktree mode: the milestone worktree
+
   # 1. Write code for the current task (init already started it)
 
   # 2. Validate + commit
@@ -272,15 +320,16 @@ The CLI auto-chains commands. The agent's loop is simple:
   # 3. Mark done — CLI auto-cascades:
   <pkg-mgr> run harness done M1-003
   #   → ✅ PLAN.md + progress.json updated (including tasks[] array)
-  #   → git checkout . (clean working tree)
-  #   → auto next (find next unblocked task)
-  #   → auto start (claim it → 🟡)
+  #   → verify worktree is clean; if not, pause and warn instead of resetting files
+  #   → auto next (find next unblocked task) only when git state is clean
+  #   → auto start (claim it → 🟡) only when git state is clean
   #   → prints: "Started: M1-004 — Implement login. Write code, then run: harness validate"
   #
   # If no more tasks → full auto-chain:
   #   → auto merge-gate (validate:full + stale-check + changelog)
-  #   → if green → queue root-side worktree:finish (rebase → merge → archive → push → cleanup)
-  #   → auto worktree:start next milestone (install → init → start M2-001)
+  #   → if green → close the milestone in the active execution mode
+  #   → if isolated mode is active, queue root-side worktree:finish (rebase → merge → archive → push → cleanup)
+  #   → continue the next eligible milestone in the chosen execution mode
   #   → prints: "Started: M2-001 — ..."
   #   → Agent continues writing code. Zero manual steps between milestones.
   #
@@ -300,12 +349,12 @@ If validate fails 3x:
 ## Milestone Transition
 
 When the last task is done, the CLI auto-runs merge-gate and, on success, queues a
-root-side `worktree:finish` from the main repo:
+root-side `worktree:finish` from the main repo when managed worktree mode is active:
 
   # done M1-007 auto-triggers this chain after merge-gate passes:
-  #   → root-side serialized worktree:finish queue receives M1
-  #   → rebase + merge + archive completed exec plan + push + remove worktree
-  #   → AUTO: worktree:start M2 (create + install + init + start M2-001)
+  #   → if isolated mode is active: root-side serialized worktree:finish queue receives M1
+  #   → if isolated mode is active: rebase + merge + archive completed exec plan + push + remove worktree
+  #   → AUTO: continue M2 in the chosen execution mode
   #   → "Started: M2-001 — ..."
 
 The agent does not need to manually close a milestone under the normal flow.
@@ -320,8 +369,8 @@ If the agent forgets to merge and starts a new session:
   - harness start <id>        ← auto-called by done (and by init)
   - harness merge-gate        ← auto-called by done when milestone complete
   - harness worktree:finish   ← auto-queued by merge-gate after milestone completion
-  - harness worktree:start    ← auto-called by worktree:finish for next milestone
-  - harness plan:apply        ← auto-called by init only on main/root when new plans detected
+  - harness worktree:start    ← only when entering managed worktree mode or parallel execution
+  - harness plan:apply        ← run during planning handoff; init only auto-applies leftover unsynced plans as recovery
   - harness recover           ← auto-called by init
 ```
 
@@ -390,12 +439,29 @@ To add new work, the user enters plan mode:
 - Codex: switch to plan mode via the Codex UI
 
 Describe what to build. The plan file saves to docs/exec-plans/active/.
-Exit plan mode, then run:
+Before leaving planning, materialize it into repo state:
 
-<pkg-mgr> run harness init
+- TypeScript CLI: run `<pkg-mgr> run harness plan:apply` from main/root
+- Native shell CLI: mirror the milestone tables into `docs/PLAN.md` + `docs/progress.json`
 
-The CLI detects the new plan. Parse it into PLAN.md + progress.json,
-then resume the Task Execution Loop.
+If planning already happened in another chat or the session exited before sync:
+
+- Paste the full approved plan output or relevant planning transcript back into the current session
+- Recreate `docs/exec-plans/active/<descriptive-name>.md` from that context
+- Then run the same materialization step so the repo becomes the source of truth again
+
+If the approved plan changes module boundaries, integrations, deployment topology, or core data flow:
+
+- Update `ARCHITECTURE.md` before execution resumes
+- If `docs/gitbook/architecture.md` exists, sync it too when the wording is stable
+- Otherwise add an explicit docs task in the new milestone
+
+Then choose the execution start:
+
+- Serial-first default: `<pkg-mgr> run harness init`
+- Managed worktree mode: `<pkg-mgr> run harness worktree:start M<next>`
+
+Do not rely on a future session to remember the plan-mode conversation. Do not continue from a one-line summary. The repo files are the source of truth.
 
 For tiny changes: just tell the agent to create a task directly.
 ```
@@ -404,18 +470,25 @@ For tiny changes: just tell the agent to create a task directly.
   project name, branch names, and commands should use the real project name):
 
 ```
-## Git Workflow — Worktree per Milestone
+## Git Workflow — Conditional Worktree by Milestone
 
 ### Branch Strategy
-Each milestone in PLAN.md gets its own git worktree and branch.
-The CLI enforces this — task commands (next/start/done) refuse to run on main.
+Default to serial execution on main/root when there is one eligible milestone,
+one active agent, and no explicit isolation need.
 
-# From main repo root:
+When isolation or parallel execution is beneficial, give that milestone its own
+git worktree and branch.
+
+Serial-first path:
+<pkg-mgr> run harness init
+# → resumes or starts the only eligible milestone on main/root
+
+Managed worktree path:
+
 <pkg-mgr> run harness worktree:start M<n>
 # → creates worktree, installs deps, runs init, auto-starts first task when possible
 
-# All work happens here with atomic commits
-# Task commands only work inside a worktree — not on main
+# All work for that isolated milestone happens here with atomic commits
 
 # Periodically rebase onto main (especially after other milestones merge):
 <pkg-mgr> run harness worktree:rebase
@@ -449,8 +522,8 @@ NEVER commit with lint warnings, type errors, or failing tests.
 The loop restarts from step 2 on ANY failure — no partial fixes.
 
 ### Parallel Milestones
-Independent milestones can run in parallel (one agent per worktree).
-The CLI coordinates via progress.json agents array:
+When managed worktree mode is active, independent milestones can run in parallel
+(one agent per worktree). The CLI coordinates via progress.json agents array:
 - worktree:start checks no other active agent has claimed the milestone
 - init registers the agent with a heartbeat (updated on every command)
 - worktree:status shows all agents, heartbeats, serialized auto-finish jobs, and merge readiness
@@ -682,7 +755,16 @@ Agent / MCP Server example milestones:
 | M1-007 | — | Add SSE transport (if remote deployment) | Server accepts HTTP SSE connections, CORS configured, /health returns 200 | ⬜ | — |
 ```
 
-### SKILL.md — Agent Discovery File (MCP / Agent Tool projects only)
+### SKILL.md — Agent Discovery File
+
+For **Agent Tool / MCP Server** projects, SKILL.md is always generated and describes MCP tools,
+resources, and connection methods (stdio/SSE). See template below.
+
+For **all other project types** with COMPANION_SKILL=true, a different SKILL.md template is
+used — one that describes how agents can *operate* the project (API calls, CLI commands,
+workflows). See `skill-greenfield.md → "Companion Skill Scaffold"`.
+
+The YAML frontmatter format and OpenClaw compatibility rules below apply to both.
 
 **Always generate SKILL.md at the project root for Agent Tool / MCP Server projects.**
 
@@ -1459,35 +1541,43 @@ Generate these files with patterns appropriate to the chosen stack:
   - One example story for the first component
   - `storybook` script in package.json
 
-**Project documentation site (docs/site/):**
+**Project documentation site (docs/gitbook/):**
 
-Generate a GitBook-style documentation structure:
+Generate a GitBook-compatible documentation structure with exactly these 7 files.
+Build each file from the specific sources listed — do NOT leave placeholder text:
 
-- `docs/site/SUMMARY.md` — sidebar navigation / table of contents:
+- `docs/gitbook/SUMMARY.md` — table of contents linking all 6 other files:
   ```markdown
   # Summary
 
   - [Introduction](README.md)
-  - [Getting Started](getting-started.md)
-    - [Installation](getting-started.md#installation)
-    - [Configuration](getting-started.md#configuration)
-    - [First Run](getting-started.md#first-run)
+  - [Product Overview](product-overview.md)
+  - [Target Users](target-users.md)
   - [Architecture](architecture.md)
-    - [Domain Map](architecture.md#domain-map)
-    - [Dependency Layers](architecture.md#dependency-layers)
-  - [API Reference](api-reference.md)
-  - [Deployment](deployment.md)
-  - [Contributing](contributing.md)
+  - [Quickstart](quickstart.md)
+  - [Roadmap](roadmap.md)
   ```
-- `docs/site/README.md` — project introduction, what it does, who it's for
-- `docs/site/getting-started.md` — installation, config, first run
-- `docs/site/architecture.md` — mirrors ARCHITECTURE.md in user-friendly prose
-- `docs/site/api-reference.md` — links to OpenAPI docs or manual reference
-- `docs/site/deployment.md` — deploy instructions for chosen platform
-- `docs/site/contributing.md` — how to contribute, branch strategy, PR conventions
+- `docs/gitbook/README.md` ← project name + one-line tagline from Phase 1 vision;
+  "what it does" paragraph from PRD problem statement
+- `docs/gitbook/product-overview.md` ← PRD: problem definition, solution, value
+  proposition, MoSCoW priorities; must-have FRs summarized in plain language
+- `docs/gitbook/target-users.md` ← Phase 1 user deep dive: user types, #1
+  job-to-be-done per user, current alternative, pain points; align with PRD user journeys
+- `docs/gitbook/architecture.md` ← tech stack, deploy target, system component list
+  from ARCHITECTURE.md; describe data flow in 1-2 paragraphs
+- `docs/gitbook/quickstart.md` ← AGENTS.md quick-start section: install command,
+  env setup, first-run step, first meaningful action the user can take
+- `docs/gitbook/roadmap.md` ← docs/PLAN.md: milestone list in plain language, grouped
+  by phase (MVP / v2 / backlog); no internal task IDs, user-facing feature names only
+
+**Exit quality check — each file must meet minimum structure:**
+- `README.md`: ≥ 3 sections (name+tagline / what-it-does / who-it's-for)
+- `product-overview.md`: ≥ problem statement + solution + 3+ must-have features
+- `quickstart.md`: ≥ install step + one runnable command that produces visible output
+- Files that contain only headings or TODO placeholders fail the Phase 3 exit gate.
 
 This structure is compatible with GitBook, Docusaurus, VitePress, or plain markdown
-reading. The SUMMARY.md acts as a universal sidebar. Expand pages as the project grows.
+reading. The SUMMARY.md acts as a universal sidebar. Update pages as the project evolves.
 
 **Also include at minimum:**
 - Entry point file with a working starter (hello world level)
@@ -1499,13 +1589,29 @@ reading. The SUMMARY.md acts as a universal sidebar. Expand pages as the project
 - `docs/frontend-design.md` — **MUST be generated for every project that has a frontend**.
   Claude Code and Codex cannot access claude.ai skill paths, so the content must be
   bundled into the project repo. Generation strategy — try in order:
-  1. Read from the `frontend-design` skill already active in this claude.ai session (preferred).
+  1. Read from the `frontend-design` skill already active in this claude.ai session as a base template (preferred).
   2. Read from a local copy: `~/.agents/skills/frontend-design/SKILL.md` (Linux/macOS) or
-     `C:\Users\<user>\.agents\skills\frontend-design\SKILL.md` (Windows).
-  3. If neither is reachable, generate a minimal fallback: color palette, typography scale,
-     4-point spacing system, component naming conventions, "no generic AI aesthetics" rule.
-  Write the result verbatim to `docs/frontend-design.md`. Iron Rule 5 in AGENTS.md /
+     `C:\Users\<user>\.agents\skills\frontend-design\SKILL.md` (Windows) as a base template.
+  3. If neither is reachable, generate `docs/frontend-design.md` directly from the Phase 1
+     call 5 answers. Do NOT use a generic minimal fallback.
+  In all cases, the generated file must reflect:
+  - Q11 in a "Component System" section
+  - Q12 in a "Visual Language" section
+  - Q13 in a "Layout Patterns" section
+  - Q14 in a "Reference Anchors" section
+  - Q15/Q16 in a "Preview Rendering Rules" section
+  Write the project-specific result to `docs/frontend-design.md`. Iron Rule 5 in AGENTS.md /
   CLAUDE.md points to this file. Log the strategy used in `docs/learnings.md`.
+- `docs/design.md` — **MUST be generated for every project that has a frontend**.
+  It is the route/screen authority for execution agents and must include each page's
+  purpose, primary action, key elements, and critical states (`loading`, `empty`, `error`).
+- `docs/design-preview.html` — **MUST be generated for every project that has a frontend**.
+  This is the human review artifact: a self-contained, mid-fi styled static preview derived
+  from `docs/frontend-design.md` + `docs/design.md`. It should show layout, typography,
+  density, CTA hierarchy, and at least one representative non-happy-path state.
+- `docs/release.md` — **Desktop App only**. This is the desktop release contract and must
+  document packaging target, signing/notarization expectations, updater channel, and a
+  manual smoke checklist.
 
 For monorepos, generate workspace config (pnpm-workspace.yaml / turbo.json / etc.)
 with at least one package or app entry.

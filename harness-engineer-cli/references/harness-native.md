@@ -281,8 +281,13 @@ cmd_done() {
     sed -i.bak "s/\(|.*${task_id}.*\)🟡/\1✅/" "$PLAN_FILE" && rm -f "${PLAN_FILE}.bak"
   fi
 
-  # Clean working tree
-  git checkout . 2>/dev/null || true
+  # Only auto-chain when the worktree is already clean
+  if [ -n "$(git status --porcelain 2>/dev/null)" ]; then
+    warn "Working tree still has uncommitted changes. Commit, stash, or discard them before continuing."
+    info "Auto-chain paused. Run: bash scripts/harness.sh init after the worktree is clean."
+    save_progress "$p"
+    return 0
+  fi
 
   save_progress "$p"
   ok "Done: $task_id (commit: $commit_hash)"

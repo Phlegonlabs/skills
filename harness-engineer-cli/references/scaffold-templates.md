@@ -389,8 +389,8 @@ function scaffoldLlmsTxt(): void {
     ['docs/PRD.md', 'Product requirements and user journeys'],
     ['docs/PLAN.md', 'Milestones, tasks, and progress tracking'],
     ['ARCHITECTURE.md', 'Domain map, dependency layers, module structure'],
-    ['docs/site/api-reference.md', 'API endpoints and tool schemas'],
-    ['docs/site/getting-started.md', 'Setup and quickstart guide'],
+    ['docs/gitbook/architecture.md', 'System architecture and data flow'],
+    ['docs/gitbook/quickstart.md', 'Setup and quickstart guide'],
     ['docs/learnings.md', 'Technical learnings and gotchas'],
   ];
   for (const [path, desc] of docFiles) {

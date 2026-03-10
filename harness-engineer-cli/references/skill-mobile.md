@@ -65,6 +65,9 @@ apps/mobile/
 
 ## Monorepo Setup for Expo (Important Caveats)
 
+Single-package Expo apps can use `bun`, `yarn`, or `npm`. The guidance below is about
+Expo projects that use EAS Build plus workspaces / monorepos.
+
 Expo + monorepo has specific requirements. **Use `yarn` or `bun` workspaces, not `pnpm`** for Expo projects when using EAS Build — EAS Build internally assumes Yarn.
 
 **If using pnpm monorepo + EAS Build**, the workaround is:
@@ -439,8 +442,16 @@ Expo/React Native is a UI project. `docs/frontend-design.md` MUST be bundled in 
 project following the same 3-strategy approach in SKILL.md. AGENTS.md Iron Rule 5 must
 point to it. All screen and component work reads it first.
 
+**`docs/design.md` + `docs/design-preview.html` — required UI review artifacts:**
+- `docs/design.md` is the authoritative mobile screen inventory: routes/screens, purpose,
+  primary action, key elements, and critical states.
+- `docs/design-preview.html` is still generated for mobile projects. Use the phone-frame
+  variant as a self-contained, mid-fi styled static preview for human review before Phase 4.
+
 **Scaffold additions for mobile (added to Phase 3 output):**
 - `docs/frontend-design.md` — generated from frontend-design skill (see SKILL.md load order)
+- `docs/design.md` — generated from the screen inventory
+- `docs/design-preview.html` — generated from the screen inventory + frontend design rules
 - `.env.example` — `EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_APP_ENV`; note that `EXPO_PUBLIC_*`
   vars are inlined in the bundle — never put secrets here
 - `eas.json` — development / preview / production build profiles
@@ -454,7 +465,8 @@ Use only lint + type-check in pre-commit; reserve `expo export` for CI or `valid
 
 - **EAS Build + pnpm**: EAS internally assumes Yarn. If using pnpm monorepo, publish `packages/*` to npm for prod builds
 - **Metro cache**: Run `npx expo start --clear` after switching SDK versions or modifying metro.config.js
-- **Duplicate React Native versions**: Run `pnpm why --recursive react-native` — only one version allowed
+- **Duplicate React Native versions**: Use your package manager's dependency-inspection command
+  (`pnpm why --recursive react-native`, `yarn why react-native`, etc.) — only one version allowed
 - **iOS UDID limits**: Ad hoc profile limited to 100 registered devices. Use TestFlight for larger QA groups
 - **Android first upload**: The first AAB must be uploaded manually in Play Console before EAS Submit API works
 - **Bundle identifier drift**: Keep `app.json` and `eas.json` in sync with Apple/Google developer accounts. Run `eas credentials` to verify

@@ -18,6 +18,9 @@ Ask the user to upload or describe their project. Key files to request:
 If the user has uploaded files, read them directly.
 If the user describes verbally, ask clarifying questions about:
 
+If your runtime does not provide `ask_user_input` (for example Codex in a plain terminal session),
+ask the same questions in prose and continue from the user's answers.
+
 **ask_user_input:**
 1. **Tech stack** (multi_select): What does this project use?
    - Adapt options based on what you can see from uploaded files
@@ -35,12 +38,27 @@ Then analyze:
 - What linting/formatting exists? (detect configs)
 - What's the dependency layer structure? (detect import patterns)
 
+**Frontend UI capture (only if the project has a UI):**
+- Detect the existing route/screen inventory from the codebase: routes, pages, tabs, sidebars,
+  auth-gated screens, and any major shared layout shells.
+- Detect the existing UI system if possible: component library, theme tokens, nav pattern,
+  light/dark handling, and density.
+- If those inputs are not obvious from the repo, ask a short **hybrid UI brief** in prose:
+  - What UI or brand should be preserved, if any?
+  - Should the interface feel `spacious`, `balanced`, or `dense`?
+  - Should the project be `light-first`, `dark-first`, or support both themes?
+- If the user wants the current UI preserved, record that explicitly in `docs/frontend-design.md`
+  under `Reference Anchors`. If the user wants a refresh, record the target direction while still
+  mapping the current routes/screens.
+
 ### Retrofit Step 2: Generate Harness Layer
 
 Based on the analysis, generate ONLY the harness files. Do NOT touch existing source code,
 tests, or configs unless they conflict with the harness.
+Write the harness files directly into the target repo working tree so the user reviews the
+real diff and browser-openable preview, not a hypothetical file list.
 
-**Always generate (regardless of what exists):**
+**Always generate core harness docs/config (regardless of runtime):**
 
 ```
 Files to ADD to the existing project:
@@ -53,18 +71,21 @@ Files to ADD to the existing project:
 │   ├── progress.json            ← initialized with project state
 │   ├── learnings.md             ← empty, ready for agent learnings
 │   ├── frontend-design.md       ← if project has frontend
+│   ├── design.md                ← if project has frontend; derive from actual routes/screens
+│   ├── design-preview.html      ← if project has frontend; mid-fi styled static preview for review
 │   ├── exec-plans/
 │   │   ├── active/
 │   │   └── completed/
 │   ├── tech-debt/
 │   │   └── .gitkeep
-│   └── site/                    ← doc site skeleton
+│   └── gitbook/                 ← use this unless the repo already has a coherent docs root
 │       ├── SUMMARY.md
-│       └── README.md
-├── scripts/
-│   ├── harness.ts               ← entry point router (~50 lines)
-│   ├── check-commit-msg.ts      ← commit-msg hook helper
-│   └── harness/                 ← CLI modules (config, types, state, worktree, tasks, validate, quality)
+│       ├── README.md
+│       ├── product-overview.md
+│       ├── target-users.md
+│       ├── architecture.md
+│       ├── quickstart.md
+│       └── roadmap.md
 ├── schemas/
 │   └── progress.schema.json
 ├── .claude/
@@ -72,6 +93,21 @@ Files to ADD to the existing project:
 └── .codex/
     └── config.toml
 ```
+
+**Runtime-specific harness files (pick ONE branch before generating files):**
+
+- **JS/TS projects or non-JS projects that accept a Node root:** generate:
+  - `scripts/harness.ts`
+  - `scripts/check-commit-msg.ts`
+  - `scripts/harness/` CLI modules
+- **Non-JS/TS projects with no Node.js:** generate the native shell runtime instead:
+  - `scripts/harness.sh`
+  - `scripts/check-commit-msg.sh`
+  - `Makefile` targets for `validate`, `next`, `start`, `done`, `block`
+  - `.pre-commit-config.yaml` (Python/Go) or `.githooks/` (Rust), per `harness-native.md`
+
+Do NOT generate both runtimes for the same retrofit target. Decide the runtime branch first,
+then generate only the files for that branch.
 
 **Conditionally generate (only if not already present):**
 
@@ -96,7 +132,7 @@ as a suggestion, but do NOT force the change.
 
 ### Retrofit Step 3: Adapt AGENTS.md / CLAUDE.md to the Existing Project
 
-The Iron Rules template is copied verbatim (same as greenfield).
+The Interaction Rules + Iron Rules templates are copied verbatim (same as greenfield).
 
 Everything else is generated from what ACTUALLY exists:
 
@@ -180,7 +216,7 @@ Issues found during analysis:
 ```
 
 No milestones, no tasks, no dependency graph — the project already exists.
-All future work enters through plan mode → progress-sync → Task Execution Loop.
+All future work enters through plan mode → immediate plan sync into repo files → Task Execution Loop.
 
 ### Retrofit Step 6: Wire CLI into Existing package.json
 
@@ -217,15 +253,25 @@ delegates to your existing scripts — it doesn't auto-detect frameworks.
 
 ### Retrofit Step 7: Present and Review
 
-Present to the user:
-1. File tree of what will be ADDED (not what exists)
+Present to the user from the actual repo state:
+1. File tree of what was ADDED or changed by the harness patch
 2. List of existing configs that were PRESERVED (not overwritten)
 3. Tech debt items detected
 4. The generated AGENTS.md / CLAUDE.md for review
-5. Ask: "Does this look right? Should I adjust anything?"
+5. If the project has a frontend: `docs/frontend-design.md`, `docs/design.md`, and
+   `docs/design-preview.html` for UI review
+6. Ask: "Does this look right? Should I adjust anything?"
 
-After confirmation, the user:
-1. Copies the generated files into their existing project
+For frontend retrofits, explicitly ask the user to open `docs/design-preview.html` and confirm:
+- The route structure matches the current product
+- The visual direction is right for the project
+- The density/theme choice looks right for the next round of implementation
+
+If the user requests changes, patch the written files in place, then re-present the diff and
+UI preview. Do not switch to a second "apply" phase.
+
+After confirmation, the files are already in the existing project. Then the user:
+1. Reviews the diff in the target repo
 2. If using the TypeScript CLI: runs `<pkg-mgr> install` (to pick up tsx + husky)
    If using the native shell CLI: installs `jq` / hooks exactly as documented in `references/harness-native.md`
 3. Commits: `[scaffold] add harness framework`
@@ -245,23 +291,37 @@ User opens Claude Code / Codex
 
 User enters plan mode
   → Describes new feature / fix / refactor
-  → Plan file saved to docs/exec-plans/active/
-  → Switch to normal mode
+  → Plan file written to docs/exec-plans/active/
+  → BEFORE leaving planning, sync the plan into docs/PLAN.md + docs/progress.json
 
 TypeScript CLI path:
-  Agent opens project → `harness init` detects new plan → auto-runs `plan:apply`
+  Agent runs `harness plan:apply` from main/root in the same planning flow
   → Parses plan into PRD update + new Milestone in PLAN.md
   → Updates progress.json with dependency graph
-  → Creates worktree → Task Execution Loop
+  → Verifies PLAN.md + progress.json now reflect the new work
+  → If the approved plan changes module boundaries, integrations, deployment topology, or core data flow, update ARCHITECTURE.md before leaving planning and sync docs/gitbook/architecture.md when present
+  → If one eligible milestone and no isolation need → `harness init` and continue serially from main/root
+  → If 2+ independent milestones or explicit isolation is needed → `harness worktree:start M<next>`
   → Same iron rules, same testing, same atomic commits
   → Milestone done → merge gate → auto-finish → optional release tag or new plan → repeat
 
 Native shell CLI path (no Node.js):
   Agent writes the plan file to docs/exec-plans/active/
-  → Manually mirrors the milestone tables into PLAN.md + progress.json
+  → Immediately mirrors the milestone tables into PLAN.md + progress.json
+  → If the approved plan changes module boundaries, integrations, deployment topology, or core data flow, update ARCHITECTURE.md before leaving planning and sync docs/gitbook/architecture.md when present
   → Runs `bash scripts/harness.sh init`
   → Enters the same task loop (`next` / `start` / `validate` / `done`)
   → No `plan:apply`, no `worktree:*`, no auto-finish queue
+
+Fallback if plan mode already ended without sync:
+  Paste the full approved plan output or planning transcript back into the current session
+  → Agent reads that pasted planning context
+  → Recreates docs/exec-plans/active/<descriptive-name>.md (or mirrors directly for native shell)
+  → Syncs PLAN.md + progress.json before any execution starts
+  → Updates ARCHITECTURE.md / docs/gitbook/architecture.md too if the pasted plan changed system shape
+
+Do not rely on a later `harness init` in a new session to ingest the plan. The repo itself
+must already contain the synced plan state before handoff.
 
 Repeat.
 ```

@@ -7,13 +7,28 @@ quality gates, and when to ask humans.
 
 ---
 
+## Execution Mode
+
+Default to serial-first. If there is only one eligible milestone, one active agent,
+and no explicit isolation need, stay on main/root and run the task loop there.
+
+Switch into managed worktree mode only when:
+1. 2+ milestones are dependency-independent and worth running in parallel
+2. The user explicitly asks for milestone isolation or separate diffs
+3. The agent judges isolated execution is beneficial (risky refactor, dependency churn, or concurrent review)
+
+A project can start serially and switch to worktree mode later. Do not create worktrees
+preemptively when the dependency graph is still linear.
+
+---
+
 ## Parallel Worktree Protocol
 
-Multiple agents can work on different milestones simultaneously.
+Use this protocol only when managed worktree mode is active.
 
 **Rules:**
-1. **One agent, one worktree** — CLI enforces this via `agents` array in progress.json
-2. **Milestones with no dependencies run in parallel** (check PLAN.md `Depends on`)
+1. **When parallel mode is active: one agent, one worktree** — CLI enforces this via `agents` array in progress.json
+2. **Only milestones with no dependencies run in parallel** (check PLAN.md `Depends on`)
 3. **progress.json is the coordination point** — agents self-register via `harness init`
 4. **Merge order follows dependency order** — `worktree:finish` blocks if deps aren't merged
 5. **Stale heartbeat (>2h) = reclaimable** — another agent can take the milestone
@@ -67,7 +82,10 @@ Performance degrades beyond ~40% context utilization. Budget:
 **Progressive disclosure:**
 - Never load entire codebase, entire PLAN, or entire PRD
 - Load only files relevant to the current task
-- Load `docs/frontend-design.md` only when task involves frontend
+- Load `docs/frontend-design.md` before any frontend task
+- Load `docs/design.md` before changing a specific page, screen, route, tab, or navigation flow
+- Treat `docs/design-preview.html` as a human-review / drift-check artifact, not as the implementation source of truth; open it only when validating visual direction with a human or checking UI drift
+- If a task changes navigation, page structure, theme, density, or component hierarchy, update the relevant UI docs and regenerate `docs/design-preview.html` before closing the task
 - Load `docs/memory/MEMORY.md` at session start — if >200 lines, load only recent entries
 - Load today + yesterday daily log; skip older logs unless searching for specific info
 - Files >200 lines → load only the relevant section
@@ -139,7 +157,7 @@ Replay flow:
 1. Choose a representative downstream repo or fixture project.
 2. Apply the upstream delta there via scaffold update, plan insertion, or manual migration.
 3. If the replay spans multiple tasks, create a replay milestone so the downstream run still uses normal worktree flow.
-4. Run the normal loop: `harness init` → `plan:apply` if needed → `worktree:start` → `validate:full`.
+4. Run the normal loop: `harness init` → sync `PLAN.md` / `progress.json` → choose serial or worktree execution as appropriate → `validate:full`.
 5. Record pass/fail with repo name, commit SHA, and handoff notes.
 
 Hard rules:

@@ -65,15 +65,18 @@ MAJOR/MINOR/PATCH automatically. Less control than changesets or release-please.
 
 ## Phase 6: Documentation Site (Evolving)
 
-The `docs/site/` directory grows with the project. Documentation updates are
+> Note: `docs/gitbook/` is scaffolded in Phase 3 (not here). Phase 6 work means
+> *updating existing files* as the product evolves — not initial generation.
+> If `docs/gitbook/` is missing, that is a Phase 3 scaffold defect, not a Phase 6 task.
+
+The `docs/gitbook/` directory (generated in Phase 3) evolves with the project. Documentation updates are
 milestone tasks, not afterthoughts.
 
 ### When to update
 
-- **Every milestone**: getting-started.md if setup changed, architecture.md if new modules
-- **Every new endpoint**: api-reference.md (or auto-generate from OpenAPI)
-- **Every new feature**: user-facing doc if externally visible
-- **Every deploy change**: deployment.md
+- **Every milestone**: quickstart.md if setup changed, architecture.md if new modules
+- **Every new feature**: product-overview.md or target-users.md if user-facing positioning changes
+- **Every deploy change**: add a deployment page to docs/gitbook/ if not already present
 
 ### Documentation tasks in PLAN.md
 

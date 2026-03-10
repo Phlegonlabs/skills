@@ -14,7 +14,7 @@ Two modes:
 Both modes generate a CLI that agents use to autonomously loop through tasks:
 pick → start → code → validate → commit → done → repeat.
 
-- **Node/TS projects** — TypeScript CLI (`scripts/harness.ts` + `scripts/harness/` modules), with full capability: worktrees, `plan:apply`, and agent lifecycle
+- **Node/TS projects** — TypeScript CLI (`scripts/harness.ts` + `scripts/harness/` modules), with full capability: optional managed worktrees, `plan:apply`, and agent lifecycle
 - **Strict non-Node projects** (Python/Go/Rust, user explicitly refuses Node) — Shell CLI (`scripts/harness.sh` + `Makefile`), single-agent only: `init` / `status` / `validate` / `next` / `start` / `done` / `block`
 
 > **`references/replay-protocol.md` is for framework-level development only.**
@@ -22,6 +22,49 @@ pick → start → code → validate → commit → done → repeat.
 > downstream fixture repos. It is NOT part of any project's task loop or completion criteria.
 > Per-project completion is defined by the Idle Protocol in `references/skill-execution.md`:
 > all milestones merged → changelog reviewed → human confirms release tag.
+
+## Top-Level State Machine
+
+The framework has different entry paths, but they all converge into the same runtime loop.
+Core rule: chat is input; repo files are state. Execution only proceeds from repo-backed state
+such as `docs/PLAN.md`, `docs/progress.json`, and `ARCHITECTURE.md`.
+
+```mermaid
+stateDiagram-v2
+  [*] --> Entry
+  Entry --> Greenfield: new project
+  Entry --> Retrofit: existing project
+  Entry --> SessionInit: existing harness repo / resumed session
+
+  Greenfield --> ReviewGate: discovery -> PRD -> scaffold
+  ReviewGate --> SessionInit: phase-3 review approved
+
+  Retrofit --> RetrofitReview: analyze -> write harness files
+  RetrofitReview --> SessionInit: diff / preview approved
+
+  SessionInit --> RuntimeSelect
+  RuntimeSelect --> SerialMode: 1 eligible milestone, no isolation need
+  RuntimeSelect --> WorktreeMode: parallelism / isolation is beneficial
+
+  SerialMode --> TaskLoop
+  WorktreeMode --> TaskLoop
+  TaskLoop --> SessionInit: next milestone remains
+  TaskLoop --> Idle: all milestones complete
+
+  Idle --> PlanMode: new work
+  Idle --> PlanningRecovery: plan exists only in another chat
+
+  PlanMode --> PlanSync: approved plan
+  PlanningRecovery --> PlanSync: paste full plan / transcript back
+  PlanSync --> ArchitectureSync: system shape changed
+  PlanSync --> RuntimeSelect: no architecture change
+  ArchitectureSync --> RuntimeSelect
+```
+
+- `PlanSync` is mandatory before execution resumes. Do not continue from a chat-only summary.
+- `ArchitectureSync` is required when module boundaries, integrations, deployment topology, or core data flow change.
+- `WorktreeMode` is conditional, not the default.
+- `PlanningRecovery` is the fallback path when planning happened elsewhere and the repo was not synced yet.
 
 ## How to install
 
@@ -113,7 +156,7 @@ harness-engineer-cli/
 
 ```
 your-project/
-├── AGENTS.md + CLAUDE.md           ← Agent instructions (identical content)
+├── AGENTS.md + CLAUDE.md           ← Agent instructions (identical content; fixed Interaction Rules + Iron Rules)
 ├── ARCHITECTURE.md                 ← Domain map, dependency layers
 ├── docs/
 │   ├── PRD.md                      ← Product requirements
@@ -140,9 +183,10 @@ your-project/
 ## CLI commands
 
 ```
-# Worktree management (milestone isolation — run from main repo root)
+# Worktree management (optional milestone isolation / parallel execution — run from main repo root)
 harness worktree:start <M-id>   Create branch + worktree + install + init + auto-start
 harness worktree:finish <M-id>  Serialized root-side rebase → merge → archive plans → push → cleanup
+harness worktree:rebase         Rebase current worktree onto latest main
 harness worktree:status         Show worktrees, agents, auto-finish jobs, and merge readiness
 harness migrate                 Refresh harness-managed runtime folders + schema after upgrades
 
@@ -150,13 +194,15 @@ harness migrate                 Refresh harness-managed runtime folders + schema
 harness init Session boot: sync plans, stale check, memory reminders, print status
 harness status            Print current milestone, task, blockers, progress
 
-# Task loop (inside worktree)
+# Task loop (serial on main/root when exactly one milestone is eligible; otherwise inside a worktree)
 harness next              Find and print the next unblocked task
 harness start <id>        Claim a task → auto-updates progress.json + PLAN.md
 harness validate          lint:fix → lint → type-check → test
 harness validate:full     + integration/e2e when matching test files exist + file-guard
-harness done <id>         Complete a task → auto-updates state + commit hash + git checkout .
+harness done <id>         Complete a task → auto-updates state + commit hash + verifies worktree cleanliness before cascading
 harness block <id> <msg>  Mark task blocked, log reason
+harness reset <id>        Revert task to ⬜ (undo start or unblock)
+harness learn <cat> <msg> Log a reusable learning entry
 
 # Quality gates
 harness merge-gate        Full gate check before worktree:finish
@@ -192,12 +238,19 @@ harness scaffold agent-cost      Per-call cost estimation + audit log
 harness scaffold cloudflare      wrangler.toml + .dev.vars + CI
 ```
 
+Execution start rule:
+- Default serial path: run `harness init` from main/root when there is one eligible milestone, one active agent, and no explicit isolation need.
+- Managed worktree path: run `harness worktree:start <M-id>` only when 2+ milestones can run in parallel or milestone isolation is beneficial.
+- Retrofit / plan-mode handoff: sync the plan into `docs/PLAN.md` and `docs/progress.json` before leaving planning; `init` auto-`plan:apply` is recovery, not the primary ingest path.
+- Architecture sync in planning: if the approved plan changes module boundaries, integrations, deployment topology, or core data flow, update `ARCHITECTURE.md` before leaving planning and sync `docs/gitbook/architecture.md` when present.
+- Planning fallback: if planning already happened in another chat or the session exited before sync, paste the full approved plan output or transcript back into the current session, reconstruct `docs/exec-plans/active/*.md`, then immediately sync `docs/PLAN.md` + `docs/progress.json` and any architecture doc changes.
+
 ## Requirements
 
 **Node/TS projects (TypeScript CLI):**
 - Node.js 18+
 - Git
-- One of: pnpm, bun, or npm
+- One of: pnpm, bun, or npm. For Expo / EAS projects, `yarn` is also supported and is often preferable for monorepos.
 - `tsx` (added automatically as a dev dependency)
 
 **Strict non-Node projects (Shell CLI fallback — Python, Go, Rust):**
@@ -238,6 +291,9 @@ pwsh scripts/skill-maintenance.ps1                  # full health check only
 pwsh scripts/skill-maintenance.ps1 -AutoFix         # run safe self-corrections
 pwsh scripts/skill-maintenance.ps1 -AutoFix -Version 2026.03.12  # optional explicit version sync
 ```
+
+Every run of `bump-version.ps1` and every `-AutoFix` run appends an entry to
+`SKILL-AUDIT.md` — review it to trace what changed and why.
 
 Recommended loop:
 

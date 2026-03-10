@@ -5,12 +5,31 @@ harness CLI. For agent guidelines (context budget, parallel coordination, qualit
 see `references/execution-runtime.md`. For optional release automation, docs-site
 workflows, and memory-system conventions, see `references/execution-advanced.md`.
 
+### Execution Mode Selection
+
+Before starting tasks, choose the runtime mode:
+
+- **Serial-first (default):** use this when there is one eligible milestone, one active
+  agent, and no explicit isolation requirement. Start from main/root with `harness init`.
+- **Managed worktree mode:** use this when 2+ milestones are dependency-independent, the
+  user explicitly wants isolation, or the agent expects concurrent work to pay off.
+  Start with `harness worktree:start <M-id>`.
+
+The project can switch from serial mode to worktree mode later. Do not create worktrees
+preemptively for a linear plan.
+
 ### The Agent's Entire Workflow (Auto-Cascading CLI)
 
 The CLI auto-chains commands. The agent only needs to run 3 commands in a loop.
 
 ```bash
-# ── First time setup: worktree for a milestone ──────────────────────────────
+# ── First time setup: serial-first default ──────────────────────────────────
+<pkg-mgr> run harness init
+# → AUTO: syncs plans, stale-checks, recovers state, prints status
+# → AUTO: if one eligible milestone should stay serial, resumes or starts its first task on main/root
+# → AUTO: if parallel / isolation mode is warranted, tells you which `worktree:start` command to run
+
+# ── First time setup: managed worktree mode (only when needed) ─────────────
 <pkg-mgr> run harness worktree:start M1
 # → AUTO: creates branch + worktree
 # → AUTO: installs dependencies (with retry on Windows EBUSY)
@@ -29,8 +48,8 @@ git add -A && git commit -m "[M1-001] create user model + migration"
 # 3. Mark done — CLI auto-cascades everything:
 <pkg-mgr> run harness done M1-001
 # → AUTO: ✅ updates PLAN.md + progress.json
-# → AUTO: git checkout . (clean working tree)
-# → AUTO: finds next task → starts it
+# → AUTO: verifies the worktree is clean; if not, warns and pauses instead of resetting files
+# → AUTO: finds next task → starts it only when git state is clean
 # → prints: "Started: M1-002 — Implement signup. Write code, then: harness validate"
 
 # Agent writes code for M1-002... validate... commit... done M1-002...
@@ -41,10 +60,10 @@ git add -A && git commit -m "[M1-001] create user model + migration"
 # → AUTO: ✅ task complete
 # → AUTO: no more tasks → triggers merge-gate
 # → AUTO: validate:full + stale-check + changelog
-# → AUTO: merge-gate passes → queues serialized root-side worktree:finish M1
-# → AUTO: rebase on latest main + re-run merge gate + merge + archive + push + cleanup
-# → AUTO: detects next milestone M2 → worktree:start M2
-# → AUTO: install → init → starts M2-001
+# → AUTO: merge-gate passes → closes the milestone in the active execution mode
+# → AUTO: if isolated mode is active, queues serialized root-side worktree:finish M1
+# → AUTO: if serial mode is active, closes M1 on main/root and resumes with init when M2 is eligible
+# → AUTO: detects next milestone M2 → continues in the active execution mode
 # → prints: "Started: M2-001 — ..."
 # Agent continues writing code. Zero manual steps between milestones.
 # The only time this chain stops is if merge-gate, rebase, or push fails.
@@ -75,8 +94,8 @@ git add -A && git commit -m "[M1-001] create user model + migration"
 - `harness start <id>` — auto-called after `next` finds a task
 - `harness merge-gate` — auto-called by `done` when milestone is complete
 - `harness worktree:finish` — auto-queued in the serialized main-root finish queue after merge-gate passes
-- `harness worktree:start` — auto-called by `worktree:finish` for next milestone
-- `harness plan:apply` — auto-called by `init` only when new plans are detected on main/root
+- `harness worktree:start` — only needed when entering managed worktree mode or when a later milestone should run isolated / in parallel
+- `harness plan:apply` — use it during the planning handoff to materialize new work immediately; `init` only auto-applies leftover unsynced plans as recovery
 - `harness recover` — auto-called by `init` to close milestones whose PLAN rows are already complete and merged
 
 # If rebase conflicts during worktree:finish:
@@ -102,6 +121,7 @@ command blindly** and **do not skip validations**:
 | `harness validate` fails (lint / type / test) | Fix the error, re-run validate. If same error after 3 attempts → `harness block <id> "<error summary>"` |
 | `harness validate` fails (file-guard: 500-line limit) | Split the file, do NOT disable the check. Commit the split as a separate task. |
 | `harness done` fails with ReferenceError / CLI crash | Confirm you are inside a milestone worktree (`git branch` shows `milestone/m<n>`). Run `harness init` to resync state, then retry `harness done`. |
+| `harness done` pauses because the worktree is still dirty | Run `git status`, commit/stash/discard the leftover changes manually, then run `harness init` to resume the loop. Do NOT rely on the CLI to reset files for you. |
 | `harness worktree:start` fails (branch conflict) | Run `harness worktree:status` to check if the worktree already exists. If so, `cd` into it and run `harness init` directly. |
 | `harness merge-gate` fails (validate:full) | Fix the failing tests/lint — do NOT use `--no-verify` or skip the gate. The gate is the last quality checkpoint before merge. |
 | `harness worktree:finish` fails (rebase conflict) | Resolve conflicts inside the worktree, run `harness validate:full`, re-run `harness worktree:finish`. |
@@ -199,22 +219,23 @@ Alternative: `sqlx` with `sqlx migrate run` — works without codegen.
 - Track applied migrations in a `_migrations` table
 - Commit with the task: `[M1-001] add user table migration`
 
-### Parallel Worktree
+### Conditional Worktree Mode
 
-- One agent, one worktree — enforced by CLI (worktree:start checks agents array)
-- Independent milestones can run in parallel
+- Default to serial execution on main/root when there is one eligible milestone, one active agent, and no explicit isolation need
+- When worktree mode is active: one agent, one worktree
+- Independent milestones can run in parallel only while worktree mode is active
 - progress.json `agents` array is the coordination point — agents self-register on `init`
 - Agent heartbeat updated on every command (next/start/done) — stale after 2h
 - Merge order follows dependency order — `worktree:finish` blocks if deps aren't merged
 - After another milestone merges into main, rebase with `worktree:rebase`
 - `worktree:status` shows all agents, heartbeats, auto-finish jobs, and merge readiness from main root
 
-### Worktree Enforcement
+### Execution Context Discipline
 
-The CLI **refuses** to run task commands (`next`, `start`, `done`) on the main branch.
-This prevents agents from accidentally working directly on main without worktree isolation.
-If an agent tries to run `harness start M1-001` on main, the CLI will error with instructions
-to create a worktree first. This is a hard gate — there is no override flag.
+- Serial mode: keep the active milestone on main/root until it is complete or you intentionally switch modes
+- Managed worktree mode: run task commands from that milestone's worktree, not from another branch or repo root
+- Do not split one active milestone across serial and worktree contexts at the same time
+- If a later milestone becomes parallel-ready, create a worktree then; do not pre-create worktrees for a linear plan
 
 ### Non-Node Projects — Execution Differences
 
@@ -320,7 +341,8 @@ merge-gate and are enforced by code review, not just automated tools.
 **Documentation (agent responsibility — tracked as milestone tasks):**
 - README/docs accurately reflect current state of the code
 - API endpoints documented (or auto-generated from OpenAPI/tRPC)
-- ARCHITECTURE.md updated if new modules were added
+- ARCHITECTURE.md updated when module boundaries, integrations, deployment topology, or core data flow change
+- `docs/gitbook/architecture.md` synced when public architecture docs exist and the system shape changed
 - Changelog generated via `harness changelog`
 
 **What "production ready" means for each project type:**
@@ -380,7 +402,11 @@ project needs CI-driven versioning and publishing.
 See `references/execution-advanced.md`, section `Phase 6: Documentation Site`,
 if the project needs a maintained documentation site workflow.
 
-### GitBook Companion Track (when requested)
+### GitBook Companion Track (mandatory — generated in Phase 3, maintained here)
+
+> `docs/gitbook/` was generated during Phase 3 scaffold with 7 files. During execution,
+> keep these files current whenever milestones change product positioning, architecture,
+> or the quickstart flow. Do not regenerate from scratch — update the relevant file.
 
 If the user wants GitBook-ready project-introduction content while execution is
 happening, treat docs as a parallel deliverable rather than a final cleanup pass.
@@ -451,7 +477,7 @@ docs/gitbook/
 8. **Testable & traceable** — Requirements → Epics → Stories → Tasks. Every task has "done when."
 9. **Granular decomposition** — ≤ 4h per task. If bigger, split.
 10. **Code is cheap** — Delete and rewrite. Assume infinite tokens. First principles only.
-11. **Worktree isolation** — Each milestone in its own worktree. Atomic commits. Merge only when green.
+11. **Conditional milestone isolation** — Use a dedicated worktree when parallelism or risk isolation makes it worthwhile. Otherwise stay serial on main/root. Merge only when green.
 12. **CLI handles state** — Agent never manually edits progress.json or PLAN.md status. `harness start/done/block` does it.
 13. **Schema-validated** — progress.json has a JSON Schema. Hooks reject invalid writes.
 14. **Commits are parseable** — [Mn-id] format enforced by hook. `harness changelog` auto-generates release notes.
@@ -462,11 +488,13 @@ docs/gitbook/
 19. **Context is finite** — ≤40% context utilization. Never load more than the current task needs.
 20. **Learnings compound** — Problems + solutions logged. Future sessions inherit past wisdom.
 21. **Staleness is a bug** — `harness stale-check` catches it. Don't wait for humans.
-22. **Parallel by default** — Independent milestones run in parallel. One agent, one worktree.
+22. **Parallel when the graph justifies it** — Independent milestones can run in parallel. When parallel mode is active: one agent, one worktree.
 23. **Modularize proactively, not reactively** — Don't wait for 500 lines. Split at ~250 if a file has multiple responsibilities. Every module = one purpose. The CLI itself models this: 1 entry point + 6 focused modules, none exceeding 350 lines. If the CLI follows its own rule, so does all project code.
-24. **Frontend = frontend-design skill** — All frontend reads `docs/frontend-design.md` first.
-25. **The loop is perpetual** — Bootstrap, execute, idle, add work, repeat forever.
-26. **Production ready is the only standard** — Every milestone ships. No "it works locally." Error handling, input validation, structured logging, zero build warnings, no TODO/FIXME in committed code. If it's not production ready, the task is not done.
+24. **Frontend = frontend-design + design docs** — All frontend reads `docs/frontend-design.md` first, and reads `docs/design.md` before changing a specific page or screen.
+25. **UI artifacts stay in sync** — If a task changes navigation, page structure, theme, density, or component hierarchy, update the relevant UI docs and regenerate `docs/design-preview.html` before closing the task.
+26. **Desktop release docs stay in sync** — If a desktop task changes packaging target, signing/notarization, updater channel, or release workflow, update `docs/release.md` before closing the task.
+27. **The loop is perpetual** — Bootstrap, execute, idle, add work, repeat forever.
+28. **Production ready is the only standard** — Every milestone ships. No "it works locally." Error handling, input validation, structured logging, zero build warnings, no TODO/FIXME in committed code. If it's not production ready, the task is not done.
 
 ---
 
@@ -476,34 +504,30 @@ After creating all files:
 
 1. Present the file tree overview
 2. Show a concise summary of what was generated: stack, auth, environments, monorepo structure
-3. Highlight four files the user must review:
+3. Highlight the core files the user must review:
    - `docs/PRD.md` — requirements and acceptance criteria
    - `docs/PLAN.md` — milestones, tasks, dependencies, "done when" conditions
+   - `ARCHITECTURE.md` — system shape, module boundaries, integrations, and data flow
    - `AGENTS.md` / `CLAUDE.md` — agent rules and iron rules (including Production Ready Standard)
    - `docs/progress.json` — dependency graph and task order
-4. Ask the user to review `docs/PLAN.md` specifically and confirm:
-   - Are the milestones in the right order?
-   - Is the task granularity right? (each task should be ≤ 4h)
-   - Are the "done when" conditions measurable?
-   - Are the dependencies between tasks correct?
+   - For frontend projects: `docs/frontend-design.md`, `docs/design.md`, and `docs/design-preview.html`
+4. Call out `docs/PLAN.md` as the first file to spot-check if the user wants to adjust
+   milestone order, task granularity (≤ 4h per task), measurable "done when" conditions,
+   or task dependencies before execution starts
 5. Remind the user: **"Every milestone is built to production standards. Iron Rule 7
    (Production Ready Standard) means every merge includes error handling, input validation,
    structured logging, zero build warnings, and no TODO/FIXME in committed code.
    The agent enforces this at every merge-gate."**
+6. For greenfield projects, the Design Preview Review Gate in `references/skill-greenfield.md`
+   is the canonical approval step. Do NOT ask for a second "approved" message here.
+7. If this file is being used from a non-greenfield entrypoint and no upstream scaffold-review
+   gate has happened yet, return to that upstream workflow and complete its approval step there
+   instead of inventing a new gate here.
 
-Then present the explicit approval gate:
-
-> **"The scaffold is ready. Before I hand off to Claude Code / Codex, please review
-> PLAN.md and confirm you're happy with the milestones and task breakdown.
-> Once you approve, the agent will begin executing automatically from M1-001.
-> Type 'approved' or let me know what you'd like to change."**
-
-**Do not provide the handoff instructions until the user explicitly approves the plan.**
-
-After approval, provide the Step-by-step handoff instructions (git init, install deps,
-open in agent). Make clear that once the user opens the project in Claude Code / Codex
-and says "begin", the agent will execute autonomously until a Human quality checkpoint
-is triggered.
+After the upstream approval gate has already passed, provide the Step-by-step handoff
+instructions (git init, install deps, open in agent). Make clear that once the user
+opens the project in Claude Code / Codex and says "begin", the agent will execute
+autonomously until a Human quality checkpoint is triggered.
 
 ---
 
@@ -600,12 +624,14 @@ Tell the agent:
 > "Read the Session Init section and begin working on the first milestone."
 
 Or for parallel execution:
-> "Read Session Init. Start milestone M1 in a worktree."
+> "Read Session Init. If one milestone is ready, start it normally. If you need isolation now, start milestone M1 in a worktree."
 
 The agent will:
 1. Read AGENTS.md / CLAUDE.md (already done at startup)
 2. Read docs/progress.json → see M1 is first, all tasks ⬜
-3. Create worktree: `git worktree add ../my-project-m1 -b milestone/m1`
+3. Choose the execution context:
+   - Serial mode: stay on main/root and start the only eligible milestone
+   - Worktree mode: create worktree: `git worktree add ../my-project-m1 -b milestone/m1`
 4. Pick the first unblocked task (M1-001)
 5. Begin the Task Execution Loop autonomously
 
@@ -638,21 +664,6 @@ project needs persistent memory conventions beyond `docs/learnings.md`.
 
 ## Ongoing Development — Adding New Work
 
-## Self-Iteration and Self-Correction
-
-When the user reports a process-level issue (command drift, duplicated docs, wrong mode framing,
-or template confusion), run a short maintenance loop before continuing execution work:
-
-1. From this skill repo root, run `pwsh scripts/skill-maintenance.ps1`.
-2. Read failures, fix the minimal set of docs manually.
-3. Re-run with `-AutoFix` for safe corrections.
-4. Re-run check and only proceed when green.
-
-This is the default entry point when the agent notices repeated confusion in the
-skill's own generated workflow surfaces.
-
-## Ongoing Development — Adding New Work
-
 The initial bootstrap creates Milestones M1, M2, M3... from the PRD. But a project
 doesn't end there. New features, bugs, tech debt, and pivots happen continuously.
 
@@ -679,15 +690,26 @@ The flow uses **plan mode** as entry → CLI handles insertion:
    - Claude Code: plansDirectory auto-routes here
    - Codex: AGENTS.md instructs to write plans here
 6. User reviews the plan, edits if needed, approves
-7. Agent runs: `<pkg-mgr> run harness plan:apply`
-   → CLI reads the plan, analyzes current state, inserts milestones:
+7. Agent immediately syncs the plan into repo state before leaving planning:
+   - TypeScript CLI: run `<pkg-mgr> run harness plan:apply` from main/root
+   - Native shell CLI: manually mirror the milestone tables into `docs/PLAN.md` + `docs/progress.json`
+   → The sync step reads the plan, analyzes current state, inserts milestones:
    - Auto-renumbers to avoid conflicts (M1 in plan → M5 if M4 exists)
    - Wires dependencies (new milestones depend on latest active/completed)
    - Appends to PLAN.md with correct headers
    - Updates progress.json (active_milestones + dependency_graph)
    - Marks plan as synced
-8. Agent runs: `<pkg-mgr> run harness worktree:start M<next>`
-   → Creates worktree → installs → inits → auto-starts first task
+8. Agent verifies `docs/PLAN.md` + `docs/progress.json` now reflect the new work. Do not rely on a future `harness init` to ingest chat-only planning output.
+9. Fallback when planning already happened elsewhere:
+   - Paste the full approved plan output or planning transcript back into the current session
+   - Agent reads that pasted planning context, reconstructs `docs/exec-plans/active/<descriptive-name>.md`, then performs the same sync into `docs/PLAN.md` + `docs/progress.json`
+   - Do not continue execution from a chat-only summary; repo files must be updated first
+10. If the approved plan changes module boundaries, integrations, deployment topology, or core data flow:
+   - Update `ARCHITECTURE.md` before leaving planning
+   - If `docs/gitbook/architecture.md` exists, sync it now when the wording is stable; otherwise add an explicit docs task in the new milestone
+11. Agent chooses execution start:
+   - Serial-first default: `<pkg-mgr> run harness init`
+   - Managed worktree mode: `<pkg-mgr> run harness worktree:start M<next>`
    → Enters Task Execution Loop automatically
 
 For tiny changes (1-2 files, obvious diff, no plan needed):
@@ -697,6 +719,8 @@ For tiny changes (1-2 files, obvious diff, no plan needed):
 
 Come back to this skill and say:
 > "Here's my existing project [upload key files]. I want to add [requirements]."
+
+If planning already happened in another session, also paste the approved plan output or the relevant planning transcript so the agent can reconcile it into repo state instead of relying on chat memory.
 
 Upload these files for context:
 - `AGENTS.md` / `CLAUDE.md` — current project rules (either one, they're identical)
@@ -724,7 +748,7 @@ Required flow:
 1. Treat the upstream change as normal work in the source repo: plan, milestone, worktree, validation.
 2. Before calling it complete, identify at least one downstream repo or fixture that represents the consumer side.
 3. Create a replay milestone or replay checklist in that downstream repo if the rollout is more than a trivial edit.
-4. Apply the upstream delta there and run the same closed loop: `harness init` → `plan:apply` if needed → `worktree:start` → `validate:full`.
+4. Apply the upstream delta there and run the same closed loop: `harness init` → sync planning state → choose serial or worktree execution as appropriate → `validate:full`.
 5. Capture the replay result in the upstream handoff notes: downstream repo, commit SHA, pass/fail, migration notes.
 6. If replay fails, the upstream change is not closed. Either fix the upstream contract or create an explicit downstream follow-up milestone.
 
@@ -805,7 +829,8 @@ When the user says "let's add agent tools" or "make this an MCP server" or "depl
 <pkg-mgr> run harness scaffold cloudflare        # → wrangler.toml, .dev.vars
 
 # Then continue normal flow:
-<pkg-mgr> run harness worktree:start M<next>     # start the new milestone
+<pkg-mgr> run harness init                        # default serial start
+# or: <pkg-mgr> run harness worktree:start M<next>   # if isolated / parallel execution is needed
 ```
 
 The scaffold command generates starter files adapted to the current project name.
@@ -880,7 +905,8 @@ git add -A && git commit -m "chore: archive exec-plans for v<version>"
 ```
 
 After tagging and archiving, the project enters **Idle**. The agent waits.
-New work enters only via `harness plan:apply` or by a human writing a new plan file.
+New work enters via plan mode, followed by immediate repo sync (`harness plan:apply` or native mirroring),
+or via the pasted-plan recovery path when planning happened elsewhere.
 Do not invent tasks or start new milestones without an explicit user request.
 
 The repo is the single source of truth. The execution loop doesn't know or care
@@ -908,3 +934,22 @@ If a merged milestone must be backed out:
 2. Repair `docs/PLAN.md`, `docs/progress.json`, and any archived exec-plan file placement so they
    match the reverted state.
 3. Treat follow-up repair work as a new plan/milestone instead of editing status cells ad hoc.
+
+## Self-Iteration and Self-Correction
+
+> **SAFETY GUARD:** This section applies ONLY when your current working directory IS
+> the `harness-engineer-cli` skill repo itself. If you are executing this skill ON a
+> user's project, **skip this section entirely** — do not run `skill-maintenance.ps1`
+> in the project directory. Running maintenance scripts in the wrong directory will
+> corrupt the skill's reference files.
+
+When the user reports a process-level issue (command drift, duplicated docs, wrong mode framing,
+or template confusion), run a short maintenance loop before continuing execution work:
+
+1. From this skill repo root, run `pwsh scripts/skill-maintenance.ps1`.
+2. Read failures, fix the minimal set of docs manually.
+3. Re-run with `-AutoFix` for safe corrections.
+4. Re-run check and only proceed when green.
+
+This is the default entry point when the agent notices repeated confusion in the
+skill's own generated workflow surfaces.

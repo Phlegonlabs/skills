@@ -13,10 +13,12 @@ the exec-plan, so auth tasks appear in `docs/exec-plans/active/001-initial-setup
 
 **Auth tasks to add to M1 (or the first milestone) in the exec-plan:**
 
-Replace `M1-00X` with the next available task number in M1's table. Run
-`pnpm run harness plan:status` (or inspect PLAN.md) to see the highest existing
-task number, then increment: if the last task is `M1-007`, add auth tasks as
-`M1-008`, `M1-009`, etc.
+Replace `M1-00X` with the next available task number in the **draft M1 table you are
+already assembling in Phase 2.5**. Use the in-memory exec-plan content to find the
+highest assigned task number, then continue sequentially: if the current last task in
+the draft table is `M1-007`, add auth tasks as `M1-008`, `M1-009`, etc.
+Do NOT run `harness plan:status` or inspect on-disk `PLAN.md` here — the scaffold and
+CLI do not exist yet.
 
 ```markdown
 | M1-00X | Auth | Install Better Auth + configure lib/auth.ts | `pnpm run harness validate` passes; auth config exports `auth` object | ⬜ | — |
@@ -25,6 +27,10 @@ task number, then increment: if the last task is `M1-007`, add auth tasks as
 | M1-00X | Auth | Run schema migration | User, Session, Account, Verification tables exist in DB | ⬜ | — |
 | M1-00X | Auth | Write auth integration test | Sign up + sign in flow passes; invalid creds return 401 | ⬜ | — |
 ```
+
+These rows describe **future execution tasks**. Their `Done When` cells are acceptance
+criteria for Phase 4; do not try to run validation, migrations, or handlers during
+scaffold generation itself.
 
 After adding auth tasks, also update `ARCHITECTURE.md`: add an **Auth Layer** section
 describing the auth library chosen, session strategy (HttpOnly cookie / SecureStore),
@@ -445,7 +451,8 @@ Generate: Firebase config, auth context, server-side token verification middlewa
 
 If the user selected "None / custom":
 - Do NOT generate any auth code or auth-related env vars
-- Generate a placeholder `src/lib/auth.ts` (or equivalent) with a TODO comment
+- Generate a placeholder `src/lib/auth.ts` (or equivalent) with a neutral note such as
+  `Auth intentionally not implemented in the initial scaffold.`
 - Add a `docs/tech-debt/auth-not-implemented.md` note
 - In PLAN.md: do not create auth-related tasks unless the user explicitly asks later
 

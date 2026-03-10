@@ -63,6 +63,14 @@ if ($updatedReadme -eq $readmeContent) {
 }
 Set-Content -Path $readmePath -Value $updatedReadme -Encoding utf8
 
+# Append audit entry
+$auditFile = Join-Path $PSScriptRoot ".." "SKILL-AUDIT.md"
+if (Test-Path $auditFile) {
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm"
+    $auditEntry = "`n---`n`n## $timestamp — bump-version`n`n- **Action:** Version bump`n- **Previous version:** $currentVersion`n- **New version:** $nextVersion`n- **Changed files:** VERSION, SKILL.md, README.md`n"
+    Add-Content -Path $auditFile -Value $auditEntry
+}
+
 Write-Host "Version bump: $currentVersion -> $nextVersion"
 Write-Host "Updated:"
 Write-Host " - $versionPath"

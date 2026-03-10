@@ -27,6 +27,55 @@ principles. It works in TWO modes:
 The philosophy: AGENTS.md is a **table of contents, not an encyclopedia**. Keep it concise,
 pointing to deeper sources of truth. All project knowledge lives in the repo as versioned,
 discoverable artifacts — because if an agent can't see it, it doesn't exist.
+Generated `AGENTS.md` / `CLAUDE.md` always include fixed `Interaction Rules` and fixed
+`Iron Rules`; project-specific sections fill in the rest.
+
+---
+
+## Top-Level State Machine
+
+Use this as the mental model before reading any deeper reference file. Different entry paths
+exist, but all real work converges into the same repo-backed execution loop.
+
+Core rule: chat is input; repo files are state. Do not resume execution from chat memory alone.
+
+```mermaid
+stateDiagram-v2
+  [*] --> Entry
+  Entry --> Greenfield: new project
+  Entry --> Retrofit: existing project
+  Entry --> SessionInit: existing harness repo / resumed session
+
+  Greenfield --> ReviewGate: discovery -> PRD -> scaffold
+  ReviewGate --> SessionInit: phase-3 review approved
+
+  Retrofit --> RetrofitReview: analyze -> write harness files
+  RetrofitReview --> SessionInit: diff / preview approved
+
+  SessionInit --> RuntimeSelect
+  RuntimeSelect --> SerialMode: 1 eligible milestone, no isolation need
+  RuntimeSelect --> WorktreeMode: parallelism / isolation is beneficial
+
+  SerialMode --> TaskLoop
+  WorktreeMode --> TaskLoop
+  TaskLoop --> SessionInit: next milestone remains
+  TaskLoop --> Idle: all milestones complete
+
+  Idle --> PlanMode: new work
+  Idle --> PlanningRecovery: plan exists only in another chat
+
+  PlanMode --> PlanSync: approved plan
+  PlanningRecovery --> PlanSync: paste full plan / transcript back
+  PlanSync --> ArchitectureSync: system shape changed
+  PlanSync --> RuntimeSelect: no architecture change
+  ArchitectureSync --> RuntimeSelect
+```
+
+- `PlanSync` is mandatory before execution resumes.
+- `PlanningRecovery` is the fallback path when planning happened elsewhere and the repo was not synced.
+- `ArchitectureSync` happens whenever the approved plan changes module boundaries, integrations,
+  deployment topology, or core data flow.
+- `WorktreeMode` is conditional; default execution is serial-first.
 
 ---
 
@@ -52,6 +101,7 @@ This skill is split into focused reference files to avoid loading everything upf
 | `references/gitignore-templates.md` | During Phase 3 — .gitignore templates per stack |
 | `references/execution-runtime.md` | During Phase 3 — agent guidelines: context budget, parallel coordination, quality gates |
 | `references/execution-advanced.md` | Only when needed — release automation, docs site, memory system |
+| `references/replay-protocol.md` | **Skill maintenance only** — when harness CLI behavior, CI/hook templates, schema contracts, or scaffold outputs change in a way that affects downstream consumer repos. Run a cross-repo replay before calling the change complete. |
 
 **Load order:**
 - Retrofit path: `skill-retrofit.md` → then `skill-artifacts.md` when generating files
@@ -76,17 +126,33 @@ This skill is split into focused reference files to avoid loading everything upf
   a frontend so Claude Code and Codex (which cannot access claude.ai skill paths) can read it.
   Generation strategy — try in order until one succeeds:
   1. If the `frontend-design` skill is already active in this claude.ai session, read its
-     full content and write it verbatim to `docs/frontend-design.md`.
+     content as a base template, then customize it using Phase 1 call 5 answers before
+     writing to `docs/frontend-design.md`.
   2. If a local copy exists on the machine (common paths: `~/.agents/skills/frontend-design/SKILL.md`,
      `C:\Users\<user>\.agents\skills\frontend-design\SKILL.md`, `/mnt/skills/public/frontend-design/SKILL.md`),
-     read it and write it verbatim.
-  3. If neither source is reachable, generate a minimal fallback containing: brand color
-     palette, typography scale (font families + size steps), 4-point spacing system,
-     component naming conventions, and the "no generic AI aesthetics" principle.
+     read it as a base template and apply the same call 5 customizations.
+  3. If neither source is reachable, generate `docs/frontend-design.md` directly from
+     the call 5 answers — do not use a generic minimal fallback.
+
+  In ALL cases, the call 5 answers MUST be reflected:
+  - Q11 (component library) → "Component System" section: library name, install command,
+    import conventions, and Tailwind config notes (if applicable)
+  - Q12 (design aesthetic) → "Visual Language" section: color tone, spacing density,
+    border-radius scale, font personality, shadow depth
+  - Q13 (layout pattern) → "Layout Patterns" section: primary nav structure, page
+    skeleton template, responsive breakpoint strategy
+  - Q14 (visual references / brand anchors) → "Reference Anchors" section: existing
+    brand/UI to preserve, cited inspirations, and explicit "avoid" cues
+  - Q15 (content density) + Q16 (theme preference) → "Preview Rendering Rules"
+    section: density target, light/dark expectation, CTA hierarchy, and preview emphasis
   Log which strategy was used as a note in `docs/learnings.md`.
-- GitBook / project-intro companion docs: when the user wants project documentation, GitBook
-  pages, or an external-facing project introduction while the build is happening, treat that
-  as a parallel deliverable. Generate and maintain a `docs/gitbook/` markdown set by default
+  For every frontend project, keep the UI artifact chain consistent:
+  `docs/frontend-design.md` → `docs/design.md` → `docs/design-preview.html`.
+  The HTML preview is a **mid-fi styled static preview**, not a pure wireframe and
+  not production code.
+- GitBook / project-intro companion docs: for ALL new projects, generate `docs/gitbook/`
+  as part of Phase 3 scaffold — this is not conditional on user request. Treat it as a
+  required parallel deliverable alongside AGENTS.md and PLAN.md. Generate and maintain a `docs/gitbook/` markdown set by default
   (or the repo's existing docs root if one already exists). Minimum scope: landing page,
   product overview, problem/users, architecture/capabilities, quickstart, roadmap, and
   `SUMMARY.md`. Preferred starter shape:
@@ -107,9 +173,11 @@ This skill is split into focused reference files to avoid loading everything upf
 First, determine which mode to use. If the user uploads files or mentions an existing
 project, use Retrofit. If they describe something new, use Greenfield.
 
-If unclear, ask:
+If unclear, ask with `ask_user_input` when structured prompt tools are available.
+If your runtime does not provide `ask_user_input` (for example Codex in a plain terminal flow),
+ask the same choice in prose and continue from the user's answer:
 
-**ask_user_input:**
+**ask_user_input / prose equivalent:**
 1. **Mode** (single_select): What's the starting point?
    - Options: `New project from scratch`, `Add harness to an existing project`
 

@@ -37,7 +37,7 @@ Agent uses: `<pkg-mgr> run harness <command>`
 
 harness init              Session boot → auto: sync plans → apply → recover → start task
 harness validate          Run lint:fix → lint → type-check → test
-harness done <id>         Complete task → auto: git checkout → next → start → (merge-gate → finish → next milestone)
+harness done <id>         Complete task → verify git state clean → auto: next → start → (merge-gate → close milestone in the active execution mode)
 
 # Everything below is auto-cascaded or for special situations:
 
@@ -49,8 +49,8 @@ harness block <id> <reason>   Mark task blocked → 🚫 → auto next → auto 
 harness reset <id>        Revert task to ⬜ (undo start or unblock)
 harness learn <cat> <msg>  Log a learning (dependency, config, architecture, etc.)
 harness merge-gate        Full gate (auto-called by done when milestone complete)
-harness worktree:start <M-id>   Create worktree → auto: install → init → start task
-harness worktree:finish <M-id>  Serialized root-side rebase → merge → archive → push → cleanup → auto: worktree:start next milestone
+harness worktree:start <M-id>   Enter isolated / parallel milestone mode → auto: install → init → start task
+harness worktree:finish <M-id>  Serialized root-side rebase → merge → archive → push → cleanup → auto: continue next milestone when worktree mode stays active
 harness worktree:rebase          Rebase current worktree onto latest main
 harness worktree:reclaim <M-id>  Reclaim a stale/abandoned milestone
 harness worktree:status          Show all worktrees, agents, auto-finish jobs, merge readiness
@@ -59,20 +59,29 @@ harness file-guard        Check 500-line limit (--staged for hooks)
 harness changelog [from] [to]  Generate release notes
 harness schema            Validate progress.json against schema
 harness recover           Close milestones whose PLAN rows are all ✅ and whose branch is already merged/removed
-harness plan:apply [file] Parse plan → analyze state → insert milestones + task mirrors + deps (auto-called by init)
+harness plan:apply [file] Parse plan → analyze state → insert milestones + task mirrors + deps (run during planning handoff; auto-called by init only for recovery)
 harness plan:status       Show project progress overview for planning context
 harness scaffold <type>   Inject capability templates (16 types — run without args to see list)
 ```
 
 **Auto-cascade chains:**
 ```
-init (main/root) → syncPlans → plan:apply (if new plans) → recover → start or finish
+init (main/root) → syncPlans → plan:apply (if new plans) → recover → serial start/resume OR suggest worktree:start
 init (worktree) → warn on pending plans → recover → resume task / next / start
-done → git checkout . → next → start (or: merge-gate → queue serialized root-side finish)
+done → verify git state clean → next → start (or: merge-gate → close milestone in serial mode OR queue serialized root-side finish)
 block → next → start next unblocked task
 worktree:finish → auto worktree:start next eligible milestone → install → init → start
 worktree:start → dep check → install → init → next → start
 ```
+
+Planning handoff rule: before leaving plan mode, materialize `docs/PLAN.md` + `docs/progress.json`.
+If the approved plan changes module boundaries, integrations, deployment topology, or core data flow,
+update `ARCHITECTURE.md` as part of the same handoff and sync `docs/gitbook/architecture.md`
+when present.
+Fallback rule: if planning already happened in another chat or the session ended before sync,
+paste the full approved plan output or transcript back into the current session, rewrite it to
+`docs/exec-plans/active/*.md`, then run `harness plan:apply` (or manually mirror it for native shell)
+before resuming execution.
 
 The agent's entire loop reduces to:
 ``` 
@@ -243,6 +252,107 @@ export function loadPlan(): string {
 
 export function savePlan(content: string): void {
   writeFileSync(PLAN_FILE, content);
+}
+```
+
+### scripts/harness/progress.ts
+
+```typescript
+// Centralized state normalization — counters, dedup, sort, issue detection.
+// Pure functions: read PLAN.md for source of truth, never call saveProgress().
+import type { CompletedMilestone, Progress } from './types.js';
+import { loadPlan } from './state.js';
+import { parsePlanTaskRows, countTaskStatuses } from './plan-utils.js';
+
+/** Sort milestone list by numeric M-id (M1 < M2 < M10). */
+export function sortMilestones<T extends { id: string }>(list: T[]): T[] {
+  return [...list].sort((a, b) => {
+    const na = Number(a.id.replace(/^M/i, ''));
+    const nb = Number(b.id.replace(/^M/i, ''));
+    return na - nb;
+  });
+}
+
+/**
+ * Dedup completed milestones — keep the entry with the EARLIEST completed_at.
+ * @param list    Raw completed_milestones array (may have duplicates).
+ * @param fallback ISO timestamp to use when completed_at is absent.
+ */
+export function dedupeCompletedMilestones(
+  list: CompletedMilestone[],
+  fallback: string,
+): CompletedMilestone[] {
+  const seen = new Map<string, CompletedMilestone>();
+  for (const m of list) {
+    const normalized: CompletedMilestone = { ...m, completed_at: m.completed_at ?? fallback };
+    const existing = seen.get(m.id);
+    if (!existing) { seen.set(m.id, normalized); continue; }
+    const existTs = Date.parse(existing.completed_at ?? '');
+    const newTs   = Date.parse(normalized.completed_at ?? '');
+    // Prefer the earlier timestamp — first completion wins
+    if (!Number.isNaN(newTs) && (Number.isNaN(existTs) || newTs < existTs)) {
+      seen.set(m.id, normalized);
+    }
+  }
+  return [...seen.values()];
+}
+
+/**
+ * Recalculate task counters and status for all active milestones from PLAN.md,
+ * then sort + dedup both lists. Mutates p in-place and returns it.
+ * Does NOT call saveProgress — callers decide whether to persist.
+ */
+export function syncProgressState(p: Progress): Progress {
+  let plan: string;
+  try { plan = loadPlan(); } catch { return p; }
+
+  for (const ms of p.active_milestones) {
+    const rows = parsePlanTaskRows(plan, ms.id);
+    if (rows.length === 0) continue;
+    const counts = countTaskStatuses(plan, ms.id);
+    ms.tasks_total       = counts.total;
+    ms.tasks_done        = counts.done;
+    ms.tasks_in_progress = counts.wip;
+    ms.tasks_blocked     = counts.blocked;
+    ms.tasks_remaining   = counts.total - counts.done;
+    ms.status = counts.done === counts.total ? 'complete'
+      : (counts.wip > 0 || counts.done > 0 ? 'in_progress' : 'not_started');
+  }
+
+  p.active_milestones    = sortMilestones(p.active_milestones);
+  p.completed_milestones = sortMilestones(
+    dedupeCompletedMilestones(p.completed_milestones, new Date().toISOString()),
+  );
+
+  return p;
+}
+
+/**
+ * Detect common consistency problems in progress.json.
+ * Returns a list of human-readable issue strings (empty = no problems).
+ */
+export function getProgressIssues(p: Progress): string[] {
+  const issues: string[] = [];
+  const completedIds = new Set(p.completed_milestones.map((m) => m.id));
+
+  for (const ms of p.active_milestones) {
+    if (completedIds.has(ms.id)) {
+      issues.push(`${ms.id} appears in both active_milestones and completed_milestones`);
+    }
+  }
+
+  if (p.current_milestone && completedIds.has(p.current_milestone.id)) {
+    issues.push(`current_milestone ${p.current_milestone.id} is already in completed_milestones`);
+  }
+
+  if (p.current_task) {
+    const taskMs = p.current_task.id.match(/^(M\d+)-/i)?.[1];
+    if (taskMs && completedIds.has(taskMs)) {
+      issues.push(`current_task ${p.current_task.id} belongs to completed milestone ${taskMs}`);
+    }
+  }
+
+  return issues;
 }
 ```
 
@@ -615,7 +725,7 @@ import process from 'node:process';
 import { PKG, ok, warn, step, info } from './config.js';
 import type { Progress } from './types.js';
 import { loadProgress, saveProgress, loadPlan, savePlan } from './state.js';
-import { STATUS, parsePlanTaskRows } from './plan-utils.js';
+import { STATUS, parsePlanTaskRows, countTaskStatuses } from './plan-utils.js';
 
 // ─── Install with retry (Windows EBUSY fix) ─────────────────────────────────
 
@@ -735,6 +845,23 @@ export function recoverMilestoneBoard(p: Progress): { recovered: number; ids: st
     }
   }
 
+  // Recalculate aggregate fields for active milestones NOT being recovered
+  const toRecoverSet = new Set(toRecover);
+  for (let j = 0; j < p.active_milestones.length; j++) {
+    if (toRecoverSet.has(j)) continue;
+    const ms = p.active_milestones[j];
+    const rows = parsePlanTaskRows(plan, ms.id);
+    if (rows.length === 0) continue;
+    const counts = countTaskStatuses(plan, ms.id);
+    ms.tasks_total       = counts.total;
+    ms.tasks_done        = counts.done;
+    ms.tasks_in_progress = counts.wip;
+    ms.tasks_blocked     = counts.blocked;
+    ms.tasks_remaining   = counts.total - counts.done;
+    ms.status = counts.done === counts.total ? 'complete'
+      : (counts.wip > 0 || counts.done > 0 ? 'in_progress' : 'not_started');
+  }
+
   // Move recovered milestones from active → completed (reverse to preserve indices)
   for (const idx of toRecover.reverse()) {
     const ms = p.active_milestones.splice(idx, 1)[0];
@@ -758,6 +885,28 @@ export function recoverMilestoneBoard(p: Progress): { recovered: number; ids: st
   }
 
   if (result.recovered > 0) {
+    // Dedup completed_milestones by id — earliest completed_at wins
+    const seen = new Map<string, typeof p.completed_milestones[0]>();
+    for (const m of p.completed_milestones) {
+      const existing = seen.get(m.id);
+      if (!existing) { seen.set(m.id, m); continue; }
+      const existTs = Date.parse(existing.completed_at ?? '');
+      const newTs   = Date.parse(m.completed_at ?? '');
+      if (!Number.isNaN(newTs) && (Number.isNaN(existTs) || newTs < existTs)) {
+        seen.set(m.id, m); // keep the earlier completion timestamp
+      }
+    }
+    p.completed_milestones = [...seen.values()];
+
+    // Null out current_milestone / current_task if their milestone is now completed
+    const nowCompletedIds = new Set(p.completed_milestones.map((m) => m.id));
+    if (p.current_milestone && nowCompletedIds.has(p.current_milestone.id)) {
+      p.current_milestone = null;
+    }
+    if (p.current_task && nowCompletedIds.has(p.current_task.id.split('.')[0])) {
+      p.current_task = null;
+    }
+
     // Do NOT set p.current_milestone here — it is a global singleton that would
     // clobber parallel-worktree state. Each command resolves its milestone via
     // wt.milestoneId + active_milestones[] lookup.
@@ -765,6 +914,23 @@ export function recoverMilestoneBoard(p: Progress): { recovered: number; ids: st
   }
 
   return result;
+}
+
+// ─── cmdRecover ──────────────────────────────────────────────────────────────
+// Standalone exported command: recalculate all counters + auto-move completed
+// milestones. Delegates here from harness.ts router.
+
+export function cmdRecover(): void {
+  console.log('\n\x1b[34m═══ Milestone Closeout Recovery ═══\x1b[0m\n');
+  const p = loadProgress();
+  const result = recoverMilestoneBoard(p);
+  if (result.recovered > 0) {
+    console.log(`\x1b[32m✓\x1b[0m Recovered ${String(result.recovered)} milestone(s): ${result.ids.join(', ')}`);
+    console.log('  Counter fields recalculated for all remaining active milestones.');
+  } else {
+    console.log('\x1b[32m✓\x1b[0m Milestone board is consistent — nothing to recover.');
+    console.log('  Counter fields recalculated for all active milestones.');
+  }
 }
 ```
 
@@ -826,6 +992,14 @@ export function getWorktreeInfo(): WorktreeInfo {
   return { isWorktree, cwd, mainRoot, currentBranch, milestoneId };
 }
 
+function getEligibleMilestones(p: Progress): ActiveMilestone[] {
+  const completedIds = new Set((p.completed_milestones ?? []).map((m) => m.id));
+  return [...(p.active_milestones ?? [])]
+    .filter((m) => !completedIds.has(m.id))
+    .filter((m) => (m.depends_on ?? []).every((d) => completedIds.has(d)))
+    .sort((a, b) => Number.parseInt(a.id.slice(1), 10) - Number.parseInt(b.id.slice(1), 10));
+}
+
 export function enforceWorktree(command: string): WorktreeInfo {
   const wt = getWorktreeInfo();
   if (!wt.isWorktree) {
@@ -838,6 +1012,48 @@ export function enforceWorktree(command: string): WorktreeInfo {
     );
   }
   return wt;
+}
+
+export function resolveTaskContext(command: string, taskId?: string): WorktreeInfo {
+  const wt = getWorktreeInfo();
+  if (wt.isWorktree) return wt;
+
+  const p = loadProgress();
+  const eligible = getEligibleMilestones(p);
+  const taskMilestone = taskId?.match(/^(M\d+)-/)?.[1]
+    ?? p.current_task?.id?.match(/^(M\d+)-/)?.[1]
+    ?? null;
+
+  if (taskMilestone) {
+    const matching = eligible.find((m) => m.id === taskMilestone);
+    if (matching) {
+      return { ...wt, milestoneId: taskMilestone };
+    }
+
+    fail(
+      `Task ${taskId ?? p.current_task?.id ?? '?'} belongs to ${taskMilestone}, but that milestone is not startable from main/root right now.\n` +
+      `  If the milestone already has its own branch, resume it with:\n` +
+      `  ${PKG} run harness worktree:start ${taskMilestone}`
+    );
+  }
+
+  if (eligible.length === 1) {
+    return { ...wt, milestoneId: eligible[0].id };
+  }
+
+  if (eligible.length === 0) {
+    fail(
+      `No eligible milestone is ready on main/root.\n` +
+      `  Add new work via plan mode or finish the dependency chain first.`
+    );
+  }
+
+  fail(
+    `Multiple milestones are ready from main/root:\n` +
+    eligible.map((m) => `  ${Y}•${N} ${m.id} — ${m.title}`).join('\n') +
+    `\n\n  Choose one explicitly with:\n` +
+    eligible.map((m) => `  ${PKG} run harness worktree:start ${m.id}`).join('\n')
+  );
 }
 
 // ─── Agent lifecycle ─────────────────────────────────────────────────────────
@@ -1416,9 +1632,7 @@ export function cmdWorktreeFinish(milestoneId: string): void {
   if (!removeWorktreeWithRetry(worktreeDir)) {
     warn(`Could not remove worktree at ${worktreeDir} after multiple attempts — remove manually`);
   }
-  step('Deleting milestone branch...');
-  try { execSync(`git branch -d "${branch}"`, { shell: true, stdio: 'inherit' }); }
-  catch { warn(`Branch ${branch} not deleted`); }
+  info(`Branch '${branch}' preserved after merge. Delete manually when no longer needed:\n  git branch -d "${branch}"`);
 
   setFinishJobState(p, milestoneId, 'succeeded');
   saveRootProgressMerged(rootDir, p);
@@ -1569,8 +1783,9 @@ import process from 'node:process';
 import { PKG, STALE_AGENT_MS, PLANS_DIR, ok, warn, fail, step, info, R, G, Y, B, D, N } from './config.js';
 import type { Progress } from './types.js';
 import { loadProgress, saveProgress, loadPlan, savePlan } from './state.js';
-import { getWorktreeInfo, enforceWorktree, getAgentId, registerAgent, updateHeartbeat } from './worktree.js';
+import { getWorktreeInfo, resolveTaskContext, getAgentId, registerAgent, updateHeartbeat } from './worktree.js';
 import { recoverMilestoneBoard } from './recovery.js';
+import { syncProgressState } from './progress.js';
 import { cmdStaleCheck, cmdSyncPlans } from './quality.js';
 import {
   STATUS, parsePlanTaskRows, replaceTaskStatus, getTaskStatus,
@@ -1657,7 +1872,6 @@ export function cmdInit(): void {
       let plan: string | null = null;
       try { plan = loadPlan(); } catch { /* ok */ }
 
-      let handledMerge = false;
       for (const ms of active) {
         if (!plan) break;
         const rows = parsePlanTaskRows(plan, ms.id);
@@ -1665,49 +1879,98 @@ export function cmdInit(): void {
 
         if (allDone) {
           console.log(`\n${Y}⚠${N} ${B}${ms.id}${N}: All tasks ✅ and ready to close.\n`);
-          step(`Auto-finishing ${ms.id} from main root...`);
+          let wtExists = false;
           try {
-            execSync(`${PKG} run harness worktree:finish ${ms.id}`, { shell: true, stdio: 'inherit' });
-          } catch {
-            warn(`Auto-finish failed. Resolve and rerun: ${PKG} run harness worktree:finish ${ms.id}`);
+            const wtList = execSync('git worktree list', { encoding: 'utf-8', shell: true });
+            wtExists = wtList.toLowerCase().includes(ms.id.toLowerCase());
+          } catch { /* ok */ }
+
+          if (wtExists) {
+            step(`Auto-finishing ${ms.id} from main root...`);
+            try {
+              execSync(`${PKG} run harness worktree:finish ${ms.id}`, { shell: true, stdio: 'inherit' });
+            } catch {
+              warn(`Auto-finish failed. Resolve and rerun: ${PKG} run harness worktree:finish ${ms.id}`);
+            }
+          } else {
+            step(`Auto-closing ${ms.id} in serial mode from main root...`);
+            try {
+              execSync(`${PKG} run harness merge-gate`, { shell: true, stdio: 'inherit' });
+            } catch {
+              warn(`Serial closeout failed. Resolve and rerun: ${PKG} run harness merge-gate`);
+            }
           }
           return;
         }
       }
 
-      if (!handledMerge) {
-        // Find first milestone that can be started (deps met)
-        const eligible = active.find((ms) => {
-          const deps = ms.depends_on ?? [];
-          return deps.every((d) => completedSet.has(d));
-        });
+      // Find first milestone that can be started (deps met)
+      const eligible = active.filter((ms) => {
+        const deps = ms.depends_on ?? [];
+        return deps.every((d) => completedSet.has(d));
+      });
 
-        if (eligible) {
-          // Check if worktree already exists
-          let wtExists = false;
-          try {
-            const wtList = execSync('git worktree list', { encoding: 'utf-8', shell: true });
-            wtExists = wtList.includes(eligible.id.toLowerCase());
-          } catch { /* ok */ }
+      if (eligible.length === 1) {
+        const only = eligible[0];
+        // Check if worktree already exists
+        let wtExists = false;
+        try {
+          const wtList = execSync('git worktree list', { encoding: 'utf-8', shell: true });
+          wtExists = wtList.includes(only.id.toLowerCase());
+        } catch { /* ok */ }
 
-          if (wtExists) {
-            const wtDir = `../${p2.project ?? 'project'}-${eligible.id.toLowerCase()}`;
-            info(`Worktree for ${eligible.id} already exists.`);
-            console.log(`\n  ${Y}Run:${N} ${PKG} run harness worktree:start ${eligible.id}\n`);
-            info(`worktree:start will reuse ${wtDir}, restore context, and auto-init there.`);
-          } else {
-            info(`Next milestone: ${eligible.id} — ${eligible.title}`);
-            console.log(`\n  ${Y}Run:${N} ${PKG} run harness worktree:start ${eligible.id}\n`);
-          }
+        if (wtExists) {
+          const wtDir = `../${p2.project ?? 'project'}-${only.id.toLowerCase()}`;
+          info(`Worktree for ${only.id} already exists.`);
+          console.log(`\n  ${Y}Run:${N} ${PKG} run harness worktree:start ${only.id}\n`);
+          info(`worktree:start will reuse ${wtDir}, restore context, and auto-init there.`);
         } else {
-          // All active milestones have unmet deps
-          warn('Active milestones have unmet dependencies. Merge pending milestones first:');
-          for (const ms of active) {
-            const deps = ms.depends_on ?? [];
-            const unmet = deps.filter((d) => !completedSet.has(d));
-            if (unmet.length > 0) {
-              console.log(`  ${R}•${N} ${ms.id} blocked by: ${unmet.join(', ')}`);
+          info(`Serial mode active: continuing ${only.id} from main/root.`);
+          cmdStatus();
+
+          if (p2.current_task?.status === 'in_progress') {
+            const taskId = p2.current_task.id;
+            let dirty = false;
+            try { dirty = execSync('git status --porcelain', { encoding: 'utf-8', shell: true }).trim().length > 0; } catch { /* ok */ }
+
+            if (dirty) {
+              info(`Resuming task ${Y}${taskId}${N} on main/root — uncommitted changes detected.`);
+              info(`Write code → ${PKG} run harness validate → git commit → harness done ${taskId}`);
+            } else {
+              info(`Task ${taskId} in progress but no uncommitted changes. Auto-completing...`);
+              try {
+                execSync(`${PKG} run harness done ${taskId}`, { shell: true, stdio: 'inherit' });
+              } catch {
+                warn(`Could not auto-complete ${taskId}. Run: harness done ${taskId}`);
+              }
             }
+            return;
+          }
+
+          console.log(`\n${Y}▶${N} Looking for next available task...`);
+          const nextTaskId = findNextTaskId(only.id);
+          if (nextTaskId) {
+            console.log(`${G}▶${N} Auto-starting task: ${Y}${nextTaskId}${N}`);
+            cmdStart(nextTaskId);
+          } else {
+            autoCascadeNext(only.id);
+          }
+        }
+        return;
+      } else if (eligible.length > 1) {
+        warn('Multiple milestones are ready from main/root. Use managed worktrees to choose explicitly:');
+        for (const ms of eligible) {
+          console.log(`  ${Y}•${N} ${ms.id} — ${ms.title}`);
+          console.log(`    ${PKG} run harness worktree:start ${ms.id}`);
+        }
+      } else {
+        // All active milestones have unmet deps
+        warn('Active milestones have unmet dependencies. Merge pending milestones first:');
+        for (const ms of active) {
+          const deps = ms.depends_on ?? [];
+          const unmet = deps.filter((d) => !completedSet.has(d));
+          if (unmet.length > 0) {
+            console.log(`  ${R}•${N} ${ms.id} blocked by: ${unmet.join(', ')}`);
           }
         }
       }
@@ -1919,17 +2182,25 @@ function syncTaskInMilestone(p: Progress, taskId: string, newStatus: string, com
 // ─── status ──────────────────────────────────────────────────────────────────
 
 export function cmdStatus(): void {
-  const p = loadProgress();
+  // syncProgressState recalculates counters from PLAN.md — does not save
+  const p = syncProgressState(loadProgress());
   console.log(`\n${B}═══ Project: ${p.project} ═══${N}`);
   console.log(`Last updated: ${D}${p.last_updated}${N}`);
 
-  if (p.current_milestone) {
-    const m = p.current_milestone;
+  const completedIds = new Set((p.completed_milestones ?? []).map((m) => m.id));
+  const derivedSerialMilestone =
+    p.current_milestone
+    ?? ((p.active_milestones ?? []).filter((m) => !completedIds.has(m.id) && (m.depends_on ?? []).every((d) => completedIds.has(d))).length === 1
+      ? (p.active_milestones ?? []).filter((m) => !completedIds.has(m.id) && (m.depends_on ?? []).every((d) => completedIds.has(d)))[0]
+      : null);
+
+  if (derivedSerialMilestone) {
+    const m = derivedSerialMilestone as any;
     const pct = m.tasks_total > 0 ? Math.round((m.tasks_done / m.tasks_total) * 100) : 0;
-    console.log(`\nMilestone: ${B}${m.id}${N} — ${m.name}`);
+    console.log(`\nMilestone: ${B}${m.id}${N} — ${m.name ?? m.title ?? '—'}`);
     console.log(`  Status: ${m.status} | Progress: ${String(m.tasks_done)}/${String(m.tasks_total)} (${String(pct)}%)`);
     console.log(`  Done: ${String(m.tasks_done)} | In Progress: ${String(m.tasks_in_progress)} | Blocked: ${String(m.tasks_blocked)} | Remaining: ${String(m.tasks_remaining)}`);
-    console.log(`  Branch: ${m.branch}`);
+    console.log(`  Branch: ${m.branch ?? 'main/root (serial mode)'}`);
   } else {
     info('No active milestone. Ready for new work.');
   }
@@ -1952,7 +2223,7 @@ export function cmdStatus(): void {
 // ─── next ────────────────────────────────────────────────────────────────────
 
 export function cmdNext(): void {
-  const wt = enforceWorktree('next');
+  const wt = resolveTaskContext('next');
 
   const p = loadProgress();
   updateHeartbeat(p);
@@ -2022,7 +2293,7 @@ export function cmdNext(): void {
 export function cmdStart(taskId: string): void {
   if (!taskId) fail('Usage: harness start <task-id>  (e.g., harness start M1-003)');
 
-  const wt = enforceWorktree('start');
+  const wt = resolveTaskContext('start', taskId);
 
   const taskMilestone = taskId.match(/^(M\d+)-/)?.[1];
   if (wt.milestoneId && taskMilestone && taskMilestone !== wt.milestoneId) {
@@ -2095,7 +2366,7 @@ export function cmdStart(taskId: string): void {
 
 export function cmdDone(taskId: string): void {
   if (!taskId) fail('Usage: harness done <task-id>');
-  const wt = enforceWorktree('done');
+  const wt = resolveTaskContext('done', taskId);
 
   const p = loadProgress();
   updateHeartbeat(p);
@@ -2169,13 +2440,19 @@ export function cmdDone(taskId: string): void {
 
   ok(`Completed: ${taskId} (commit: ${commitHash})`);
 
-  // Task is committed — clean working tree for the next task.
-  step('Cleaning working tree (git checkout .)...');
+  // Task is committed — only auto-cascade when the worktree is already clean.
+  step('Checking working tree is clean...');
   try {
-    execSync('git checkout .', { shell: true, stdio: 'pipe' });
+    const dirty = execSync('git status --porcelain', { shell: true, encoding: 'utf-8' }).trim();
+    if (dirty.length > 0) {
+      warn('Working tree still has uncommitted changes. Commit, stash, or discard them before continuing.');
+      info(`Auto-cascade paused. Run: ${PKG} run harness init after the worktree is clean.`);
+      return;
+    }
     ok('Working tree clean.');
   } catch {
-    warn('git checkout . failed — check for untracked files or conflicts.');
+    warn('Could not verify working tree cleanliness — resolve git state manually before continuing.');
+    return;
   }
 
   // ── Auto-cascade: done → next → start (or merge-gate) ────────────────
@@ -2186,7 +2463,7 @@ export function cmdDone(taskId: string): void {
 
 export function cmdBlock(taskId: string, reason: string): void {
   if (!taskId || !reason) fail('Usage: harness block <task-id> <reason>');
-  const wt = enforceWorktree('block');
+  const wt = resolveTaskContext('block', taskId);
 
   const p = loadProgress();
   // Resolve milestone from branch, not from p.current_milestone (parallel-worktree safe).
@@ -2222,7 +2499,7 @@ export function cmdBlock(taskId: string, reason: string): void {
 
 export function cmdReset(taskId: string): void {
   if (!taskId) fail('Usage: harness reset <task-id>  (reverts 🟡 or 🚫 back to ⬜)');
-  const wt = enforceWorktree('reset');
+  const wt = resolveTaskContext('reset', taskId);
 
   const p = loadProgress();
   // Resolve milestone from branch, not from p.current_milestone (parallel-worktree safe).
@@ -2312,7 +2589,9 @@ function autoCascadeNext(milestonePrefix: string | null): void {
       }
 
       if (gateOk) {
-        info('Merge gate passed. Automatic finish has been queued in the main repo root.');
+        const runtime = getWorktreeInfo();
+        if (runtime.isWorktree) info('Merge gate passed. Automatic finish has been queued in the main repo root.');
+        else info('Merge gate passed. Serial closeout completed on main/root.');
       }
     } else {
       const blocked = rows.filter((r) => r.statusEmoji === STATUS.BLOCKED);
@@ -2423,10 +2702,11 @@ import { join, basename } from 'node:path';
 import process from 'node:process';
 import { PKG, PROGRESS_FILE, PLAN_FILE, SCHEMA_FILE, PLANS_DIR, ok, warn, fail, step, info, R, G, Y, B, N } from './config.js';
 import { loadProgress, saveProgress, loadPlan } from './state.js';
-import { getWorktreeInfo, enqueueAutoFinish } from './worktree.js';
+import { getWorktreeInfo, enqueueAutoFinish, resolveTaskContext } from './worktree.js';
+import { recoverMilestoneBoard } from './recovery.js';
 import { cmdValidate } from './validate.js';
 import {
-  STATUS, countTaskStatuses, parsePlanTaskRows,
+  STATUS, countTaskStatuses, parsePlanTaskRows, parseMilestoneHeaders,
 } from './plan-utils.js';
 
 const PROGRESS_SCHEMA_TEMPLATE = {
@@ -2483,7 +2763,7 @@ const PROGRESS_SCHEMA_TEMPLATE = {
 export function cmdMergeGate(): void {
   console.log(`\n${B}═══ Milestone Merge Gate ═══${N}\n`);
 
-  const wt = getWorktreeInfo();
+  const wt = resolveTaskContext('merge-gate');
   const noAutoFinish = process.argv.includes('--no-auto-finish');
 
   // ── Check all tasks in this milestone are done ─────────────────────────
@@ -2542,7 +2822,28 @@ export function cmdMergeGate(): void {
     info('Finish will enter the serialized main-root queue, then rebase on the latest main, archive completed plans, push, and auto-start the next eligible milestone.');
     info('Use harness worktree:status or rerun harness init from main/root to inspect queued/running/failed finish state.');
   } else {
-    console.log(`Run: ${PKG} run harness worktree:finish ${ms.id}`);
+    step('Closing milestone in serial mode on main/root...');
+    const result = recoverMilestoneBoard(p);
+    if (result.ids.includes(ms.id)) {
+      ok(`${ms.id} closed on main/root. PLAN/progress are now in sync.`);
+    } else {
+      warn(`${ms.id} passed merge-gate, but closeout did not complete automatically. Run: ${PKG} run harness recover`);
+    }
+    if (!noAutoFinish) {
+      const refreshed = loadProgress();
+      const completedIds = new Set(refreshed.completed_milestones.map((m) => m.id));
+      const nextEligible = (refreshed.active_milestones ?? []).find((m) => (m.depends_on ?? []).every((d) => completedIds.has(d)));
+      if (nextEligible) {
+        info(`Continuing in serial mode with ${nextEligible.id}...`);
+        try {
+          execSync(`${PKG} run harness init`, { shell: true, stdio: 'inherit' });
+        } catch {
+          warn(`Could not auto-enter the next serial milestone. Run: ${PKG} run harness init`);
+        }
+      } else {
+        info('No further serial milestone is ready. Add new work via plan mode or choose a worktree explicitly.');
+      }
+    }
   }
 }
 
@@ -2665,6 +2966,32 @@ export function cmdStaleCheck(quiet = false): void {
         w(`PLAN.md shows ${row.taskId} as 🟡 but progress.json current_task is ${p.current_task?.id ?? 'null'}`);
       }
     }
+
+    // Drift 1-3: per-milestone counter accuracy
+    for (const ms of p.active_milestones ?? []) {
+      const counts = countTaskStatuses(plan, ms.id);
+
+      if (counts.total > 0 && counts.done === counts.total) {
+        w(`${ms.id}: all ${String(counts.total)} tasks ✅ in PLAN.md but still in active_milestones — run: harness recover`);
+      }
+
+      if ((ms.tasks_done ?? 0) !== counts.done) {
+        w(`${ms.id}: tasks_done=${String(ms.tasks_done ?? 0)} but PLAN.md has ${String(counts.done)} ✅ — run: harness recover`);
+      }
+
+      if ((ms.tasks_remaining ?? 0) > 0 && counts.todo === 0) {
+        w(`${ms.id}: tasks_remaining=${String(ms.tasks_remaining ?? 0)} but no ⬜ tasks in PLAN.md — run: harness recover`);
+      }
+    }
+
+    // Drift 4: PLAN.md milestone header ✅ Complete but not in completed_milestones
+    const completedIds = new Set(p.completed_milestones.map((m) => m.id));
+    const headers = parseMilestoneHeaders(plan);
+    for (const h of headers) {
+      if (h.status.includes('✅') && !completedIds.has(h.id)) {
+        w(`${h.id}: PLAN.md shows ✅ Complete but not in completed_milestones — run: harness recover`);
+      }
+    }
   }
 
   if (existsSync('ARCHITECTURE.md') && existsSync('src/modules')) {
@@ -2674,6 +3001,10 @@ export function cmdStaleCheck(quiet = false): void {
         w(`Module '${d.name}' not in ARCHITECTURE.md`);
       }
     }
+  }
+
+  if (existsSync('ARCHITECTURE.md') && existsSync(join('docs', 'gitbook')) && !existsSync(join('docs', 'gitbook', 'architecture.md'))) {
+    w('docs/gitbook/architecture.md missing while ARCHITECTURE.md exists');
   }
 
   cmdSyncPlans(quiet);
@@ -2859,13 +3190,18 @@ export function cmdChangelog(from = '', to = 'HEAD'): void {
 
 ```typescript
 // Plan application: parse plan files → analyze project state → insert milestones + tasks.
-// This closes the loop: plan mode → plan file → harness plan:apply → worktree:start.
+// This closes the loop: plan mode → plan file → harness plan:apply → repo state is ready for serial init or worktree:start.
 //
 // The plan file can be:
 // A) Structured — contains PLAN.md-format milestone tables (auto-parsed)
 // B) Freeform — prose description (agent rewrites to structured before applying)
 //
 // The CLI handles: where to insert, milestone numbering, dependency wiring, progress.json.
+// Architecture docs remain an agent responsibility during planning handoff:
+// if the approved plan changes system shape, update ARCHITECTURE.md
+// (and docs/gitbook/architecture.md when present) before leaving plan mode.
+// If planning happened in another chat, first rewrite the approved plan/transcript
+// into docs/exec-plans/active before running plan:apply.
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import process from 'node:process';
@@ -3138,7 +3474,8 @@ export function cmdPlanApply(filePath?: string): void {
       (m) => addedMilestoneIds.includes(m.id) && (m.depends_on ?? []).every((d) => completedIds.has(d))
     );
     if (nextMs) {
-      console.log(`\n${Y}Next:${N} ${PKG} run harness worktree:start ${nextMs.id}`);
+      console.log(`\n${Y}Next:${N} ${PKG} run harness init    ${D}# serial-first default${N}`);
+      console.log(`       ${PKG} run harness worktree:start ${nextMs.id}    ${D}# use if isolation / parallel execution is needed${N}`);
     } else if (addedMilestoneIds.length > 0) {
       info(`New milestones added: ${addedMilestoneIds.join(', ')}`);
       info('None are startable yet from main — finish the dependency chain first, then start the first eligible new milestone.');
@@ -3284,62 +3621,51 @@ Read `references/scaffold-templates.md` when:
 ```typescript
 #!/usr/bin/env tsx
 // Thin router — all logic lives in scripts/harness/ modules.
-// This file should stay under 50 lines.
+// Lazy-loaded so each command only imports what it needs (faster startup).
+// This file should stay under 60 lines.
 import process from 'node:process';
-
-import { cmdInit, cmdStatus, cmdNext, cmdStart, cmdDone, cmdBlock, cmdReset } from './harness/tasks.js';
-import { cmdValidate, cmdFileGuard } from './harness/validate.js';
-import { cmdMergeGate, cmdMigrate, cmdStaleCheck, cmdSchema, cmdChangelog, cmdLearn } from './harness/quality.js';
-import { cmdWorktreeStart, cmdWorktreeFinish, cmdWorktreeRebase, cmdWorktreeReclaim, cmdWorktreeList } from './harness/worktree.js';
-import { recoverMilestoneBoard } from './harness/recovery.js';
-import { cmdScaffold } from './harness/scaffold-templates.js';
-import { cmdPlanApply, cmdPlanStatus } from './harness/plan-apply.js';
-import { B, Y, G, N } from './harness/config.js';
-import { loadProgress, saveProgress } from './harness/state.js';
+import { fail, B, Y, G, N } from './harness/config.js';
 
 const cmd = process.argv[2];
 const arg1 = process.argv[3] ?? '';
 const argRest = process.argv.slice(4).join(' ');
 
-switch (cmd) {
-  case 'init':              cmdInit(); break;
-  case 'status':            cmdStatus(); break;
-  case 'next':              cmdNext(); break;
-  case 'start':             cmdStart(arg1); break;
-  case 'validate':          cmdValidate(false); break;
-  case 'validate:full':     cmdValidate(true); break;
-  case 'done':              cmdDone(arg1); break;
-  case 'block':             cmdBlock(arg1, argRest); break;
-  case 'reset':             cmdReset(arg1); break;
-  case 'learn':             cmdLearn(arg1, argRest); break;
-  case 'merge-gate':        cmdMergeGate(); break;
-  case 'migrate':           cmdMigrate(); break;
-  case 'worktree:start':    cmdWorktreeStart(arg1); break;
-  case 'worktree:finish':   cmdWorktreeFinish(arg1); break;
-  case 'worktree:rebase':   cmdWorktreeRebase(); break;
-  case 'worktree:reclaim':  cmdWorktreeReclaim(arg1); break;
-  case 'worktree:status':   cmdWorktreeList(); break;
-  case 'stale-check':       cmdStaleCheck(); break;
-  case 'file-guard':        cmdFileGuard(process.argv.includes('--staged')); break;
-  case 'changelog':         cmdChangelog(process.argv[3] ?? '', process.argv[4] ?? 'HEAD'); break;
-  case 'schema':            cmdSchema(); break;
-  case 'scaffold':          cmdScaffold(arg1); break;
-  case 'plan:apply':        cmdPlanApply(arg1 || undefined); break;
-  case 'plan:status':       cmdPlanStatus(); break;
-  // ── PATCH: Manual milestone closeout recovery command ───────────────────
-  case 'recover': {
-    console.log(`\n${B}═══ Milestone Closeout Recovery ═══${N}\n`);
-    const p = loadProgress();
-    const result = recoverMilestoneBoard(p);
-    if (result.recovered > 0) {
-      console.log(`${G}✓${N} Recovered ${String(result.recovered)} milestone(s): ${result.ids.join(', ')}`);
-    } else {
-      console.log(`${G}✓${N} Milestone board is consistent — nothing to recover.`);
-    }
-    break;
-  }
-  default:
-    console.log(`
+// Each handler is an async thunk — imported on demand.
+const COMMANDS: Record<string, () => Promise<void>> = {
+  'init':             async () => { const m = await import('./harness/tasks.js'); await m.cmdInit(); },
+  'status':           async () => { const m = await import('./harness/tasks.js'); await m.cmdStatus(); },
+  'next':             async () => { const m = await import('./harness/tasks.js'); await m.cmdNext(); },
+  'start':            async () => { const m = await import('./harness/tasks.js'); await m.cmdStart(arg1); },
+  'done':             async () => { const m = await import('./harness/tasks.js'); await m.cmdDone(arg1); },
+  'block':            async () => { const m = await import('./harness/tasks.js'); await m.cmdBlock(arg1, argRest); },
+  'reset':            async () => { const m = await import('./harness/tasks.js'); await m.cmdReset(arg1); },
+  'learn':            async () => { const m = await import('./harness/quality.js'); await m.cmdLearn(arg1, argRest); },
+  'validate':         async () => { const m = await import('./harness/validate.js'); await m.cmdValidate(false); },
+  'validate:full':    async () => { const m = await import('./harness/validate.js'); await m.cmdValidate(true); },
+  'merge-gate':       async () => { const m = await import('./harness/quality.js'); await m.cmdMergeGate(); },
+  'migrate':          async () => { const m = await import('./harness/quality.js'); await m.cmdMigrate(); },
+  'stale-check':      async () => { const m = await import('./harness/quality.js'); await m.cmdStaleCheck(); },
+  'file-guard':       async () => { const m = await import('./harness/validate.js'); await m.cmdFileGuard(process.argv.includes('--staged')); },
+  'changelog':        async () => { const m = await import('./harness/quality.js'); await m.cmdChangelog(process.argv[3] ?? '', process.argv[4] ?? 'HEAD'); },
+  'schema':           async () => { const m = await import('./harness/quality.js'); await m.cmdSchema(); },
+  'recover':          async () => { const m = await import('./harness/recovery.js'); await m.cmdRecover(); },
+  'worktree:start':   async () => { const m = await import('./harness/worktree.js'); await m.cmdWorktreeStart(arg1); },
+  'worktree:finish':  async () => { const m = await import('./harness/worktree.js'); await m.cmdWorktreeFinish(arg1); },
+  'worktree:rebase':  async () => { const m = await import('./harness/worktree.js'); await m.cmdWorktreeRebase(); },
+  'worktree:reclaim': async () => { const m = await import('./harness/worktree.js'); await m.cmdWorktreeReclaim(arg1); },
+  'worktree:status':  async () => { const m = await import('./harness/worktree.js'); await m.cmdWorktreeList(); },
+  'scaffold':         async () => { const m = await import('./harness/scaffold-templates.js'); await m.cmdScaffold(arg1); },
+  'plan:apply':       async () => { const m = await import('./harness/plan-apply.js'); await m.cmdPlanApply(arg1 || undefined); },
+  'plan:status':      async () => { const m = await import('./harness/plan-apply.js'); await m.cmdPlanStatus(); },
+};
+
+const handler = COMMANDS[cmd];
+if (handler) {
+  handler().catch((err: unknown) => fail(err instanceof Error ? err.message : String(err)));
+} else {
+  // Unknown command — print help
+  if (cmd) console.error(`\x1b[31m✗\x1b[0m Unknown command: ${cmd}\n`);
+  console.log(`
 ${B}harness${N} — project automation CLI
 
 ${Y}Session:${N}
@@ -3347,13 +3673,13 @@ ${Y}Session:${N}
   status                  Print current state
 
 ${Y}Worktrees (milestone isolation):${N}
-  worktree:start <M-id>   Create branch + worktree + install + init + auto-start
+  worktree:start <M-id>   Create branch + worktree + install + init + auto-start (use for isolation / parallel work)
   worktree:finish <M-id>  Serialized root-side rebase + merge + archive + push + cleanup
   worktree:rebase          Rebase current worktree onto latest main (run inside worktree)
   worktree:reclaim <M-id> Reclaim a stale/abandoned milestone and reopen its worktree
   worktree:status          Show all worktrees, agents, auto-finish jobs, and merge readiness
 
-${Y}Task loop (run inside the milestone worktree — enforced):${N}
+${Y}Task loop (serial on main/root when exactly one milestone is eligible; otherwise use a worktree):${N}
   next                    Find next unblocked task
   start <id>              Claim task → 🟡
   done <id>               Complete task → ✅
@@ -3366,7 +3692,7 @@ ${Y}Validation:${N}
   validate:full           + integration/e2e when matching test files exist + file-guard
 
 ${Y}Quality:${N}
-  merge-gate              Full gate check before worktree:finish
+  merge-gate              Full gate check before serial closeout or worktree:finish
   migrate                 Refresh harness-managed runtime files + schema
   stale-check             Detect stale docs/env/plans
   file-guard              500-line limit check (--staged)

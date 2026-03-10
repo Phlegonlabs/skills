@@ -37,7 +37,8 @@ If the user already picked Electron or Tauri, keep that choice and optimize with
 - Validate all IPC / command payloads at the boundary. Treat the renderer as untrusted input.
 - Desktop apps still follow the harness rules: structured logging, zero build warnings, no
   TODO/FIXME in committed code, tests for happy path and at least one failure path.
-- Generate `docs/frontend-design.md` for desktop apps with UI.
+- Generate `docs/frontend-design.md`, `docs/design.md`, and `docs/design-preview.html` for
+  desktop apps with UI. The preview is the mid-fi static review artifact before Phase 4.
 - Generate `docs/release.md` for desktop apps. Include packaging target, signing/notarization,
   updater channel, and manual QA smoke steps for each OS.
 
