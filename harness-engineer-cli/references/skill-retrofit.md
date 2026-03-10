@@ -277,10 +277,13 @@ UI preview. Do not switch to a second "apply" phase.
 
 After confirmation, the files are already in the existing project. Then the user:
 1. Reviews the diff in the target repo
-2. If using the TypeScript CLI: runs `<pkg-mgr> install` (to pick up tsx + husky)
-   If using the native shell CLI: installs `jq` / hooks exactly as documented in `references/harness-native.md`
-3. Commits: `[scaffold] add harness framework`
-4. Opens Claude Code / Codex → agent reads AGENTS.md / CLAUDE.md → ready
+2. Records the activation command from `AGENTS.md` / `docs/gitbook/quickstart.md`
+3. By default, do NOT run `<pkg-mgr> install` immediately. Wait until the user is ready to start the first real milestone, or until they explicitly ask for the harness runtime to be activated right now.
+4. If the user explicitly wants immediate activation:
+   - TypeScript CLI: run `<pkg-mgr> install` (to pick up tsx + husky)
+   - Native shell CLI: install `jq` / hooks exactly as documented in `references/harness-native.md`
+5. Commits: `[scaffold] add harness framework`
+6. Opens Claude Code / Codex → agent reads AGENTS.md / CLAUDE.md → ready
 
 ### After Retrofit: How It Works
 

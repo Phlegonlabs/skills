@@ -970,7 +970,8 @@ initial milestones to be materialized in `docs/PLAN.md` and `docs/progress.json`
 >     user, current alternative, pain points; align with PRD user journeys
 >   - `architecture.md` ← call 1 (tech stack), calls 2-3 (monorepo/deploy target),
 >     system component list from ARCHITECTURE.md; describe data flow in 1-2 paragraphs
->   - `quickstart.md` ← AGENTS.md quick-start section: install command, env setup,
+>   - `quickstart.md` ← AGENTS.md quick-start section: activation/install command,
+>     phrased as "when you're ready to start the first milestone", env setup,
 >     first-run step, first meaningful action the user can take
 >   - `roadmap.md` ← docs/PLAN.md: milestone list in plain language, grouped by
 >     phase (MVP / v2 / backlog); no internal task IDs, user-facing feature names only
@@ -983,6 +984,28 @@ initial milestones to be materialized in `docs/PLAN.md` and `docs/progress.json`
 >   after `docs/design.md`. This is a self-contained single-file mid-fi preview viewable in
 >   any browser — no build step, no external dependencies. It is generated in Phase 3
 >   and used as the user review gate before Phase 4 begins.
+
+### Phase 3 Dependency / Install Policy
+
+Phase 3 is a scaffold pass, not a full environment bootstrap.
+
+- Do NOT run `pnpm install`, `bun install`, `npm install`, `yarn install`, `uv sync`,
+  `go mod tidy`, `cargo build`, or similar install/sync/build commands during scaffold
+  generation by default.
+- Do NOT create `node_modules/`, `.venv/`, compiled binaries, or any other installed runtime
+  artifacts as part of the initial handoff.
+- Only include dependencies required for the repo shell, harness runtime, lint/test toolchain,
+  and code that already exists in the initial scaffold.
+- Defer milestone-specific packages until the milestone that actually implements them.
+  Examples: auth SDKs, charting libs, billing SDKs, queue clients, analytics vendors,
+  vector databases, and third-party integration clients that are only referenced in future work.
+- If a later milestone owns a feature, let that milestone add the packages it needs.
+  Do NOT pre-install or pre-declare those packages just because the PRD mentions them.
+- If the user explicitly says they want a fully bootstrapped repo right now, call that out as
+  an exception and say which installs you are doing early.
+- In generated quick-start docs, present install/sync as a "when you're ready to start the
+  first milestone" activation step, not as something that must already have happened inside
+  Phase 3.
 
 ### File Structure
 
@@ -2105,7 +2128,11 @@ Required consistency checks:
 - `AGENTS.md` / `CLAUDE.md` contains both the fixed `Interaction Rules` section and the fixed
   `Iron Rules` section from `skill-artifacts.md`
 - The quick-start commands in `AGENTS.md` / `CLAUDE.md` match the actual package manager and
-  runtime chosen in Phase 1
+  runtime chosen in Phase 1, and any install/sync command is framed as a "run this when you are
+  ready to start the first milestone" activation step rather than something Phase 3 already did
+- The initial scaffold only declares the minimal dependency set needed for the generated code,
+  harness runtime, and validation toolchain. Milestone-specific feature/integration packages are
+  deferred until the milestone that implements them
 - **Frontend / UI projects** (web, mobile, desktop): `docs/frontend-design.md` exists and
   AGENTS.md Iron Rule 5 references it. If it was not generated via an active `frontend-design`
   skill session or a local copy, it must still be generated directly from the Phase 1 Step 5

@@ -120,7 +120,9 @@ Dynamically generate these sections:
 
 - **Project overview** — What THIS project does, its stack, its purpose. From the PRD.
 - **Quick start** — Real commands for THIS project's package manager and stack.
-  e.g., `bun install && bun dev` not "install deps and run dev server"
+  Separate activation from running the app. Prefer phrasing like:
+  `When you're ready to start milestone 1: bun install`
+  then `bun dev`, instead of collapsing everything into `bun install && bun dev`.
   Include `docker-compose up -d` if Docker is configured.
 - **Repository map** — Pointers to the actual docs in THIS project.
 - **Architecture rules** — Dependency layers, module boundaries, import restrictions
@@ -1565,15 +1567,16 @@ Build each file from the specific sources listed — do NOT leave placeholder te
   job-to-be-done per user, current alternative, pain points; align with PRD user journeys
 - `docs/gitbook/architecture.md` ← tech stack, deploy target, system component list
   from ARCHITECTURE.md; describe data flow in 1-2 paragraphs
-- `docs/gitbook/quickstart.md` ← AGENTS.md quick-start section: install command,
-  env setup, first-run step, first meaningful action the user can take
+- `docs/gitbook/quickstart.md` ← AGENTS.md quick-start section: activation/install command
+  framed as "when you're ready to start milestone 1", env setup, first-run step, first
+  meaningful action the user can take
 - `docs/gitbook/roadmap.md` ← docs/PLAN.md: milestone list in plain language, grouped
   by phase (MVP / v2 / backlog); no internal task IDs, user-facing feature names only
 
 **Exit quality check — each file must meet minimum structure:**
 - `README.md`: ≥ 3 sections (name+tagline / what-it-does / who-it's-for)
 - `product-overview.md`: ≥ problem statement + solution + 3+ must-have features
-- `quickstart.md`: ≥ install step + one runnable command that produces visible output
+- `quickstart.md`: ≥ activation/install step + one runnable command that produces visible output
 - Files that contain only headings or TODO placeholders fail the Phase 3 exit gate.
 
 This structure is compatible with GitBook, Docusaurus, VitePress, or plain markdown

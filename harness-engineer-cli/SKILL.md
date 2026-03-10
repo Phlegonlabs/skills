@@ -55,6 +55,13 @@ intake is complete.
 - **Greenfield cadence:** For new projects, start with the project name and short introduction,
   do an early research pass, ask the PM-style follow-up questions, do a second targeted research
   pass, summarize your recommendations, and only then move into stack-choice prompts.
+- **Milestone-aware dependency policy:** Phase 3 scaffold generation writes the repo shape,
+  manifests, docs, and starter code, but it does NOT automatically bootstrap the full dependency
+  graph. Do NOT run package-manager install/sync/build commands by default, and do NOT front-load
+  milestone-specific packages into the initial scaffold just because they may be needed later.
+  Only include the minimal dependency set required for the generated scaffold and harness runtime
+  to exist. Add feature/integration packages when the milestone that needs them actually starts,
+  unless the user explicitly asks for a fully bootstrapped repo immediately.
 - **Frontend-first sequencing:** For Web / Mobile / Desktop projects, ask about the frontend
   direction first, then ask the UI brief one decision at a time, and only after that move into backend / API /
   database / deploy detail. Do NOT dump the whole architecture questionnaire in one turn.

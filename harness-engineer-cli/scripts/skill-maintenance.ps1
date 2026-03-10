@@ -317,6 +317,26 @@ if (($discoveryCadenceChecks | Where-Object { -not $_ }).Count -eq 0) {
   Add-Fail 'greenfield discovery cadence drifted away from the name/introduction first and two-pass research flow'
 }
 
+$deferredDependencyChecks = @(
+  ($skillContent -match [regex]::Escape('Milestone-aware dependency policy:')),
+  ($skillContent -match [regex]::Escape('Do NOT run package-manager install/sync/build commands by default')),
+  ($greenfieldContent -match [regex]::Escape('### Phase 3 Dependency / Install Policy')),
+  ($greenfieldContent -match [regex]::Escape('Do NOT run `pnpm install`, `bun install`, `npm install`, `yarn install`, `uv sync`,')),
+  ($greenfieldContent -match [regex]::Escape('Only include dependencies required for the repo shell, harness runtime, lint/test toolchain,')),
+  ($greenfieldContent -match [regex]::Escape('Defer milestone-specific packages until the milestone that actually implements them.')),
+  ($greenfieldContent -match [regex]::Escape('when you''re ready to start the first milestone')),
+  ($greenfieldContent -match [regex]::Escape('The initial scaffold only declares the minimal dependency set needed for the generated code,')),
+  ($retrofitContent -match [regex]::Escape('By default, do NOT run `<pkg-mgr> install` immediately.')),
+  ($retrofitContent -match [regex]::Escape('ready to start the first real milestone')),
+  ($artifactContent -match [regex]::Escape('When you''re ready to start milestone 1: bun install')),
+  ($artifactContent -match [regex]::Escape('instead of collapsing everything into `bun install && bun dev`'))
+)
+if (($deferredDependencyChecks | Where-Object { -not $_ }).Count -eq 0) {
+  Add-Pass 'dependency installation is deferred until milestone execution instead of being front-loaded into scaffold/retrofit'
+} else {
+  Add-Fail 'dependency/install guidance drifted back toward pre-milestone bootstrap'
+}
+
 $structuredPromptChecks = @(
   ($skillContent -match '2-3 curated options'),
   ($greenfieldContent -match '2-3 curated options'),
