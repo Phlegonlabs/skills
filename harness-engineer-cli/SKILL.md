@@ -67,6 +67,13 @@ intake is complete.
   stubs, schemas, docs, configs, and empty integrations are setup work, not delivered features.
   Seed milestones so their task rows still represent real implementation/integration outcomes, and
   keep them `Not Started` until execution satisfies the `Done When` criteria.
+- **Discuss first, sync on go-ahead:** It is normal to discuss a change in chat first. But once
+  the user says "OK, do it", "update this", "follow this plan", or the conversation already
+  contains a sufficiently detailed change plan, stop treating it as chat-only context. Mirror the
+  work into repo state immediately. If it belongs to the active milestone, add or refine the task
+  there; if it does not, create a small follow-up task or micro-milestone and sync
+  `docs/PLAN.md` + `docs/progress.json` before active execution starts. Do NOT let actionable
+  planning content live only in chat.
 - **Frontend-first sequencing:** For Web / Mobile / Desktop projects, ask about the frontend
   direction first, then ask the UI brief one decision at a time, and only after that move into backend / API /
   database / deploy detail. Do NOT dump the whole architecture questionnaire in one turn.

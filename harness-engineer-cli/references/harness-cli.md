@@ -79,7 +79,8 @@ If the approved plan changes module boundaries, integrations, deployment topolog
 update `ARCHITECTURE.md` as part of the same handoff and sync `docs/gitbook/architecture.md`
 when present.
 Fallback rule: if planning already happened in another chat or the session ended before sync,
-paste the full approved plan output or transcript back into the current session, rewrite it to
+paste the full approved plan output, transcript, or sufficiently detailed prior planning content
+back into the current session, rewrite it to
 `docs/exec-plans/active/*.md`, then run `harness plan:apply` (or manually mirror it for native shell)
 before resuming execution.
 
@@ -3200,8 +3201,9 @@ export function cmdChangelog(from = '', to = 'HEAD'): void {
 // Architecture docs remain an agent responsibility during planning handoff:
 // if the approved plan changes system shape, update ARCHITECTURE.md
 // (and docs/gitbook/architecture.md when present) before leaving plan mode.
-// If planning happened in another chat, first rewrite the approved plan/transcript
-// into docs/exec-plans/active before running plan:apply.
+// If planning happened in another chat, first rewrite the approved plan, transcript,
+// or sufficiently detailed prior planning content into docs/exec-plans/active
+// before running plan:apply.
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import process from 'node:process';

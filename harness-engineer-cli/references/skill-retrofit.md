@@ -299,6 +299,8 @@ User opens Claude Code / Codex
 
 User enters plan mode
   → Describes new feature / fix / refactor
+  → Discussion can happen first while the change is still being shaped
+  → Once the user says to proceed, or prior planning content is already detailed enough to execute, treat it as execution-authorizing
   → Plan file written to docs/exec-plans/active/
   → BEFORE leaving planning, sync the plan into docs/PLAN.md + docs/progress.json
 
@@ -308,6 +310,7 @@ TypeScript CLI path:
   → Updates progress.json with dependency graph
   → Verifies PLAN.md + progress.json now reflect the new work
   → If the approved plan changes module boundaries, integrations, deployment topology, or core data flow, update ARCHITECTURE.md before leaving planning and sync docs/gitbook/architecture.md when present
+  → If the new work clearly fits the active milestone, refine that milestone's task list and continue there instead of forcing a separate milestone
   → If one eligible milestone and no isolation need → `harness init` and continue serially from main/root
   → If 2+ independent milestones or explicit isolation is needed → `harness worktree:start M<next>`
   → Same iron rules, same testing, same atomic commits
@@ -317,12 +320,13 @@ Native shell CLI path (no Node.js):
   Agent writes the plan file to docs/exec-plans/active/
   → Immediately mirrors the milestone tables into PLAN.md + progress.json
   → If the approved plan changes module boundaries, integrations, deployment topology, or core data flow, update ARCHITECTURE.md before leaving planning and sync docs/gitbook/architecture.md when present
+  → If the new work clearly fits the active milestone, refine that milestone's task list and continue there instead of forcing a separate milestone
   → Runs `bash scripts/harness.sh init`
   → Enters the same task loop (`next` / `start` / `validate` / `done`)
   → No `plan:apply`, no `worktree:*`, no auto-finish queue
 
 Fallback if plan mode already ended without sync:
-  Paste the full approved plan output or planning transcript back into the current session
+  Paste the full approved plan output, planning transcript, or sufficiently detailed prior planning content back into the current session
   → Agent reads that pasted planning context
   → Recreates docs/exec-plans/active/<descriptive-name>.md (or mirrors directly for native shell)
   → Syncs PLAN.md + progress.json before any execution starts

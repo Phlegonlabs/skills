@@ -243,7 +243,7 @@ Execution start rule:
 - Managed worktree path: run `harness worktree:start <M-id>` only when 2+ milestones can run in parallel or milestone isolation is beneficial.
 - Retrofit / plan-mode handoff: sync the plan into `docs/PLAN.md` and `docs/progress.json` before leaving planning; `init` auto-`plan:apply` is recovery, not the primary ingest path.
 - Architecture sync in planning: if the approved plan changes module boundaries, integrations, deployment topology, or core data flow, update `ARCHITECTURE.md` before leaving planning and sync `docs/gitbook/architecture.md` when present.
-- Planning fallback: if planning already happened in another chat or the session exited before sync, paste the full approved plan output or transcript back into the current session, reconstruct `docs/exec-plans/active/*.md`, then immediately sync `docs/PLAN.md` + `docs/progress.json` and any architecture doc changes.
+- Planning fallback: if planning already happened in another chat or the session exited before sync, paste the full approved plan output, planning transcript, or sufficiently detailed prior planning content back into the current session, reconstruct `docs/exec-plans/active/*.md`, then immediately sync `docs/PLAN.md` + `docs/progress.json` and any architecture doc changes.
 
 ## Requirements
 

@@ -127,6 +127,11 @@ Dynamically generate these sections:
 - **Scaffold boundary** — State explicitly that Phase 3 created the foundation only.
   Placeholder routes, stubs, schemas, docs, hooks, and config files do NOT satisfy PLAN tasks.
   A milestone is only complete when its `Done When` outcome is true in real code/runtime behavior.
+- **Progress tracking conventions** — Every meaningful user instruction must land in repo state.
+  Discussion can stay conversational at first, but once the user gives explicit go-ahead or a
+  sufficiently detailed change plan exists, small style/content/layout tweaks become tracked
+  tasks and larger asks become a new plan file or milestone. Never keep actionable work only in
+  chat or only in old plan-mode transcripts.
 - **Repository map** — Pointers to the actual docs in THIS project.
 - **Architecture rules** — Dependency layers, module boundaries, import restrictions
   specific to THIS project's domain. Derived from ARCHITECTURE.md.
@@ -169,6 +174,10 @@ Example: `2026-03-08-add-user-profile-editing.md`
    - TypeScript CLI: run `<pkg-mgr> run harness plan:status`
    - Native shell CLI: inspect `docs/PLAN.md` + `docs/progress.json` directly
    This gives the agent the current milestones, what's done/active, and the next available M number.
+   - It is fine to discuss first. Once the user says to proceed, or the pasted / prior plan-mode
+     content is detailed enough to execute, use this flow immediately.
+   - A small style tweak, copy update, or pasted checklist can become a one-task plan or a
+     micro-milestone; do NOT skip tracking just because the request sounds narrow.
 3. Write the plan to docs/exec-plans/active/ using PLAN.md milestone format:
 
    ### M1: Feature Name
@@ -199,7 +208,7 @@ Example: `2026-03-08-add-user-profile-editing.md`
    `harness init` in another session to ingest chat-only planning output.
 
    **Fallback if planning already ended elsewhere:**
-   - Paste the full approved plan output or the relevant planning transcript back into the current session
+   - Paste the full approved plan output, relevant planning transcript, or any sufficiently detailed prior planning content back into the current session
    - Read the pasted planning context before rewriting anything; do not reconstruct milestones from a one-line summary
    - Recreate `docs/exec-plans/active/<descriptive-name>.md` from that pasted context
    - Then run the same materialization step above so `docs/PLAN.md` + `docs/progress.json` become the source of truth again
@@ -451,7 +460,7 @@ Before leaving planning, materialize it into repo state:
 
 If planning already happened in another chat or the session exited before sync:
 
-- Paste the full approved plan output or relevant planning transcript back into the current session
+- Paste the full approved plan output, relevant planning transcript, or sufficiently detailed prior planning content back into the current session
 - Recreate `docs/exec-plans/active/<descriptive-name>.md` from that context
 - Then run the same materialization step so the repo becomes the source of truth again
 

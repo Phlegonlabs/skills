@@ -31,6 +31,25 @@ Treat the scaffold as foundation only, especially at the start of M1.
 - If the scaffold created a shell for the task, the execution milestone still owns the real
   behavior, integration, and production-hardening work.
 
+## Ad Hoc Instruction Tracking
+
+Treat narrow user instructions as trackable work, not disposable chat context.
+
+- Discussion can stay in chat while the user is still shaping the request.
+- If the user says "change this style", "update this content", "follow this plan", or gives
+  another partial instruction that causes real work, and they have clearly moved from discussion
+  into "go do it" mode, mirror it into repo state immediately.
+- If a prior plan-mode conversation, pasted checklist, or copied change plan is detailed enough to
+  execute, treat that as execution-authorizing planning content and sync it to repo state now.
+- If the request fits the active milestone, add/refine the task in `docs/PLAN.md` and keep
+  `docs/progress.json` aligned before or at task start, then continue active execution there.
+- If the request does not fit an active milestone, create a lightweight follow-up plan,
+  task, or micro-milestone, then sync `docs/PLAN.md` + `docs/progress.json` before execution.
+- UI, copy, and design-detail tweaks still count as tracked work. Update the relevant UI docs
+  and keep the task board accurate instead of treating them as invisible side notes.
+- Never execute meaningful repo changes from chat-only intent or plan-mode memory with no
+  PLAN/progress trace.
+
 ---
 
 ## Parallel Worktree Protocol

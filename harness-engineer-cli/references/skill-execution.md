@@ -695,6 +695,13 @@ The flow uses **plan mode** as entry → CLI handles insertion:
    → Shows current milestones, progress %, what's active, next M number
    → This gives the agent context to write the plan correctly
 4. Discuss with the user: requirements, architecture impact, where this fits
+   - It is normal to discuss first while the request is still being shaped.
+   - Once the user says to proceed, update, or follow a plan, or once the conversation already
+     contains a sufficiently detailed change plan, that content must stop living only in chat.
+   - Narrow asks still count: style tweaks, content edits, one-page adjustments, and
+     "follow this plan" instructions must all become tracked work instead of chat-only intent.
+   - If the ask fits an active milestone, refine that milestone's task list and continue there.
+   - If it does not fit, create a small follow-up plan or micro-milestone.
 5. Agent generates the plan → saved to `docs/exec-plans/active/`
    - Plan uses PLAN.md format: `### M1: Feature Name` + task table
    - Milestone numbering can be anything — `plan:apply` auto-renumbers
@@ -712,9 +719,9 @@ The flow uses **plan mode** as entry → CLI handles insertion:
    - Marks plan as synced
 8. Agent verifies `docs/PLAN.md` + `docs/progress.json` now reflect the new work. Do not rely on a future `harness init` to ingest chat-only planning output.
 9. Fallback when planning already happened elsewhere:
-   - Paste the full approved plan output or planning transcript back into the current session
+   - Paste the full approved plan output, planning transcript, or sufficiently detailed prior planning content back into the current session
    - Agent reads that pasted planning context, reconstructs `docs/exec-plans/active/<descriptive-name>.md`, then performs the same sync into `docs/PLAN.md` + `docs/progress.json`
-   - Do not continue execution from a chat-only summary; repo files must be updated first
+   - Do not continue execution from a chat-only summary, old plan-mode memory, or pasted checklist alone; repo files must be updated first
 10. If the approved plan changes module boundaries, integrations, deployment topology, or core data flow:
    - Update `ARCHITECTURE.md` before leaving planning
    - If `docs/gitbook/architecture.md` exists, sync it now when the wording is stable; otherwise add an explicit docs task in the new milestone
@@ -786,6 +793,7 @@ The same milestone/task structure handles all types of work:
 |------|-----------|----------|
 | **New feature** | New Epic in PRD → New Milestone in PLAN | MoSCoW from PRD |
 | **Bug fix** | Add FR with "Bug:" prefix → Task in nearest milestone or new milestone | Must (if user-facing) |
+| **UI / content / style tweak** | Discuss first if needed; once the user says proceed, add a tracked task to the active milestone or create a micro-milestone, then sync `PLAN.md` + `progress.json` | Must (if user-requested) |
 | **Tech debt** | Add to docs/tech-debt/ → Create milestone when prioritized | Should/Could |
 | **Refactor** | Add FR or tech debt item → Tasks with "Refactor:" prefix | Should |
 | **Dependency update** | Task in current or new milestone | Must (if security) |

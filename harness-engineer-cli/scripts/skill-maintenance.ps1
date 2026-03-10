@@ -359,6 +359,31 @@ if (($foundationOnlyChecks | Where-Object { -not $_ }).Count -eq 0) {
   Add-Fail 'foundation-only scaffold boundary drifted or milestone completion became too loose'
 }
 
+$partialTrackingChecks = @(
+  ($skillContent -match [regex]::Escape('Discuss first, sync on go-ahead:')),
+  ($skillContent -match [regex]::Escape('Do NOT let actionable')) -and `
+    ($skillContent -match [regex]::Escape('planning content live only in chat.')),
+  ($execRuntimeContent -match [regex]::Escape('## Ad Hoc Instruction Tracking')),
+  ($execRuntimeContent -match [regex]::Escape('Discussion can stay in chat while the user is still shaping the request.')),
+  ($execRuntimeContent -match [regex]::Escape('If a prior plan-mode conversation, pasted checklist, or copied change plan is detailed enough to')),
+  ($execRuntimeContent -match [regex]::Escape('Never execute meaningful repo changes from chat-only intent or plan-mode memory with no')),
+  ($artifactContent -match [regex]::Escape('**Progress tracking conventions** — Every meaningful user instruction must land in repo state.')),
+  ($artifactContent -match [regex]::Escape('Discussion can stay conversational at first, but once the user gives explicit go-ahead or a')),
+  ($artifactContent -match [regex]::Escape('Paste the full approved plan output, relevant planning transcript, or any sufficiently detailed prior planning content back into the current session')),
+  ($execContent -match [regex]::Escape('It is normal to discuss first while the request is still being shaped.')),
+  ($execContent -match [regex]::Escape('If the ask fits an active milestone, refine that milestone''s task list and continue there.')),
+  ($execContent -match [regex]::Escape('Do not continue execution from a chat-only summary, old plan-mode memory, or pasted checklist alone; repo files must be updated first')),
+  ($execContent -match [regex]::Escape('| **UI / content / style tweak** | Discuss first if needed; once the user says proceed, add a tracked task to the active milestone or create a micro-milestone, then sync `PLAN.md` + `progress.json` | Must (if user-requested) |')),
+  ($retrofitContent -match [regex]::Escape('Discussion can happen first while the change is still being shaped')),
+  ($retrofitContent -match [regex]::Escape('If the new work clearly fits the active milestone, refine that milestone''s task list and continue there instead of forcing a separate milestone')),
+  ($retrofitContent -match [regex]::Escape('Paste the full approved plan output, planning transcript, or sufficiently detailed prior planning content back into the current session'))
+)
+if (($partialTrackingChecks | Where-Object { -not $_ }).Count -eq 0) {
+  Add-Pass 'discussion-first planning now syncs immediately on go-ahead and routes compatible work into the active milestone'
+} else {
+  Add-Fail 'discussion-to-execution tracking drifted and actionable planning content may escape PLAN/progress state'
+}
+
 $structuredPromptChecks = @(
   ($skillContent -match '2-3 curated options'),
   ($greenfieldContent -match '2-3 curated options'),
@@ -545,17 +570,18 @@ if ((($architectureSyncChecks | Where-Object { -not $_ }).Count -eq 0) -and (($s
 }
 
 $planPasteFallbackChecks = @(
-  ($readmeContent -match [regex]::Escape('Planning fallback: if planning already happened in another chat or the session exited before sync, paste the full approved plan output or transcript back into the current session, reconstruct `docs/exec-plans/active/*.md`, then immediately sync `docs/PLAN.md` + `docs/progress.json` and any architecture doc changes.')),
+  ($readmeContent -match [regex]::Escape('Planning fallback: if planning already happened in another chat or the session exited before sync, paste the full approved plan output, planning transcript, or sufficiently detailed prior planning content back into the current session, reconstruct `docs/exec-plans/active/*.md`, then immediately sync `docs/PLAN.md` + `docs/progress.json` and any architecture doc changes.')),
   ($artifactContent -match [regex]::Escape('Fallback if planning already ended elsewhere:')),
   ($artifactContent -match [regex]::Escape('Read the pasted planning context before rewriting anything; do not reconstruct milestones from a one-line summary')),
   ($artifactContent -match [regex]::Escape('If planning already happened in another chat or the session exited before sync:')),
   ($artifactContent -match [regex]::Escape('Do not continue from a one-line summary. The repo files are the source of truth.')),
   ($execContent -match [regex]::Escape('Fallback when planning already happened elsewhere:')),
-  ($execContent -match [regex]::Escape('Do not continue execution from a chat-only summary; repo files must be updated first')),
+  ($execContent -match [regex]::Escape('Do not continue execution from a chat-only summary, old plan-mode memory, or pasted checklist alone; repo files must be updated first')),
   ($retrofitContent -match [regex]::Escape('Fallback if plan mode already ended without sync:')),
-  ($retrofitContent -match [regex]::Escape('Paste the full approved plan output or planning transcript back into the current session')),
+  ($retrofitContent -match [regex]::Escape('Paste the full approved plan output, planning transcript, or sufficiently detailed prior planning content back into the current session')),
   ($cliContent -match [regex]::Escape('Fallback rule: if planning already happened in another chat or the session ended before sync,')),
-  ($cliContent -match [regex]::Escape('If planning happened in another chat, first rewrite the approved plan/transcript'))
+  ($cliContent -match [regex]::Escape('If planning happened in another chat, first rewrite the approved plan, transcript,')),
+  ($cliContent -match [regex]::Escape('or sufficiently detailed prior planning content into docs/exec-plans/active'))
 )
 if ((($planPasteFallbackChecks | Where-Object { -not $_ }).Count -eq 0)) {
   Add-Pass 'planning fallback supports pasted plan/transcript reconciliation before execution resumes'
