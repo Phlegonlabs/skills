@@ -52,7 +52,7 @@ Then analyze:
   - What UI or brand should be preserved, if any?
   - Should the interface feel `spacious`, `balanced`, or `dense`?
   - Should the project be `light-first`, `dark-first`, or support both themes?
-- If the user wants the current UI preserved, record that explicitly in `docs/frontend-design.md`
+- If the user wants the current UI preserved, record that explicitly in `docs/product/frontend-design.md`
   under `Reference Anchors`. If the user wants a refresh, record the target direction while still
   mapping the current routes/screens.
 
@@ -71,13 +71,21 @@ Files to ADD to the existing project:
 ├── CLAUDE.md                    ← identical to AGENTS.md
 ├── ARCHITECTURE.md              ← generated from actual source structure
 ├── docs/
+│   ├── index.md                 ← human navigation entrypoint for generated docs
 │   ├── PRD.md                   ← lightweight — document what EXISTS, not what to build
 │   ├── PLAN.md                  ← empty milestones section, ready for new work
 │   ├── progress.json            ← initialized with project state
 │   ├── learnings.md             ← empty, ready for agent learnings
-│   ├── frontend-design.md       ← if project has frontend
-│   ├── design.md                ← if project has frontend; derive from actual routes/screens
-│   ├── design-preview.html      ← if project has frontend; mid-fi styled static preview for review
+│   ├── product/
+│   │   ├── frontend-design.md   ← if project has frontend
+│   │   ├── design.md            ← if project has frontend; derive from actual routes/screens
+│   │   ├── design-preview.html  ← if project has frontend; mid-fi styled static preview for review
+│   │   └── release.md           ← desktop-only release contract when applicable
+│   ├── agent/
+│   │   ├── agent-workflows.md   ← common agent workflows with this project
+│   │   ├── api-guide.md         ← API reference when the project exposes one
+│   │   ├── commands.md          ← CLI command reference when applicable
+│   │   └── data-model.md        ← data entities agents will read/write
 │   ├── exec-plans/
 │   │   ├── active/
 │   │   └── completed/
@@ -103,7 +111,7 @@ Files to ADD to the existing project:
 
 - **JS/TS projects or non-JS projects that accept a Node root:** generate:
   - `scripts/harness.ts`
-  - `scripts/check-commit-msg.ts`
+  - `scripts/maintenance/check-commit-msg.ts`
   - `scripts/harness/` CLI modules
 - **Non-JS/TS projects with no Node.js:** generate the native shell runtime instead:
   - `scripts/harness.sh`
@@ -251,7 +259,7 @@ delegates to your existing scripts — it doesn't auto-detect frameworks.
    harness: npx tsx scripts/harness.ts $(ARGS)
    ```
 
-2. **No Node.js:** Use `references/harness-native.md` to generate `scripts/harness.sh`.
+2. **No Node.js:** Use `docs/agent/harness-native.md` to generate `scripts/harness.sh`.
    Ensure the existing Makefile has a `validate` target. Add pre-commit hooks using the
    language-appropriate framework (see harness-native.md). Note the feature tradeoffs in
    AGENTS.md / CLAUDE.md.
@@ -263,11 +271,12 @@ Present to the user from the actual repo state:
 2. List of existing configs that were PRESERVED (not overwritten)
 3. Tech debt items detected
 4. The generated AGENTS.md / CLAUDE.md for review
-5. If the project has a frontend: `docs/frontend-design.md`, `docs/design.md`, and
-   `docs/design-preview.html` for UI review
+5. If the project has a frontend: `docs/product/frontend-design.md`, `docs/product/design.md`, and
+   `docs/product/design-preview.html` for UI review
+6. Point the user to `docs/index.md` so they can review the generated docs as a grouped set
 6. Ask: "Does this look right? Should I adjust anything?"
 
-For frontend retrofits, explicitly ask the user to open `docs/design-preview.html` and confirm:
+For frontend retrofits, explicitly ask the user to open `docs/product/design-preview.html` and confirm:
 - The route structure matches the current product
 - The visual direction is right for the project
 - The density/theme choice looks right for the next round of implementation
@@ -281,7 +290,7 @@ After confirmation, the files are already in the existing project. Then the user
 3. By default, do NOT run `<pkg-mgr> install` immediately. Wait until the user is ready to start the first real milestone, or until they explicitly ask for the harness runtime to be activated right now.
 4. If the user explicitly wants immediate activation:
    - TypeScript CLI: run `<pkg-mgr> install` (to pick up tsx + husky)
-   - Native shell CLI: install `jq` / hooks exactly as documented in `references/harness-native.md`
+   - Native shell CLI: install `jq` / hooks exactly as documented in `docs/agent/harness-native.md`
 5. Commits: `[scaffold] add harness framework`
 6. Opens Claude Code / Codex → agent reads AGENTS.md / CLAUDE.md → ready
 
@@ -306,9 +315,10 @@ User enters plan mode
 
 TypeScript CLI path:
   Agent runs `harness plan:apply` from main/root in the same planning flow
-  → Parses plan into PRD update + new Milestone in PLAN.md
+  → Parses plan into new Milestone(s) in PLAN.md
   → Updates progress.json with dependency graph
   → Verifies PLAN.md + progress.json now reflect the new work
+  → Updates PRD only when the approved work changes product requirements or public scope
   → If the approved plan changes module boundaries, integrations, deployment topology, or core data flow, update ARCHITECTURE.md before leaving planning and sync docs/gitbook/architecture.md when present
   → If the new work clearly fits the active milestone, refine that milestone's task list and continue there instead of forcing a separate milestone
   → If one eligible milestone and no isolation need → `harness init` and continue serially from main/root
@@ -335,6 +345,11 @@ Fallback if plan mode already ended without sync:
 Do not rely on a later `harness init` in a new session to ingest the plan. The repo itself
 must already contain the synced plan state before handoff.
 
+Once the repo is synced, either Claude Code or Codex can resume from that same state.
+If worktree mode is active, the incoming agent opens the same milestone worktree; if serial
+mode is active, the incoming agent opens main/root. Do not keep retrofit decisions only in chat.
+Retrofit is only closed-loop when the repo files, runtime config, and resume path all agree.
+
 Repeat.
 ```
 
@@ -342,3 +357,4 @@ No long-task bootstrap. No initial milestone grind. The project is already built
 The harness just gives agents the rails to do future work safely.
 
 ---
+

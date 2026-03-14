@@ -101,7 +101,8 @@ harness init          ← once per session
 ```
 scripts/
 ├── harness.ts                  # Entry point: imports + command router (~85 lines)
-├── check-commit-msg.ts         # Commit message validator (standalone — needs msg file path)
+├── maintenance/
+│   └── check-commit-msg.ts     # Commit message validator (standalone — needs msg file path)
 └── harness/
     ├── config.ts               # Constants, paths, colors, output helpers (~40 lines)
     ├── types.ts                # All interfaces: Progress, AgentEntry, WorktreeInfo (~60 lines)
@@ -3606,14 +3607,14 @@ function resolveDependencies(
 
 ### scripts/harness/scaffold-templates.ts
 
-**This module is in a separate reference file: `references/scaffold-templates.md`**
+**This module is in a separate reference file: `docs/agent/scaffold-templates.md`**
 
 The scaffold-templates module (~1300 lines) contains 16+ injectable capability templates
 (MCP server, SKILL.md, Cloudflare config, agent card, auth, observability, etc.).
 It is extracted to reduce context window usage — load it only when generating the
 scaffold command for a new project.
 
-Read `references/scaffold-templates.md` when:
+Read `docs/agent/scaffold-templates.md` when:
 - Generating a greenfield project's `scripts/harness/scaffold-templates.ts`
 - The user asks to add MCP, agent, or Cloudflare capabilities to an existing project
 - Debugging or modifying scaffold template output
@@ -3729,7 +3730,7 @@ ${Y}Scaffold (inject capability templates):${N}
 
 ---
 
-### scripts/check-commit-msg.ts
+### scripts/maintenance/check-commit-msg.ts
 
 ```typescript
 #!/usr/bin/env tsx
@@ -3803,10 +3804,10 @@ npx tsx scripts/harness.ts schema
 
 ### .husky/commit-msg
 ```bash
-npx tsx scripts/check-commit-msg.ts "$1"
+npx tsx scripts/maintenance/check-commit-msg.ts "$1"
 ```
 
-Note: invoke `check-commit-msg.ts` directly — it is standalone and reads the msg file path
+Note: invoke `scripts/maintenance/check-commit-msg.ts` directly — it is standalone and reads the msg file path
 from `process.argv[2]`. Do NOT route it through `scripts/harness.ts`; there is no
 `check-commit-msg` case in the router, so routing through harness.ts would silently pass
 every commit message without validation.
@@ -3958,7 +3959,7 @@ modules so the staged file guard never becomes the first place you discover over
 ## Assembly Checklist
 
 1. Generate `scripts/harness.ts` (entry point router) + `scripts/harness/*.ts` (10 focused modules, including `task-helpers.ts` and `worktree-helpers.ts`)
-2. Generate `scripts/check-commit-msg.ts`
+2. Generate `scripts/maintenance/check-commit-msg.ts`
 3. Generate `schemas/progress.schema.json`
 4. Generate `.husky/pre-commit`, `.husky/commit-msg`, `.husky/pre-push`
 5. Add `"harness": "tsx scripts/harness.ts"` + `"prepare": "husky"` to package.json
@@ -3967,3 +3968,4 @@ modules so the staged file guard never becomes the first place you discover over
 8. **No prettierignore needed** — all modules are small enough for standard formatting
 9. **No lint-staged exclusions** — `scripts/` participates in lint + format like everything else
 10. **Agents run commands, not edit JSON.** The CLI is the only writer of progress.json.
+

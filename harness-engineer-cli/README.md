@@ -4,6 +4,8 @@ An agent-first project framework based on Harness Engineering principles.
 Works with **Claude Code** and **Codex** on **Windows**, macOS, and Linux.
 Skill version: `2026.03.10`
 
+Maintainer entrypoint: `docs/index.md`
+
 ## What it does
 
 Two modes:
@@ -17,10 +19,10 @@ pick → start → code → validate → commit → done → repeat.
 - **Node/TS projects** — TypeScript CLI (`scripts/harness.ts` + `scripts/harness/` modules), with full capability: optional managed worktrees, `plan:apply`, and agent lifecycle
 - **Strict non-Node projects** (Python/Go/Rust, user explicitly refuses Node) — Shell CLI (`scripts/harness.sh` + `Makefile`), single-agent only: `init` / `status` / `validate` / `next` / `start` / `done` / `block`
 
-> **`references/replay-protocol.md` is for framework-level development only.**
+> **`docs/agent/replay-protocol.md` is for framework-level development only.**
 > It documents the SOP for verifying changes to this skill's own reference files across
 > downstream fixture repos. It is NOT part of any project's task loop or completion criteria.
-> Per-project completion is defined by the Idle Protocol in `references/skill-execution.md`:
+> Per-project completion is defined by the Idle Protocol in `docs/agent/skill-execution.md`:
 > all milestones merged → changelog reviewed → human confirms release tag.
 
 ## Top-Level State Machine
@@ -66,6 +68,27 @@ stateDiagram-v2
 - `WorktreeMode` is conditional, not the default.
 - `PlanningRecovery` is the fallback path when planning happened elsewhere and the repo was not synced yet.
 
+## Cross-Agent Continuation
+
+You can switch between Claude Code and Codex midstream as long as the repo is fully synced first.
+
+- The handoff contract lives in the repo: `AGENTS.md` / `CLAUDE.md`, `ARCHITECTURE.md`,
+  `docs/PLAN.md`, `docs/progress.json`, `docs/exec-plans/active/`, and, when present,
+  the UI + GitBook doc chain.
+- Serial mode handoff: the next agent opens the repo root and resumes with `harness init`.
+- Worktree mode handoff: the next agent opens the same milestone worktree and resumes with
+  `harness init` there, not on main/root.
+- Do not rely on chat history, agent memory, or claude.ai-only context to continue execution.
+
+## Closed-Loop Rule
+
+Nothing in this framework should stop at "discussed", "drafted", or "almost synced".
+
+- Planning must end in repo state.
+- Execution must end in validation + state update.
+- Docs must end in updated repo files tied to current reality.
+- Handoffs must end with a clean resume path for the next Claude Code or Codex session.
+
 ## How to install
 
 Add this folder as a skill in claude.ai. The skill triggers when you say things like
@@ -84,7 +107,7 @@ Human quality checkpoints (security changes, merge failures, blocked tasks).
 This is the default because the harness CLI + git hooks + CI already enforce all
 rules mechanically. The agent can't commit bad code — the hooks reject it.
 
-Config templates for Claude Code and Codex live in `references/project-configs.md`.
+Config templates for Claude Code and Codex live in `docs/agent/project-configs.md`.
 Use the `Claude Code — .claude/settings.json` and `Codex — .codex/config.toml` sections
 there as the canonical source.
 
@@ -131,25 +154,32 @@ Changes take effect on the next agent session. No restart needed — just start 
 ```
 harness-engineer-cli/
 ├── SKILL.md                        ← Main skill file (claude.ai reads this)
-├── README.md                       ← You are here
-├── scripts/                        ← Maintenance scripts (version bump, local tooling)
-└── references/                     ← Templates used during generation
-    ├── skill-greenfield.md         ← Greenfield workflow (discovery → PRD → scaffold)
-    ├── skill-retrofit.md           ← Existing-project retrofit workflow
-    ├── skill-desktop.md            ← Desktop-specific reference (Electron/Tauri)
-    ├── skill-mobile.md             ← Mobile-specific reference (Expo/EAS)
-    ├── skill-auth.md               ← Auth-specific reference
-    ├── skill-artifacts.md          ← Generated docs / config artifact templates
-    ├── skill-execution.md          ← Post-scaffold runtime + task-loop handoff
-    ├── harness-cli.md              ← The CLI source code + schema + hooks (TypeScript)
-    ├── scaffold-templates.md       ← CLI scaffold command templates (MCP, SKILL.md, Cloudflare, agent)
-    ├── harness-native.md           ← Shell-based CLI alternative for non-Node projects
-    ├── eslint-configs.md           ← ESLint flat configs per framework
-    ├── project-configs.md          ← TS, Python, Go, Rust, workspace, Docker, CI configs
-    ├── gitignore-templates.md      ← .gitignore templates per stack
-    ├── execution-runtime.md        ← Agent guidelines (context budget, parallel, quality gates)
-    ├── execution-advanced.md       ← Optional release automation, docs site, memory system
-    └── replay-protocol.md          ← Downstream replay / fixture verification SOP
+├── README.md                       ← Thin root overview; maintainers should start in docs/index.md
+├── docs/
+│   ├── index.md                    ← Maintainer navigation entrypoint
+│   ├── human/
+│   │   ├── maintainer-guide.md     ← Human-facing maintenance workflow
+│   │   └── maintenance/
+│   │       └── skill-audit.md      ← Audit log for version bumps and autofixes
+│   └── agent/                      ← Templates used during generation
+│       ├── skill-greenfield.md     ← Greenfield workflow (discovery → PRD → scaffold)
+│       ├── skill-retrofit.md       ← Existing-project retrofit workflow
+│       ├── skill-desktop.md        ← Desktop-specific reference (Electron/Tauri)
+│       ├── skill-mobile.md         ← Mobile-specific reference (Expo/EAS)
+│       ├── skill-auth.md           ← Auth-specific reference
+│       ├── skill-artifacts.md      ← Generated docs / config artifact templates
+│       ├── skill-execution.md      ← Post-scaffold runtime + task-loop handoff
+│       ├── harness-cli.md          ← The CLI source code + schema + hooks (TypeScript)
+│       ├── scaffold-templates.md   ← CLI scaffold command templates (MCP, SKILL.md, Cloudflare, agent)
+│       ├── harness-native.md       ← Shell-based CLI alternative for non-Node projects
+│       ├── eslint-configs.md       ← ESLint flat configs per framework
+│       ├── project-configs.md      ← TS, Python, Go, Rust, workspace, Docker, CI configs
+│       ├── gitignore-templates.md  ← .gitignore templates per stack
+│       ├── execution-runtime.md    ← Agent guidelines (context budget, parallel, quality gates)
+│       ├── execution-advanced.md   ← Optional release automation, docs site, memory system
+│       └── replay-protocol.md      ← Downstream replay / fixture verification SOP
+└── scripts/
+    └── maintenance/                ← Skill-repo maintenance scripts
 ```
 
 ## What gets generated into your project
@@ -159,15 +189,30 @@ your-project/
 ├── AGENTS.md + CLAUDE.md           ← Agent instructions (identical content; fixed Interaction Rules + Iron Rules)
 ├── ARCHITECTURE.md                 ← Domain map, dependency layers
 ├── docs/
+│   ├── index.md                    ← Human navigation entrypoint for generated docs
 │   ├── PRD.md                      ← Product requirements
 │   ├── PLAN.md                     ← Milestones + tasks
 │   ├── progress.json               ← Machine-readable state (CLI manages this)
 │   ├── learnings.md                ← Agent learnings log
+│   ├── product/                    ← Human-facing product/design docs
+│   │   ├── frontend-design.md      ← Global design system + UI direction
+│   │   ├── design.md               ← Product wireframe + per-page contract
+│   │   ├── design-preview.html     ← Human review artifact for UI drift checks
+│   │   └── release.md              ← Desktop-only release contract
+│   ├── agent/                      ← Companion agent reference docs when generated
+│   │   ├── agent-workflows.md      ← Common agent workflows with the project
+│   │   ├── api-guide.md            ← API reference when the project exposes one
+│   │   ├── commands.md             ← CLI command reference when applicable
+│   │   └── data-model.md           ← Data entities agents read and write
+│   ├── exec-plans/
+│   │   ├── active/                 ← incoming plan files for both Claude Code and Codex
+│   │   └── completed/              ← auto-archived applied plans
 │   └── ...
 ├── scripts/
 │   ├── harness.ts                  ← [Node/TS] CLI entry point — thin command router
-│   ├── check-commit-msg.ts         ← [Node/TS] Commit message format enforcer
 │   ├── harness/                    ← [Node/TS] CLI modules (config, tasks, quality…)
+│   ├── maintenance/
+│   │   └── check-commit-msg.ts     ← [Node/TS] Commit message format enforcer
 │   └── harness.sh                  ← [Non-Node] Shell-based CLI alternative
 ├── Makefile                        ← [Non-Node] validate / done / next / block targets
 ├── schemas/
@@ -179,6 +224,10 @@ your-project/
 ├── .githooks/                      ← [Rust] Hook alternative to husky
 └── ...                             ← Scaffold (src/, tests/, configs, CI, Docker)
 ```
+
+Generated repos group human-facing design docs under `docs/product/`, companion agent docs
+under `docs/agent/`, and the Node commit-message hook at
+`scripts/maintenance/check-commit-msg.ts`.
 
 ## CLI commands
 
@@ -271,8 +320,8 @@ Execution start rule:
 From repo root:
 
 ```bash
-pwsh scripts/bump-version.ps1            # set version to today's date (YYYY.MM.DD)
-pwsh scripts/bump-version.ps1 -Version 2026.03.11  # explicit version
+pwsh scripts/maintenance/bump-version.ps1            # set version to today's date (YYYY.MM.DD)
+pwsh scripts/maintenance/bump-version.ps1 -Version 2026.03.11  # explicit version
 ```
 
 This updates:
@@ -289,13 +338,13 @@ When you detect a workflow/process drift (commands changed, duplicated docs, wro
 template source, etc.):
 
 ```bash
-pwsh scripts/skill-maintenance.ps1                  # full health check only
-pwsh scripts/skill-maintenance.ps1 -AutoFix         # run safe self-corrections
-pwsh scripts/skill-maintenance.ps1 -AutoFix -Version 2026.03.12  # optional explicit version sync
+pwsh scripts/maintenance/skill-maintenance.ps1                  # full health check only
+pwsh scripts/maintenance/skill-maintenance.ps1 -AutoFix         # run safe self-corrections
+pwsh scripts/maintenance/skill-maintenance.ps1 -AutoFix -Version 2026.03.12  # optional explicit version sync
 ```
 
 Every run of `bump-version.ps1` and every `-AutoFix` run appends an entry to
-`SKILL-AUDIT.md` — review it to trace what changed and why.
+`docs/human/maintenance/skill-audit.md` — review it to trace what changed and why.
 
 Recommended loop:
 
@@ -326,3 +375,4 @@ Snapshot or diff at least these generated artifacts:
 If the change touches harness runtime behavior, CI, or generated workflow rules, replay it in at
 least one real downstream project or fixture repo and confirm the generated project still passes
 `harness validate`.
+

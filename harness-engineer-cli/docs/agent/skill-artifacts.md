@@ -77,19 +77,19 @@ If you can't explain the WHY in one sentence, the code shouldn't exist.
 
 ### 5. Frontend = Always Use frontend-design Skill
 When generating any frontend code (components, pages, layouts, styles), ALWAYS read
-and follow `docs/frontend-design.md` first. This file is bundled in the project.
+and follow `docs/product/frontend-design.md` first. This file is bundled in the project.
 No exceptions. Even for "small" UI changes.
 
 When generating or editing a **specific page or screen**, also read the corresponding
-entry in `docs/design.md` (generated in Phase 3 for Web App / Mobile / Desktop projects).
-`docs/design.md` contains the authoritative product wireframe: overall app shell, global layout
+entry in `docs/product/design.md` (generated in Phase 3 for Web App / Mobile / Desktop projects).
+`docs/product/design.md` contains the authoritative product wireframe: overall app shell, global layout
 regions, navigation structure, page contracts, and auth gates. Do not add pages, major layout
-shifts, or shell changes not captured there without updating `docs/design.md` first.
+shifts, or shell changes not captured there without updating `docs/product/design.md` first.
 
 When a task changes UI structure or visual direction:
-- Route, navigation, or screen-state changes → update `docs/design.md`
-- Theme, density, component hierarchy, or stylistic changes → update `docs/frontend-design.md`
-- Any change that would alter human review of the UI → regenerate `docs/design-preview.html`
+- Route, navigation, or screen-state changes → update `docs/product/design.md`
+- Theme, density, component hierarchy, or stylistic changes → update `docs/product/frontend-design.md`
+- Any change that would alter human review of the UI → regenerate `docs/product/design-preview.html`
 
 ### 6. Secrets Never Touch Git
 .env files are NEVER committed. Not even "example" values that look like real keys.
@@ -132,6 +132,12 @@ Dynamically generate these sections:
   sufficiently detailed change plan exists, small style/content/layout tweaks become tracked
   tasks and larger asks become a new plan file or milestone. Never keep actionable work only in
   chat or only in old plan-mode transcripts.
+- **Closed-loop execution rule** — Every generated project must teach the agent to finish each
+  workflow completely:
+  - planning → exec-plan file + `docs/PLAN.md` + `docs/progress.json`
+  - implementation → validation + task-state update + docs sync when needed
+  - docs work → repo doc update + source-of-truth re-check
+  - handoff → repo synced enough that the next Claude Code or Codex session can resume cleanly
 - **Repository map** — Pointers to the actual docs in THIS project.
 - **Architecture rules** — Dependency layers, module boundaries, import restrictions
   specific to THIS project's domain. Derived from ARCHITECTURE.md.
@@ -232,6 +238,16 @@ When every milestone defined in that file is completed, `worktree:finish` auto-m
 `exec-plans/completed/`. The native shell CLI does not automate that archive step.
 ```
 
+- **Cross-agent continuation** — State explicitly that Claude Code and Codex can hand work off
+  through the repo only. Generated `AGENTS.md` / `CLAUDE.md` should instruct agents to:
+  - Always sync `docs/PLAN.md` + `docs/progress.json` before switching agents
+  - Sync `ARCHITECTURE.md` and `docs/gitbook/architecture.md` when system shape changed
+  - Sync `docs/product/frontend-design.md`, `docs/product/design.md`, and regenerate `docs/product/design-preview.html`
+    when UI direction or page structure changed
+  - Resume from `harness init` on repo root in serial mode, or from the same milestone worktree
+    in managed worktree mode
+  - Ignore chat-only memory once the repo is synced; the repo files become authoritative
+
 - **Scaffold Templates (CLI)** — When adding new capabilities mid-project, use the
   harness CLI to inject templates. DO NOT search the web blindly:
 
@@ -302,7 +318,7 @@ Then load memory (agent does this, not the CLI):
 - If resuming a task: check the daily log for "In Progress" section
 
 Context budget:
-- Use the canonical budget in `references/execution-runtime.md#Context Budget`
+- Use the canonical budget in `docs/agent/execution-runtime.md#Context Budget`
 - Do not maintain a second budget table here
 - Overloaded? → write notes to daily log, commit what works, start fresh session.
 
@@ -901,6 +917,8 @@ response examples, and edge case documentation.
   - claude.ai custom skills (upload as skill folder)
   - OpenClaw (place in `~/.openclaw/skills/` or workspace `skills/`)
   - Claude Code (place in project root — Claude Code reads it at startup)
+  - Codex-friendly discoverability: keep it in project root for compatible agent ecosystems, but
+    do not describe it as Codex's primary execution entrypoint — Codex execution still begins from `AGENTS.md`
   - Any agent framework that follows the AgentSkills convention
 - **Every tool must appear** in the "Available Tools" section with input/output tables
 - **Connection section** must include both stdio and SSE if the server supports both
@@ -924,11 +942,11 @@ response examples, and edge case documentation.
 Generate actual source files appropriate to the chosen stack. Not empty dirs.
 
 **BEFORE generating any config file, read the reference templates:**
-- `references/gitignore-templates.md` — .gitignore assembled per stack
-- `references/eslint-configs.md` — ESLint flat configs per framework
-- `references/project-configs.md` — tsconfig, prettier, vitest, Docker, CI, Python configs
-- `references/harness-cli.md` — the harness CLI, JSON Schema, git hooks, lint-staged, assembly checklist
-- `references/execution-runtime.md` — agent guidelines: parallel protocol, context budget, quality gates
+- `docs/agent/gitignore-templates.md` — .gitignore assembled per stack
+- `docs/agent/eslint-configs.md` — ESLint flat configs per framework
+- `docs/agent/project-configs.md` — tsconfig, prettier, vitest, Docker, CI, Python configs
+- `docs/agent/harness-cli.md` — the harness CLI, JSON Schema, git hooks, lint-staged, assembly checklist
+- `docs/agent/execution-runtime.md` — agent guidelines: parallel protocol, context budget, quality gates
 
 Never write configs or scripts from memory. Always reference these files and adapt.
 The templates use the strictest settings — never downgrade. If strict rules cause errors,
@@ -1008,13 +1026,13 @@ or `pytest-playwright`. Same multi-browser support, Python test syntax.
 For Go web apps: use Playwright via `playwright-go` or run Playwright JS tests alongside
 the Go backend (start server in CI, run `npx playwright test` against it).
 
-**Harness CLI (every project — see `references/harness-cli.md`):**
+**Harness CLI (every project — see `docs/agent/harness-cli.md`):**
 
 Add `tsx` as a dev dependency: `<pkg-mgr> add -D tsx`
 
 Generate the modular CLI structure: `scripts/harness.ts` (thin router, ~50 lines) +
 `scripts/harness/` directory with 6 focused modules (config, types, state, worktree,
-tasks, validate, quality — each under 350 lines). See `references/harness-cli.md` for
+tasks, validate, quality — each under 350 lines). See `docs/agent/harness-cli.md` for
 the exact file-by-file implementation. The CLI handles:
 - `harness init` → session boot (sync plans, stale check, register agent, print status)
 - `harness next` → find next unblocked task (scoped to current worktree's milestone)
@@ -1030,7 +1048,7 @@ the exact file-by-file implementation. The CLI handles:
 - `harness stale-check` / `file-guard` / `schema` / `changelog`
 - Any shared harness / CI / template change must be replayed in at least one downstream repo or fixture before it is considered closed
 
-Plus `scripts/check-commit-msg.ts` (needs file path arg, kept separate for hooks).
+Plus `scripts/maintenance/check-commit-msg.ts` (needs file path arg, kept separate for hooks).
 
 The CLI uses only `node:` built-in modules — zero external deps beyond `tsx`.
 Agent never touches progress.json or PLAN.md manually — the CLI handles all state.
@@ -1044,7 +1062,7 @@ The harness CLI is written in TypeScript and requires `tsx` (Node.js). For non-J
    - Python: `pip install nodeenv && nodeenv .node_env` or just have Node installed globally
    - Go / Rust: Node.js installed alongside Go/Rust toolchain
 
-2. **Alternative (no Node.js):** Use `references/harness-native.md` to generate:
+2. **Alternative (no Node.js):** Use `docs/agent/harness-native.md` to generate:
    - `scripts/harness.sh` — shell-based CLI covering init, status, validate, next, start,
      done, block, file-guard, schema, learn. Requires `jq`.
    - `scripts/check-commit-msg.sh` — commit message validator (replaces check-commit-msg.ts)
@@ -1065,7 +1083,7 @@ The harness CLI is written in TypeScript and requires `tsx` (Node.js). For non-J
    delegates to whatever scripts are defined in package.json (JS) or Makefile (non-JS). Make
    sure the project's lint/test/type-check commands are wired up correctly.
 
-**Schemas (included in `references/harness-cli.md`):**
+**Schemas (included in `docs/agent/harness-cli.md`):**
 
 Generate `schemas/progress.schema.json` — validated by `harness schema` command
 and by the pre-commit hook.
@@ -1084,10 +1102,10 @@ in sequence. Agents run this before every commit. CI runs this on every PR.
 
 **Pre-commit hooks (every JS/TS project):**
 
-Generate husky with THREE hooks (see `references/harness-cli.md` for details):
+Generate husky with THREE hooks (see `docs/agent/harness-cli.md` for details):
 
 - `.husky/pre-commit` — runs lint-staged + `harness file-guard --staged` + `harness schema`
-- `.husky/commit-msg` — runs `check-commit-msg.ts` (rejects non-conforming commits)
+- `.husky/commit-msg` — runs `scripts/maintenance/check-commit-msg.ts` (rejects non-conforming commits)
 - `.husky/pre-push` — runs `harness validate`
 
 `lint-staged` config in package.json:
@@ -1103,14 +1121,14 @@ Generate husky with THREE hooks (see `references/harness-cli.md` for details):
 - **4-layer enforcement**: pre-commit → commit-msg → pre-push → CI
 
 For Python: use `pre-commit` framework with ruff + mypy hooks.
-See `references/harness-native.md` for the `.pre-commit-config.yaml` template.
+See `docs/agent/harness-native.md` for the `.pre-commit-config.yaml` template.
 Install: `uv run pre-commit install` (or `pip install pre-commit && pre-commit install`).
 
 For Go: use `pre-commit` framework with golangci-lint + go-fmt hooks.
-See `references/harness-native.md` for the `.pre-commit-config.yaml` template.
+See `docs/agent/harness-native.md` for the `.pre-commit-config.yaml` template.
 
 For Rust: use git hooks directly (`.githooks/pre-commit` + `.githooks/commit-msg`).
-See `references/harness-native.md` for the hook scripts.
+See `docs/agent/harness-native.md` for the hook scripts.
 Configure: `git config core.hooksPath .githooks`
 
 **Claude Code + Codex configuration (every project):**
@@ -1118,7 +1136,7 @@ Configure: `git config core.hooksPath .githooks`
 Generate BOTH config files to enable **autonomous execution** — the agent loops
 through tasks without asking permission for routine commands:
 
-Config templates: see `references/project-configs.md` →
+Config templates: see `docs/agent/project-configs.md` →
 - `Claude Code — .claude/settings.json`
 - `Codex — .codex/config.toml`
 
@@ -1130,6 +1148,10 @@ Config templates: see `references/project-configs.md` →
   Codex run all commands within the workspace without prompts.
 - **Both:** The agent loops through tasks autonomously. It only pauses at Human
   quality checkpoints (security changes, merge failures, blocked tasks).
+
+**Secret-handling note:** Claude Code's config can deny `.env` reads directly. Codex does not
+expose the same per-path control here, so both agents still rely on the repo contract to keep
+secrets out of versioned state and out of generated docs.
 
 The Task Execution Loop runs ~8 shell commands per task. Without pre-approval,
 you'd press Y/Enter ~8 times per task. With this config, the agent loops autonomously.
@@ -1159,7 +1181,7 @@ Agent:  pauses ONLY at Human quality checkpoints:
   through `npx tsx` (Node.js) — no bash dependency.
 
 **Non-Node projects using the native shell CLI — `.claude/settings.json`:**
-Config template: see `references/project-configs.md` →
+Config template: see `docs/agent/project-configs.md` →
 `Non-Node variant — .claude/settings.json`.
 Add language-specific tools from that section for Python, Go, or Rust projects.
 
@@ -1585,6 +1607,28 @@ Build each file from the specific sources listed — do NOT leave placeholder te
 - `docs/gitbook/roadmap.md` ← docs/PLAN.md: milestone list in plain language, grouped
   by phase (MVP / v2 / backlog); no internal task IDs, user-facing feature names only
 
+**GitBook writing workflow (do this, not just file creation):**
+1. Start from repo sources of truth only: `docs/PRD.md`, `ARCHITECTURE.md`, `docs/PLAN.md`,
+   `AGENTS.md` / `CLAUDE.md`, and current code.
+2. Extract concrete bullets per page before drafting prose:
+   - `README.md`: tagline, problem, outcome, who it is for
+   - `product-overview.md`: problem, solution, core capabilities, scope boundaries
+   - `target-users.md`: user types, jobs-to-be-done, current alternatives, pain points
+   - `architecture.md`: system pieces, integrations, runtime/deploy shape, data flow
+   - `quickstart.md`: activation/install, env setup, first run, first visible result
+   - `roadmap.md`: shipped, current, next milestones in user language
+3. Turn those bullets into external-facing prose. Do not copy internal milestone jargon,
+   raw task tables, or implementation-only notes directly into GitBook pages.
+4. Write `SUMMARY.md` last, after page titles and filenames are stable.
+
+**Per-page minimum writing contract:**
+- `README.md`: explain what the project is, why it exists, and who should care
+- `product-overview.md`: explain the user problem, the proposed solution, and the v1 scope
+- `target-users.md`: explain who the users are, what they need done, and what hurts today
+- `architecture.md`: explain the system shape in plain language before diving into components
+- `quickstart.md`: get a new reader from zero to first meaningful output without agent-only assumptions
+- `roadmap.md`: explain current and next milestones as product outcomes, not internal task IDs
+
 **Exit quality check — each file must meet minimum structure:**
 - `README.md`: ≥ 3 sections (name+tagline / what-it-does / who-it's-for)
 - `product-overview.md`: ≥ problem statement + solution + 3+ must-have features
@@ -1595,19 +1639,22 @@ This structure is compatible with GitBook, Docusaurus, VitePress, or plain markd
 reading. The SUMMARY.md acts as a universal sidebar. Update pages as the project evolves.
 
 **Also include at minimum:**
+- `docs/index.md` — the human navigation entrypoint for generated repos. It must link:
+  `docs/PRD.md`, `docs/PLAN.md`, `docs/progress.json`, `docs/product/`, `docs/agent/`,
+  `docs/gitbook/`, and any debt / design-doc folders that exist.
 - Entry point file with a working starter (hello world level)
 - One example test that passes
-- `.gitignore` — generate from `references/gitignore-templates.md`. Assemble by combining
+- `.gitignore` — generate from `docs/agent/gitignore-templates.md`. Assemble by combining
   the Universal block + the stack-specific block(s). This must be the FIRST file committed
   to the repo, before any code. Verify `.env` patterns are present.
 - CI workflows that run `validate` on every PR and `validate:full` + deploy on merge
-- `docs/frontend-design.md` — **MUST be generated for every project that has a frontend**.
+- `docs/product/frontend-design.md` — **MUST be generated for every project that has a frontend**.
   Claude Code and Codex cannot access claude.ai skill paths, so the content must be
   bundled into the project repo. Generation strategy — try in order:
   1. Read from the `frontend-design` skill already active in this claude.ai session as a base template (preferred).
   2. Read from a local copy: `~/.agents/skills/frontend-design/SKILL.md` (Linux/macOS) or
      `C:\Users\<user>\.agents\skills\frontend-design\SKILL.md` (Windows) as a base template.
-  3. If neither is reachable, generate `docs/frontend-design.md` directly from the Phase 1
+  3. If neither is reachable, generate `docs/product/frontend-design.md` directly from the Phase 1
      call 5 answers. Do NOT use a generic minimal fallback.
   In all cases, the generated file must reflect:
   - Q11 in a "Component System" section
@@ -1615,22 +1662,28 @@ reading. The SUMMARY.md acts as a universal sidebar. Update pages as the project
   - Q13 in a "Layout Patterns" section
   - Q14 in a "Reference Anchors" section
   - Q15/Q16 in a "Preview Rendering Rules" section
-  Write the project-specific result to `docs/frontend-design.md`. Iron Rule 5 in AGENTS.md /
+  Write the project-specific result to `docs/product/frontend-design.md`. Iron Rule 5 in AGENTS.md /
   CLAUDE.md points to this file. Log the strategy used in `docs/learnings.md`.
-- `docs/design.md` — **MUST be generated for every project that has a frontend**.
+- `docs/product/design.md` — **MUST be generated for every project that has a frontend**.
   It is the product wireframe + route/screen authority for execution agents and must include:
   the overall app shell, global layout regions, navigation model, design-direction summary,
   and each page's purpose, primary action, key elements, critical states (`loading`, `empty`,
   `error`), and layout notes.
-- `docs/design-preview.html` — **MUST be generated for every project that has a frontend**.
+- `docs/product/design-preview.html` — **MUST be generated for every project that has a frontend**.
   This is the human review artifact: a self-contained, mid-fi styled static preview derived
-  from `docs/frontend-design.md` + `docs/design.md`. It should show layout, typography,
+  from `docs/product/frontend-design.md` + `docs/product/design.md`. It should show layout, typography,
   density, CTA hierarchy, and at least one representative non-happy-path state.
-- `docs/release.md` — **Desktop App only**. This is the desktop release contract and must
+- `docs/product/release.md` — **Desktop App only**. This is the desktop release contract and must
   document packaging target, signing/notarization expectations, updater channel, and a
   manual smoke checklist.
+- `docs/agent/agent-workflows.md` — generate for every project so agent operations are grouped
+  under one folder instead of scattering project-specific references at the repo root.
+- `docs/agent/api-guide.md` — generate when the project exposes an API.
+- `docs/agent/commands.md` — generate when the project is a CLI / operator-heavy tool.
+- `docs/agent/data-model.md` — generate when the project has a persistent data model.
 
 For monorepos, generate workspace config (pnpm-workspace.yaml / turbo.json / etc.)
 with at least one package or app entry.
 
 ---
+

@@ -437,21 +437,21 @@ if (existsSync('e2e/')) {
 }
 ```
 
-**`docs/frontend-design.md` — required (Iron Rule 5):**
-Expo/React Native is a UI project. `docs/frontend-design.md` MUST be bundled in the
+**`docs/product/frontend-design.md` — required (Iron Rule 5):**
+Expo/React Native is a UI project. `docs/product/frontend-design.md` MUST be bundled in the
 project following the same 3-strategy approach in SKILL.md. AGENTS.md Iron Rule 5 must
 point to it. All screen and component work reads it first.
 
-**`docs/design.md` + `docs/design-preview.html` — required UI review artifacts:**
-- `docs/design.md` is the authoritative mobile screen inventory: routes/screens, purpose,
+**`docs/product/design.md` + `docs/product/design-preview.html` — required UI review artifacts:**
+- `docs/product/design.md` is the authoritative mobile screen inventory: routes/screens, purpose,
   primary action, key elements, and critical states.
-- `docs/design-preview.html` is still generated for mobile projects. Use the phone-frame
+- `docs/product/design-preview.html` is still generated for mobile projects. Use the phone-frame
   variant as a self-contained, mid-fi styled static preview for human review before Phase 4.
 
 **Scaffold additions for mobile (added to Phase 3 output):**
-- `docs/frontend-design.md` — generated from frontend-design skill (see SKILL.md load order)
-- `docs/design.md` — generated from the screen inventory
-- `docs/design-preview.html` — generated from the screen inventory + frontend design rules
+- `docs/product/frontend-design.md` — generated from frontend-design skill (see SKILL.md load order)
+- `docs/product/design.md` — generated from the screen inventory
+- `docs/product/design-preview.html` — generated from the screen inventory + frontend design rules
 - `.env.example` — `EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_APP_ENV`; note that `EXPO_PUBLIC_*`
   vars are inlined in the bundle — never put secrets here
 - `eas.json` — development / preview / production build profiles
@@ -471,3 +471,4 @@ Use only lint + type-check in pre-commit; reserve `expo export` for CI or `valid
 - **Android first upload**: The first AAB must be uploaded manually in Play Console before EAS Submit API works
 - **Bundle identifier drift**: Keep `app.json` and `eas.json` in sync with Apple/Google developer accounts. Run `eas credentials` to verify
 - **Environment variable exposure**: `EXPO_PUBLIC_*` vars are inlined in the bundle — visible to anyone who decompiles the app. Never store API secrets there
+

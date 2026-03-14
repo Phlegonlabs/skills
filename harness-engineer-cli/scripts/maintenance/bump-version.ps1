@@ -1,7 +1,7 @@
 <# 
 Usage:
-  pwsh scripts/bump-version.ps1
-  pwsh scripts/bump-version.ps1 -Version 2026.03.11
+  pwsh scripts/maintenance/bump-version.ps1
+  pwsh scripts/maintenance/bump-version.ps1 -Version 2026.03.11
 #>
 [CmdletBinding()]
 param(
@@ -13,7 +13,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $versionPattern = '^\d{4}\.\d{2}\.\d{2}$'
 
-$root = Split-Path -Parent $PSScriptRoot
+$root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $versionPath = Join-Path $root 'VERSION'
 $skillPath = Join-Path $root 'SKILL.md'
 $readmePath = Join-Path $root 'README.md'
@@ -82,7 +82,7 @@ if ($updatedFiles.Count -eq 0) {
 }
 
 # Append audit entry
-$auditFile = Join-Path $PSScriptRoot ".." "SKILL-AUDIT.md"
+$auditFile = Join-Path $root "docs/human/maintenance/skill-audit.md"
 if (Test-Path $auditFile) {
     $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm"
     $changedFiles = ($updatedFiles -join ', ')
@@ -101,3 +101,4 @@ if ($skillUpdated) {
 if ($readmeUpdated) {
   Write-Host " - $readmePath"
 }
+

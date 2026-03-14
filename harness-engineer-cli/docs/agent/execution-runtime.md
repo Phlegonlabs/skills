@@ -112,10 +112,10 @@ Performance degrades beyond ~40% context utilization. Budget:
 **Progressive disclosure:**
 - Never load entire codebase, entire PLAN, or entire PRD
 - Load only files relevant to the current task
-- Load `docs/frontend-design.md` before any frontend task
-- Load `docs/design.md` before changing a specific page, screen, route, tab, navigation flow, or overall app shell / wireframe structure
-- Treat `docs/design-preview.html` as a human-review / drift-check artifact, not as the implementation source of truth; open it only when validating visual direction with a human or checking UI drift
-- If a task changes navigation, page structure, theme, density, or component hierarchy, update the relevant UI docs and regenerate `docs/design-preview.html` before closing the task
+- Load `docs/product/frontend-design.md` before any frontend task
+- Load `docs/product/design.md` before changing a specific page, screen, route, tab, navigation flow, or overall app shell / wireframe structure
+- Treat `docs/product/design-preview.html` as a human-review / drift-check artifact, not as the implementation source of truth; open it only when validating visual direction with a human or checking UI drift
+- If a task changes navigation, page structure, theme, density, or component hierarchy, update the relevant UI docs and regenerate `docs/product/design-preview.html` before closing the task
 - Load `docs/memory/MEMORY.md` at session start — if >200 lines, load only recent entries
 - Load today + yesterday daily log; skip older logs unless searching for specific info
 - Files >200 lines → load only the relevant section
@@ -173,7 +173,7 @@ tests/
 
 ## Multi-Project Replay Protocol
 
-When a repo changes shared harness assets (`SKILL.md`, `references/harness-cli.md`,
+When a repo changes shared harness assets (`SKILL.md`, `docs/agent/harness-cli.md`,
 CI/hook templates, progress schema, or plan insertion rules), local green is not enough.
 The change is only closed when at least one downstream project or fixture repo replays it.
 
@@ -218,3 +218,4 @@ Categories: `dependency`, `config`, `architecture`, `testing`, `deploy`, `perfor
 
 During session init (`harness init`), scan learnings relevant to the current task.
 Load those. Skip irrelevant history — don't waste context budget.
+

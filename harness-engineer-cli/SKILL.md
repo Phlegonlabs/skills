@@ -29,6 +29,8 @@ discoverable artifacts — because if an agent can't see it, it doesn't exist.
 Generated `AGENTS.md` / `CLAUDE.md` always include fixed `Interaction Rules` and fixed
 `Iron Rules`; project-specific sections fill in the rest.
 
+For humans maintaining this skill repo itself, start at `docs/index.md`.
+
 ---
 
 ## Discovery Gate
@@ -38,7 +40,7 @@ triggers, override any default "start implementing immediately" bias until the m
 intake is complete.
 
 - **Greenfield:** Do NOT create files, scaffolds, commands, plans, or architecture docs before
-  completing Phase 1 in `references/skill-greenfield.md`. If the user already gave some of the
+  completing Phase 1 in `docs/agent/skill-greenfield.md`. If the user already gave some of the
   answers, restate them briefly and ask only for the missing pieces.
 - **Retrofit:** Do NOT write the harness layer until Retrofit Step 1 has inspected the repo and
   collected the missing context needed to describe the existing system accurately.
@@ -133,6 +135,35 @@ stateDiagram-v2
   deployment topology, or core data flow.
 - `WorktreeMode` is conditional; default execution is serial-first.
 
+## Cross-Agent Continuation
+
+Any repo generated or retrofitted by this skill must be resumable by either Claude Code or Codex
+from repo state alone.
+
+- The handoff surface is repo-tracked state: `AGENTS.md` / `CLAUDE.md`, `ARCHITECTURE.md`,
+  `docs/PLAN.md`, `docs/progress.json`, `docs/exec-plans/active/`, and, when present,
+  `docs/product/frontend-design.md`, `docs/product/design.md`, `docs/product/design-preview.html`, and `docs/gitbook/*`.
+- Agent-specific config (`.claude/settings.json`, `.codex/config.toml`) only adapts permissions,
+  plan routing, and sandbox behavior. It must never become the only place a workflow decision lives.
+- If planning, architecture, UI direction, or public docs changed in one agent, sync the repo files
+  before handing work to the other agent.
+- External skill paths or claude.ai-only context may help generation, but once a repo file exists,
+  the repo copy is authoritative for the next agent session.
+
+## Closed-Loop Rule
+
+Every meaningful workflow in this skill must close the loop before it is considered complete.
+
+- Discovery closes only when the captured brief is reflected in scaffold inputs and the next phase
+  can continue from repo-backed artifacts instead of chat memory.
+- Planning closes only when the plan file is written, `docs/PLAN.md` + `docs/progress.json` are
+  synced, and the next execution entrypoint is clear.
+- Execution closes only when code/docs changes are validated, task state is updated, and the repo
+  is handoff-ready for either Claude Code or Codex.
+- Docs work closes only when the affected repo docs are updated from current sources of truth, not
+  just discussed or partially drafted.
+- Handoffs close only when the incoming agent can resume from repo state alone with no missing chat context.
+
 ---
 
 ## How This Skill Is Structured (Read This First)
@@ -142,22 +173,22 @@ This skill is split into focused reference files to avoid loading everything upf
 
 | File | When to read |
 |------|-------------|
-| `references/skill-retrofit.md` | User wants to add harness to an existing project |
-| `references/skill-greenfield.md` | User wants a new project (Phases 1–3: discovery, PRD, scaffold) |
-| `references/skill-artifacts.md` | During generation — all artifact templates (AGENTS.md, ARCHITECTURE.md, PLAN.md, configs) |
-| `references/skill-execution.md` | After scaffold — execution runtime, task loop, git workflow, doc site (Phases 4–6) |
-| `references/skill-desktop.md` | Project type is Desktop (Electron/Tauri) — shell split, IPC/commands, updater, packaging, testing |
-| `references/skill-mobile.md` | Project type is Mobile (Expo/React Native) — architecture, EAS build, iOS/Android deploy |
-| `references/skill-auth.md` | Project includes authentication — Better Auth setup, env vars, OAuth, mobile auth |
-| `references/harness-native.md` | Project is non-JS/TS AND user does not want Node.js — shell-based CLI, Makefile integration, pre-commit hooks |
-| `references/project-configs.md` | During Phase 3 scaffold generation — tsconfig, pyproject.toml, go.mod, Cargo.toml, CI workflows, Docker |
-| `references/harness-cli.md` | During Phase 3 scaffold generation — CLI source code, schema, git hooks (TypeScript version) |
-| `references/scaffold-templates.md` | During Phase 3 if project needs scaffold commands — MCP, SKILL.md, Cloudflare, agent capability templates |
-| `references/eslint-configs.md` | During Phase 3 for JS/TS projects — ESLint flat config templates |
-| `references/gitignore-templates.md` | During Phase 3 — .gitignore templates per stack |
-| `references/execution-runtime.md` | During Phase 3 — agent guidelines: context budget, parallel coordination, quality gates |
-| `references/execution-advanced.md` | Only when needed — release automation, docs site, memory system |
-| `references/replay-protocol.md` | **Skill maintenance only** — when harness CLI behavior, CI/hook templates, schema contracts, or scaffold outputs change in a way that affects downstream consumer repos. Run a cross-repo replay before calling the change complete. |
+| `docs/agent/skill-retrofit.md` | User wants to add harness to an existing project |
+| `docs/agent/skill-greenfield.md` | User wants a new project (Phases 1–3: discovery, PRD, scaffold) |
+| `docs/agent/skill-artifacts.md` | During generation — all artifact templates (AGENTS.md, ARCHITECTURE.md, PLAN.md, configs) |
+| `docs/agent/skill-execution.md` | After scaffold — execution runtime, task loop, git workflow, doc site (Phases 4–6) |
+| `docs/agent/skill-desktop.md` | Project type is Desktop (Electron/Tauri) — shell split, IPC/commands, updater, packaging, testing |
+| `docs/agent/skill-mobile.md` | Project type is Mobile (Expo/React Native) — architecture, EAS build, iOS/Android deploy |
+| `docs/agent/skill-auth.md` | Project includes authentication — Better Auth setup, env vars, OAuth, mobile auth |
+| `docs/agent/harness-native.md` | Project is non-JS/TS AND user does not want Node.js — shell-based CLI, Makefile integration, pre-commit hooks |
+| `docs/agent/project-configs.md` | During Phase 3 scaffold generation — tsconfig, pyproject.toml, go.mod, Cargo.toml, CI workflows, Docker |
+| `docs/agent/harness-cli.md` | During Phase 3 scaffold generation — CLI source code, schema, git hooks (TypeScript version) |
+| `docs/agent/scaffold-templates.md` | During Phase 3 if project needs scaffold commands — MCP, SKILL.md, Cloudflare, agent capability templates |
+| `docs/agent/eslint-configs.md` | During Phase 3 for JS/TS projects — ESLint flat config templates |
+| `docs/agent/gitignore-templates.md` | During Phase 3 — .gitignore templates per stack |
+| `docs/agent/execution-runtime.md` | During Phase 3 — agent guidelines: context budget, parallel coordination, quality gates |
+| `docs/agent/execution-advanced.md` | Only when needed — release automation, docs site, memory system |
+| `docs/agent/replay-protocol.md` | **Skill maintenance only** — when harness CLI behavior, CI/hook templates, schema contracts, or scaffold outputs change in a way that affects downstream consumer repos. Run a cross-repo replay before calling the change complete. |
 
 **Load order:**
 - Retrofit path: `skill-retrofit.md` → then `skill-artifacts.md` when generating files
@@ -178,16 +209,16 @@ This skill is split into focused reference files to avoid loading everything upf
 - Mixed-language monorepos: keep `skill-greenfield.md` as the primary workflow, then use
   `project-configs.md` for Python / Go / Rust manifests. Do not force JS-only workspace rules onto
   non-JS apps.
-- Frontend projects: `docs/frontend-design.md` must be bundled into every project that has
+- Frontend projects: `docs/product/frontend-design.md` must be bundled into every project that has
   a frontend so Claude Code and Codex (which cannot access claude.ai skill paths) can read it.
   Generation strategy — try in order until one succeeds:
   1. If the `frontend-design` skill is already active in this claude.ai session, read its
      content as a base template, then customize it using Phase 1 call 5 answers before
-     writing to `docs/frontend-design.md`.
+     writing to `docs/product/frontend-design.md`.
   2. If a local copy exists on the machine (common paths: `~/.agents/skills/frontend-design/SKILL.md`,
      `C:\Users\<user>\.agents\skills\frontend-design\SKILL.md`, `/mnt/skills/public/frontend-design/SKILL.md`),
      read it as a base template and apply the same call 5 customizations.
-  3. If neither source is reachable, generate `docs/frontend-design.md` directly from
+  3. If neither source is reachable, generate `docs/product/frontend-design.md` directly from
      the call 5 answers — do not use a generic minimal fallback.
 
   In ALL cases, the call 5 answers MUST be reflected:
@@ -203,9 +234,9 @@ This skill is split into focused reference files to avoid loading everything upf
     section: density target, light/dark expectation, CTA hierarchy, and preview emphasis
   Log which strategy was used as a note in `docs/learnings.md`.
   For every frontend project, keep the UI artifact chain consistent:
-  `docs/frontend-design.md` → `docs/design.md` → `docs/design-preview.html`.
-  `docs/frontend-design.md` defines the global design system and style direction.
-  `docs/design.md` translates that into the product-specific wireframe: overall app shell,
+  `docs/product/frontend-design.md` → `docs/product/design.md` → `docs/product/design-preview.html`.
+  `docs/product/frontend-design.md` defines the global design system and style direction.
+  `docs/product/design.md` translates that into the product-specific wireframe: overall app shell,
   navigation, global layout regions, and per-page/screen contracts.
   The HTML preview is a **mid-fi styled static preview**, not a pure wireframe and
   not production code.
@@ -240,5 +271,6 @@ ask the same choice in prose and continue from the user's answer:
 1. **Mode** (single_select): What's the starting point?
    - Options: `New project from scratch`, `Add harness to an existing project`
 
-If **New project from scratch** → read `references/skill-greenfield.md` and follow it
-If **Add harness to existing project** → read `references/skill-retrofit.md` and follow it
+If **New project from scratch** → read `docs/agent/skill-greenfield.md` and follow it
+If **Add harness to existing project** → read `docs/agent/skill-retrofit.md` and follow it
+

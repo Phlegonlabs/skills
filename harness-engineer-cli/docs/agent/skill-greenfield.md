@@ -22,7 +22,7 @@ Phase 3: Generate Project Artifacts
   → Scaffold with full lint/test/CI/Docker/env infrastructure
   → Dependency graph, learnings log skeleton
 
-Phase 4: Execution Runtime (long-task loop — see references/execution-runtime.md)
+Phase 4: Execution Runtime (long-task loop — see docs/agent/execution-runtime.md)
   → Session init protocol (progressive context loading)
   → Task execution loop (pick → execute → validate → commit → update)
   → Progress tracking via progress.json (cross-session memory)
@@ -47,7 +47,7 @@ Phase 6: Documentation Site (evolves with project)
 Ongoing: Perpetual Development Loop
   → All milestones done → Idle Protocol → wait for user
   → User adds new work (in Claude Code / Codex or via claude.ai)
-  → Update PRD + PLAN + progress.json → new milestone
+  → Update PLAN + progress.json, and PRD/docs when the approved work changes them → new milestone
   → Same Phase 4-6 loop restarts. Repeat forever.
 ```
 
@@ -105,8 +105,8 @@ Mapping:
 - `Developer / CLI tool` → `CLI Tool`
 - `Agent / MCP server` → `Agent Tool / MCP Server`
 
-If **Mobile** is selected → read `references/skill-mobile.md` now before proceeding.
-If **Desktop App** is selected → read `references/skill-desktop.md` now before proceeding.
+If **Mobile** is selected → read `docs/agent/skill-mobile.md` now before proceeding.
+If **Desktop App** is selected → read `docs/agent/skill-desktop.md` now before proceeding.
 
 ### Step 2: Research Pass 1 — Early Market Scan
 
@@ -195,7 +195,7 @@ Store the result as an internal **design inventory bundle**:
 - `wireframe_summary`: `{ app_shell, nav_model, global_regions, primary_flows, responsive_notes }`
 - `style_application_summary`: `{ visual_summary, hierarchy_notes, interaction_tone, emphasis_rules }`
 - `pages[]`: `{ route, name, purpose, accessible_to, key_elements, primary_action, critical_states, layout_notes }`
-This bundle drives Phase 3 scaffold and `docs/design.md` generation.
+This bundle drives Phase 3 scaffold and `docs/product/design.md` generation.
 
 > Skip this page inventory collection entirely for **CLI Tool** and **Agent/MCP Server**
 > project types.
@@ -220,7 +220,7 @@ Synthesize into a conversational recommendation summary. The output should sound
 This is the step where you tell the user, in plain language, "Given what you told me and what I
 found, here are the best options and why." Only after that move into structured choices.
 
-For **Desktop App** projects, `references/skill-desktop.md` is the primary reference.
+For **Desktop App** projects, `docs/agent/skill-desktop.md` is the primary reference.
 Use web search only for version-sensitive items such as packaging, updater/signing,
 notarization, or plugin-specific setup for the chosen desktop framework.
 
@@ -358,7 +358,7 @@ Suggested opener:
      (SDK, shared UI lib, etc.)
    - If monorepo and the selected stack is **Expo / React Native**: recommend `bun` or `yarn`
      workspaces. Use `pnpm` only when the user explicitly accepts the EAS caveats from
-     `references/skill-mobile.md`.
+     `docs/agent/skill-mobile.md`.
    - If monorepo and the selected stack is **not** Expo / React Native: recommend `pnpm`
      workspaces; `bun` workspaces also work; `npm` workspaces are functional but slower
    - Ask a follow-up in prose: "What apps or packages do you expect to add first?
@@ -449,7 +449,7 @@ Preferred prose sequence for plain terminal flows:
 
 When `ask_user_input` is unavailable, prefer the prose sequence above over pasting the raw
 `Q11`-`Q16` labels. Keep the numbered questions below as the internal mapping so the captured
-answers still map cleanly into `docs/frontend-design.md`.
+answers still map cleanly into `docs/product/frontend-design.md`.
 
 **ask_user_input call 5 (frontend/UI projects only — skip for CLI Tool and Agent/MCP Server):**
 
@@ -491,7 +491,7 @@ Lead-in before `Q16`:
 
 13. **Primary Layout Pattern** (single_select): What's the dominant screen layout?
     - Show **2-3 curated options** from: `SaaS dashboard`, `Marketing / landing page`, `Admin / data table heavy`, `Docs / content site`, `E-commerce`, `Single-page / wizard flow`, `Mixed — multiple patterns in one app`
-    - This determines: the primary navigation structure, page skeleton, and layout constraints written into `docs/frontend-design.md`
+    - This determines: the primary navigation structure, page skeleton, and layout constraints written into `docs/product/frontend-design.md`
 
 14. **Visual References / Brand Anchors** (single_select): What should anchor the UI direction?
     - Show 2-3 choices from: `Existing product / brand UI to preserve`, `External references / moodboard`, `No references — derive from the product brief`
@@ -517,7 +517,7 @@ Suggested opener:
 
 17. **Companion AI Skill** (single_select): Generate a companion skill so AI agents
     (Claude Code, claude.ai, OpenClaw) can discover and operate this project?
-    - `Yes — generate SKILL.md + references/` — claude.ai / OpenClaw / Claude Code compatible
+    - `Yes — generate SKILL.md + docs/agent/` — claude.ai / OpenClaw / Claude Code compatible
     - `No — skip`
 
 > Skip this question only if the project type is **Agent Tool / MCP Server** AND the user
@@ -551,19 +551,19 @@ After completing all ask_user_input calls in Step 5, load the relevant platform 
 
 ```
 If project uses authentication (any user login, OAuth, sessions, API keys):
-  → Read references/skill-auth.md NOW and keep it active through Phase 3.
+  → Read docs/agent/skill-auth.md NOW and keep it active through Phase 3.
   → This determines: auth library choice, session strategy, OAuth provider setup,
     DB schema for user/session/account tables, and env vars for secrets.
 
 If project runtime is NOT Node/JS/TS (i.e. Python, Go, Rust, or mixed-language monorepo):
-  → Read references/harness-native.md for the shell CLI implementation.
+  → Read docs/agent/harness-native.md for the shell CLI implementation.
   → Phase 3 generates scripts/harness.sh instead of scripts/harness.ts.
   → Phase 3 also generates a Makefile with validate, done, next, block targets.
   → NOTE: harness-native.md does not cover worktree management or plan:apply —
     those steps require a human operator during multi-milestone work.
 
 If project runtime IS Node/JS/TS (or a monorepo with a Node root):
-  → The default TypeScript CLI applies. Read references/harness-cli.md during Phase 3.
+  → The default TypeScript CLI applies. Read docs/agent/harness-cli.md during Phase 3.
   → All worktree, plan:apply, scaffold, and merge-gate commands are available.
   → Use managed worktrees only when parallelism or milestone isolation is beneficial;
     otherwise the project can start serially from main/root.
@@ -613,7 +613,7 @@ After the user's tech stack is confirmed, ask:
    - Options: `Better Auth (self-hosted, TypeScript)`, `Clerk (managed)`, `Supabase Auth`, `Firebase Auth`, `None / custom`
 
 **Auth provider routing:**
-- **Better Auth** → read `references/skill-auth.md` NOW for library setup, env vars, and
+- **Better Auth** → read `docs/agent/skill-auth.md` NOW for library setup, env vars, and
   framework mounting patterns.
 - **Clerk** → do NOT use Better Auth code. Research current Clerk setup for the chosen
   framework: `Clerk <framework> 2025 setup`. Key tasks: install `@clerk/nextjs` (or
@@ -943,15 +943,15 @@ initial milestones to be materialized in `docs/PLAN.md` and `docs/progress.json`
 ## Phase 3: Generate Project Artifacts
 
 > **Before generating any files:** Load the reference files that apply to this project.
-> - **All Node/TS projects:** Read `references/harness-cli.md` NOW — it contains the full
+> - **All Node/TS projects:** Read `docs/agent/harness-cli.md` NOW — it contains the full
 >   TypeScript CLI source code, JSON Schema, git hooks, and Assembly Checklist that Phase 3
 >   must produce. Do not generate CLI files from memory.
-> - **Mobile projects:** Also read `references/skill-mobile.md`.
-> - **Desktop projects:** Also read `references/skill-desktop.md`.
-> - **Non-Node projects:** Read `references/harness-native.md` instead of harness-cli.md.
-> - **Projects with auth:** Also read `references/skill-auth.md`.
+> - **Mobile projects:** Also read `docs/agent/skill-mobile.md`.
+> - **Desktop projects:** Also read `docs/agent/skill-desktop.md`.
+> - **Non-Node projects:** Read `docs/agent/harness-native.md` instead of harness-cli.md.
+> - **Projects with auth:** Also read `docs/agent/skill-auth.md`.
 > - **Web/Mobile/Desktop projects:** Invoke the `frontend-design` skill NOW to generate
->   `docs/frontend-design.md`. Pass Phase 1 call 5 answers as context:
+>   `docs/product/frontend-design.md`. Pass Phase 1 call 5 answers as context:
 >   Q11 (component library), Q12 (design aesthetic), Q13 (layout pattern),
 >   Q14 (visual references / brand anchors), Q15 (content density), and
 >   Q16 (theme preference).
@@ -982,13 +982,20 @@ initial milestones to be materialized in `docs/PLAN.md` and `docs/progress.json`
 >     first-run step, first meaningful action the user can take
 >   - `roadmap.md` ← docs/PLAN.md: milestone list in plain language, grouped by
 >     phase (MVP / v2 / backlog); no internal task IDs, user-facing feature names only
+>   Draft the GitBook pages in this order so the writing stays grounded:
+>   `README.md` → `product-overview.md` → `target-users.md` → `architecture.md`
+>   → `quickstart.md` → `roadmap.md` → `SUMMARY.md`.
+>   For each page, extract bullets from the named source docs first, then turn them into
+>   external-facing prose. Do not paste raw task tables or internal milestone wording into GitBook.
+>   The GitBook loop is only closed when the pages are written, the sources of truth still match,
+>   and the next session can treat `docs/gitbook/*` as current repo state.
 >   Do not defer GitBook to Phase 6 or a later milestone.
-> - **Web App / Mobile / Desktop projects:** Generate `docs/design.md` from the page
+> - **Web App / Mobile / Desktop projects:** Generate `docs/product/design.md` from the page
 >   inventory collected in Phase 1 Step 2. This is the **authoritative page reference**
->   for Phase 4 execution agents. Use the format defined in the "docs/design.md format"
+>   for Phase 4 execution agents. Use the format defined in the "docs/product/design.md format"
 >   section below.
-> - **Web App / Mobile / Desktop projects:** Generate `docs/design-preview.html` immediately
->   after `docs/design.md`. This is a self-contained single-file mid-fi preview viewable in
+> - **Web App / Mobile / Desktop projects:** Generate `docs/product/design-preview.html` immediately
+>   after `docs/product/design.md`. This is a self-contained single-file mid-fi preview viewable in
 >   any browser — no build step, no external dependencies. It is generated in Phase 3
 >   and used as the user review gate before Phase 4 begins.
 
@@ -1039,14 +1046,21 @@ Phase 3 creates the base repo, not the first feature release.
 ├── CLAUDE.md                    ← Claude Code reads this (identical to AGENTS.md)
 ├── ARCHITECTURE.md              ← domain map, dependency layers, patterns
 ├── docs/
+│   ├── index.md                 ← human navigation entrypoint for generated docs
 │   ├── PRD.md                   ← product requirements (from Phase 2)
 │   ├── PLAN.md                  ← granular milestones + tasks
 │   ├── progress.json            ← machine-readable cross-session state
 │   ├── learnings.md             ← agent learnings log (human-readable)
-│   ├── frontend-design.md       ← frontend design skill (read before any UI work)
-│   ├── design.md                ← page inventory (Web App / Mobile / Desktop only)
-│   ├── design-preview.html      ← self-contained mid-fi preview artifact (Web / Mobile / Desktop)
-│   ├── release.md               ← desktop release contract (Desktop App only)
+│   ├── product/
+│   │   ├── frontend-design.md   ← frontend design skill (read before any UI work)
+│   │   ├── design.md            ← page inventory (Web App / Mobile / Desktop only)
+│   │   ├── design-preview.html  ← self-contained mid-fi preview artifact (Web / Mobile / Desktop)
+│   │   └── release.md           ← desktop release contract (Desktop App only)
+│   ├── agent/
+│   │   ├── agent-workflows.md   ← common agent workflows with this project
+│   │   ├── api-guide.md         ← API reference when the project exposes one
+│   │   ├── commands.md          ← CLI command reference when applicable
+│   │   └── data-model.md        ← data entities agents will read/write
 │   ├── memory/                  ← persistent agent memory (OpenClaw-inspired)
 │   │   ├── MEMORY.md            ← curated long-term memory (decisions, patterns, gotchas)
 │   │   └── .gitkeep             ← daily logs (YYYY-MM-DD.md) created per session
@@ -1079,7 +1093,8 @@ Phase 3 creates the base repo, not the first feature release.
 │   └── ...
 ├── scripts/
 │   ├── harness.ts               ← entry point router (~85 lines)
-│   ├── check-commit-msg.ts      ← commit message format enforcer (for hooks)
+│   ├── maintenance/
+│   │   └── check-commit-msg.ts  ← commit message format enforcer (for hooks)
 │   └── harness/                 ← CLI modules (each <500 lines)
 │       ├── config.ts            ← constants, paths, colors, output helpers
 │       ├── types.ts             ← all interfaces: Progress, AgentEntry, WorktreeInfo
@@ -1150,7 +1165,8 @@ Phase 3 creates the base repo, not the first feature release.
 │       └── package.json
 ├── scripts/
 │   ├── harness.ts               ← root-level entry point (validates all workspaces)
-│   ├── check-commit-msg.ts
+│   ├── maintenance/
+│   │   └── check-commit-msg.ts
 │   └── harness/                 ← CLI modules
 ├── schemas/
 │   └── progress.schema.json
@@ -1237,10 +1253,10 @@ Phase 3 creates the base repo, not the first feature release.
 
 ---
 
-### docs/design.md Format (Web App / Mobile / Desktop)
+### docs/product/design.md Format (Web App / Mobile / Desktop)
 
 Generate this file from the design inventory collected in Phase 1 Step 2 plus
-the project's `docs/frontend-design.md`.
+the project's `docs/product/frontend-design.md`.
 This is the **authoritative product wireframe + page reference** for Phase 4 execution agents.
 
 ```markdown
@@ -1294,7 +1310,7 @@ This is the **authoritative product wireframe + page reference** for Phase 4 exe
 
 **Generation rules:**
 - Derive `Product Wireframe` and `Design Direction in Context` from the design inventory
-  collected in Phase 1 Step 2 and the final `docs/frontend-design.md`.
+  collected in Phase 1 Step 2 and the final `docs/product/frontend-design.md`.
 - Do not invent pages not mentioned by the user or implied by the journeys.
 - Keep each page entry concrete — "shows a list of user projects with filter/sort" not
   "displays content".
@@ -1302,7 +1318,7 @@ This is the **authoritative product wireframe + page reference** for Phase 4 exe
 - Every page must include `loading`, `empty`, and `error` in `Critical states`,
   plus any extra state implied by the workflow.
 - Every page must include `Layout notes` describing how it sits inside the global wireframe.
-- `docs/design.md` is not page-only. It must describe the whole product wireframe and how the
+- `docs/product/design.md` is not page-only. It must describe the whole product wireframe and how the
   visual style applies across the product, not just list routes.
 - The Navigation Structure table must match the scaffold's nav component.
 - Auth Gates table must match the middleware/route guard generated in the scaffold.
@@ -1312,7 +1328,7 @@ This is the **authoritative product wireframe + page reference** for Phase 4 exe
 ### Page File Scaffolding (Web App / Mobile / Desktop)
 
 Instead of leaving `(pages)/` or `app/` empty, generate one skeleton file per page
-from the `docs/design.md` design inventory and overall wireframe contract.
+from the `docs/product/design.md` design inventory and overall wireframe contract.
 
 **Next.js App Router:**
 ```
@@ -1328,7 +1344,7 @@ src/app/
 
 Each page file follows this skeleton:
 ```tsx
-// <Page Name> — <purpose from docs/design.md>
+// <Page Name> — <purpose from docs/product/design.md>
 import type { Metadata } from "next"
 
 export const metadata: Metadata = {
@@ -1339,7 +1355,7 @@ export default function <PageName>Page() {
   return (
     <main>
       <h1><Page Name></h1>
-      {/* Scaffold placeholder — see docs/design.md#<route> */}
+      {/* Scaffold placeholder — see docs/product/design.md#<route> */}
     </main>
   )
 }
@@ -1370,20 +1386,20 @@ src/renderer/
 
 **Rules:**
 - One file per page from the inventory — no more, no less.
-- Comments in each file reference the corresponding `docs/design.md` entry.
+- Comments in each file reference the corresponding `docs/product/design.md` entry.
 - Do NOT implement content in Phase 3 — skeleton only. Phase 4 fills each page.
-- If you include a placeholder comment, keep it neutral and point to `docs/design.md`.
+- If you include a placeholder comment, keep it neutral and point to `docs/product/design.md`.
   Do NOT generate `TODO` or `FIXME` comments in committed scaffold files.
 
 ---
 
 ### HTML Design Preview (Web App / Mobile / Desktop)
 
-Generate `docs/design-preview.html` from the `docs/design.md` page inventory.
+Generate `docs/product/design-preview.html` from the `docs/product/design.md` page inventory.
 This is a **self-contained, zero-dependency mid-fi styled static preview** opened directly
 in a browser. It is the visual review artifact before Phase 4 begins.
 
-**File: `docs/design-preview.html`**
+**File: `docs/product/design-preview.html`**
 
 ```html
 <!DOCTYPE html>
@@ -1397,7 +1413,7 @@ in a browser. It is the visual review artifact before Phase 4 begins.
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, sans-serif; }
     body { display: flex; height: 100vh; background: #f5f5f5; color: #333; }
 
-    /* Sidebar nav (from Navigation Structure in docs/design.md) */
+    /* Sidebar nav (from Navigation Structure in docs/product/design.md) */
     nav { width: 220px; background: #1e1e2e; color: #cdd6f4; padding: 1.5rem 1rem; flex-shrink: 0; }
     nav h2 { font-size: .75rem; text-transform: uppercase; letter-spacing: .1em; opacity: .5; margin-bottom: 1rem; }
     nav a { display: block; padding: .5rem .75rem; border-radius: 6px; color: #cdd6f4;
@@ -1426,7 +1442,7 @@ in a browser. It is the visual review artifact before Phase 4 begins.
 
 <nav>
   <h2><Project Name></h2>
-  <!-- One link per page from docs/design.md Navigation Structure table -->
+  <!-- One link per page from docs/product/design.md Navigation Structure table -->
   <a href="#" onclick="show('dashboard')" class="active">
     Dashboard
   </a>
@@ -1437,23 +1453,23 @@ in a browser. It is the visual review artifact before Phase 4 begins.
 </nav>
 
 <main>
-  <!-- One <section> per page from docs/design.md -->
+  <!-- One <section> per page from docs/product/design.md -->
   <section id="dashboard" class="page active">
     <div class="page-header">
       <h1>Dashboard</h1>
       <div class="meta">
         Route: /dashboard · Accessible to: all authenticated users
-        <!-- Purpose from docs/design.md -->
+        <!-- Purpose from docs/product/design.md -->
         · Purpose: Shows active projects and stats
       </div>
     </div>
-    <!-- Key elements from docs/design.md as preview component blocks -->
+    <!-- Key elements from docs/product/design.md as preview component blocks -->
     <div class="grid">
       <div class="ph ph-card"></div>
       <div class="ph ph-card"></div>
       <div class="ph ph-card"></div>
     </div>
-    <p class="preview-note">Preview direction only — see docs/frontend-design.md and docs/design.md#/dashboard</p>
+    <p class="preview-note">Preview direction only — see docs/product/frontend-design.md and docs/product/design.md#/dashboard</p>
   </section>
 
   <section id="settings" class="page">
@@ -1464,7 +1480,7 @@ in a browser. It is the visual review artifact before Phase 4 begins.
     <div class="ph ph-row"></div>
     <div class="ph ph-row"></div>
     <div class="ph ph-text"></div>
-    <p class="preview-note">Preview direction only — see docs/frontend-design.md and docs/design.md#/settings</p>
+    <p class="preview-note">Preview direction only — see docs/product/frontend-design.md and docs/product/design.md#/settings</p>
   </section>
 
   <!-- ... one section per page -->
@@ -1506,7 +1522,7 @@ Wrap the above in a window-chrome shell:
 
 **Mobile variant (Expo / React Native):**
 
-Simulate a phone frame. Each screen from `docs/design.md` is a section. Tab bar or stack
+Simulate a phone frame. Each screen from `docs/product/design.md` is a section. Tab bar or stack
 navigation is rendered at the bottom (matching the Expo Router `(tabs)/` layout).
 
 ```html
@@ -1530,11 +1546,11 @@ navigation is rendered at the bottom (matching the Expo Router `(tabs)/` layout)
       <!-- Placeholder blocks -->
       <div style="height:100px; background:#e0e0e0; border-radius:8px; margin-bottom:.75rem;"></div>
       <div style="height:40px; background:#e0e0e0; border-radius:8px; margin-bottom:.75rem;"></div>
-      <p style="font-size:.7rem; color:#7c7f8a;">Preview direction — see docs/frontend-design.md and docs/design.md#/dashboard</p>
+      <p style="font-size:.7rem; color:#7c7f8a;">Preview direction — see docs/product/frontend-design.md and docs/product/design.md#/dashboard</p>
     </div>
     <!-- ... one div per screen ... -->
 
-    <!-- Bottom tab bar (from Navigation Structure in docs/design.md) -->
+    <!-- Bottom tab bar (from Navigation Structure in docs/product/design.md) -->
     <div style="height:83px; background:#f5f5f5; border-top:1px solid #e0e0e0;
                 display:flex; align-items:center; justify-content:space-around;
                 padding:0 1rem 16px;">
@@ -1546,7 +1562,7 @@ navigation is rendered at the bottom (matching the Expo Router `(tabs)/` layout)
          style="text-align:center; font-size:.65rem; color:#888; text-decoration:none;">
         ⬜<br>Settings
       </a>
-      <!-- one tab per primary screen from docs/design.md -->
+      <!-- one tab per primary screen from docs/product/design.md -->
     </div>
   </div>
 
@@ -1568,18 +1584,18 @@ navigation is rendered at the bottom (matching the Expo Router `(tabs)/` layout)
 **Generation rules:**
 - **Self-contained**: No `<link>` to external CSS. No `<script src="...">`. Inline everything.
 - **Mid-fi styled, not wireframe-only**: reflect the project's chosen theme, density, and
-  component hierarchy from `docs/frontend-design.md`. Use real typography hierarchy,
+  component hierarchy from `docs/product/frontend-design.md`. Use real typography hierarchy,
   surface styles, spacing rhythm, and CTA emphasis.
-- **One section / div per page** from `docs/design.md` — no more, no less.
-- **Nav links** must match the Navigation Structure table in `docs/design.md` exactly.
+- **One section / div per page** from `docs/product/design.md` — no more, no less.
+- **Nav links** must match the Navigation Structure table in `docs/product/design.md` exactly.
 - **Auth badges**: Show a visual `auth` or `admin` label on nav items that have auth gates.
-- **Key elements**: Render each "Key elements" value from `docs/design.md` as styled
+- **Key elements**: Render each "Key elements" value from `docs/product/design.md` as styled
   preview blocks. Do NOT implement real data flows, but do show component hierarchy.
 - **Primary action**: each page preview must visibly show its `Primary action`.
 - **Critical states**: include at least one representative `empty` or `error` state panel
   somewhere in the preview, and reflect route-specific states where they change layout.
 - **Preview note**: Every section ends with
-  `"Preview direction only — see docs/frontend-design.md and docs/design.md#<route>"`.
+  `"Preview direction only — see docs/product/frontend-design.md and docs/product/design.md#<route>"`.
 - **Reference Anchors**: if the UI brief says "preserve existing", keep the preview aligned
   with the current product language instead of inventing a new aesthetic.
 - **Theme**: follow Q16 exactly. `both themes` means show the preview in one primary theme,
@@ -1587,7 +1603,7 @@ navigation is rendered at the bottom (matching the Expo Router `(tabs)/` layout)
 - **Desktop**: Add the window-chrome title bar wrapper.
 - **Mobile**: Use the phone-frame variant. Tab bar shows primary screens; secondary screens
   accessible from the screen-selector panel beside the phone.
-- Do NOT add `docs/design-preview.html` to `.gitignore`. Commit it — it is a project artifact.
+- Do NOT add `docs/product/design-preview.html` to `.gitignore`. Commit it — it is a project artifact.
 
 ---
 
@@ -1597,7 +1613,7 @@ The file structure above is the **Web App default**. For other project types, re
 the `src/` layout and adjust which files are generated. The harness layer (docs/, scripts/,
 schemas/, .claude/, .codex/) stays identical for every project type. The git hook setup
 varies by runtime: `.husky/` for Node/TS projects, `.pre-commit-config.yaml` for Python/Go,
-`.githooks/` for Rust (see `references/harness-native.md` for non-Node details).
+`.githooks/` for Rust (see `docs/agent/harness-native.md` for non-Node details).
 
 ### API Style Scaffold Differences (Web App + Backend)
 
@@ -1670,7 +1686,7 @@ src/app/
 No separate backend — server logic lives in API routes and server actions.
 Validation: zod schemas in `src/lib/validators/` shared between client and server.
 
-For any **Desktop App**, read `references/skill-desktop.md` before generating files.
+For any **Desktop App**, read `docs/agent/skill-desktop.md` before generating files.
 The layouts below are only the canonical tree shape; the desktop reference contains the
 security, IPC/command, updater, and packaging rules.
 
@@ -1828,10 +1844,10 @@ src-tauri/                 ← Rust backend (auto-generated by Tauri)
 
 Desktop notes:
 - **Include frontend-design.md** — desktops have UI
-- **Include docs/release.md** — desktop packaging, signing, updater, and smoke-test contract
+- **Include docs/product/release.md** — desktop packaging, signing, updater, and smoke-test contract
 - Electron: `electron-builder` or `electron-forge` for packaging
 - Tauri: `tauri build` for packaging
-- Use `references/skill-desktop.md` as the default source of truth
+- Use `docs/agent/skill-desktop.md` as the default source of truth
 - Only run targeted web search for release-signing, updater, notarization, or version-specific
   plugin/build details that are not already covered there
 
@@ -1860,7 +1876,7 @@ Python notes:
 - Default package manager: `uv` unless the user already standardized on Poetry or PDM
 - **Harness CLI decision:** If Node.js is available (recommended), use the TypeScript CLI
   as-is — it manages docs and git workflow without needing to understand Python source.
-  If the user explicitly refuses Node.js, use `references/harness-native.md` to generate
+  If the user explicitly refuses Node.js, use `docs/agent/harness-native.md` to generate
   `scripts/harness.sh` (shell-based CLI) + `.pre-commit-config.yaml` (replaces husky).
   Note the feature tradeoffs in AGENTS.md / CLAUDE.md.
 - `Makefile` replaces `package.json scripts` as the command interface
@@ -1890,7 +1906,7 @@ Go notes:
 - Use `go.work` when the repo has multiple Go modules or the Go service lives inside a larger
   monorepo. Use a single root `go.mod` for standalone Go projects.
 - **Harness CLI decision:** same as Python — use TypeScript CLI with Node.js (recommended),
-  or `references/harness-native.md` for the shell-based alternative if Node.js is unwanted.
+  or `docs/agent/harness-native.md` for the shell-based alternative if Node.js is unwanted.
 - Dockerfile: `FROM golang:1.22-alpine AS build` → `FROM alpine:3.19` (multi-stage)
 
 ---
@@ -1919,7 +1935,7 @@ Rust notes:
 - For CLI binaries, default to `clap` derive APIs. For services, keep HTTP/runtime setup in
   `src/main.rs` and domain logic in library crates or modules.
 - **Harness CLI decision:** same as Python/Go — use TypeScript CLI with Node.js (recommended),
-  or `references/harness-native.md` for the shell-based alternative. Rust projects use
+  or `docs/agent/harness-native.md` for the shell-based alternative. Rust projects use
   `.githooks/` instead of pre-commit framework (see harness-native.md).
 - If the project is `Tauri`, the Rust side already lives under `src-tauri/`; still apply the
   same lint, test, and workspace rules.
@@ -1936,19 +1952,22 @@ This uses the same convention as claude.ai / OpenClaw skills (YAML frontmatter +
 ```
 <project-root>/
 ├── SKILL.md                     ← companion skill discovery file
-├── references/                  ← skill reference docs (agent-facing)
-│   ├── api-guide.md             ← Web App/API: endpoint reference for agents
-│   ├── commands.md              ← CLI: command reference for agents
-│   ├── agent-workflows.md       ← common agent workflows with this project
-│   └── data-model.md            ← data entities agents will read/write
+├── docs/
+│   ├── index.md                 ← human navigation entrypoint
+│   ├── product/                 ← human-facing product docs
+│   └── agent/                   ← companion skill reference docs (agent-facing)
+│       ├── api-guide.md         ← Web App/API: endpoint reference for agents
+│       ├── commands.md          ← CLI: command reference for agents
+│       ├── agent-workflows.md   ← common agent workflows with this project
+│       └── data-model.md        ← data entities agents will read/write
 ├── AGENTS.md                    ← (unchanged — developer agent instructions)
-├── docs/                        ← (unchanged — project docs)
 └── src/
 ```
 
-> **references/ vs docs/:** `references/` is the skill's own reference layer (for agents
-> operating the project). `docs/` remains the project's own documentation (PRD, PLAN, etc.).
-> They coexist at the same level — do not merge them.
+> **Inside generated projects:** `docs/index.md` is the human entrypoint, `docs/product/`
+> holds human-facing product/design docs, and `docs/agent/` holds companion agent reference
+> docs. Keep them separated so humans can review quickly without losing the detailed
+> agent reference layer.
 
 ---
 
@@ -1975,10 +1994,10 @@ Concrete examples: "create and query tasks via REST API", "run deploy commands",
 
 | Reference | When to read |
 |-----------|-------------|
-| `references/api-guide.md` | When calling the project's API (Web App/API projects) |
-| `references/commands.md` | When running CLI commands (CLI/tool projects) |
-| `references/agent-workflows.md` | For common agent workflows with this project |
-| `references/data-model.md` | When reading or writing data |
+| `docs/agent/api-guide.md` | When calling the project's API (Web App/API projects) |
+| `docs/agent/commands.md` | When running CLI commands (CLI/tool projects) |
+| `docs/agent/agent-workflows.md` | For common agent workflows with this project |
+| `docs/agent/data-model.md` | When reading or writing data |
 
 > Skip rows that don't apply to this project type.
 
@@ -2001,17 +2020,17 @@ npx <cli-name> <first-command>
 ## Common Agent Workflows
 
 1. **<Workflow name>** — <one sentence description>
-   → See `references/agent-workflows.md#<anchor>`
+   → See `docs/agent/agent-workflows.md#<anchor>`
 
 2. **<Workflow name>** — <one sentence description>
-   → See `references/agent-workflows.md#<anchor>`
+   → See `docs/agent/agent-workflows.md#<anchor>`
 
 <List 3-5 most common things an agent would do.>
 ```
 
 ---
 
-**`references/api-guide.md` template (Web App / API projects):**
+**`docs/agent/api-guide.md` template (Web App / API projects):**
 
 ```markdown
 ## Agent API Guide — <Project Name>
@@ -2042,7 +2061,7 @@ Returns: `{ id, <fields> }` or 404
 
 ---
 
-**`references/commands.md` template (CLI Tool projects):**
+**`docs/agent/commands.md` template (CLI Tool projects):**
 
 ````markdown
 ## Agent Command Reference — <cli-name>
@@ -2064,7 +2083,7 @@ JSON output shape: `{ status, result, timestamp }`
 
 ---
 
-**`references/agent-workflows.md` template (all project types):**
+**`docs/agent/agent-workflows.md` template (all project types):**
 
 ```markdown
 ## Agent Workflows — <Project Name>
@@ -2083,7 +2102,7 @@ JSON output shape: `{ status, result, timestamp }`
 
 ---
 
-**`references/data-model.md` template (all project types with a database):**
+**`docs/agent/data-model.md` template (all project types with a database):**
 
 ```markdown
 ## Data Model — <Project Name>
@@ -2113,27 +2132,31 @@ This project includes a companion skill for AI agents that need to **operate** t
 (call its API, run commands, query data). To use it:
 
 - **Claude Code:** `SKILL.md` is at the project root — Claude Code reads it automatically.
+- **Codex:** Treat the project-root `SKILL.md` as a discoverability artifact for compatible agent
+  ecosystems, not as Codex's primary execution entrypoint. Codex should still start from `AGENTS.md`.
 - **claude.ai:** Upload this project folder as a custom skill.
 - **OpenClaw:** Symlink or copy to `~/.openclaw/skills/<project-name>/`.
 
 Key reference files:
-- `references/api-guide.md` — API endpoints and auth
-- `references/agent-workflows.md` — Common agent workflows
-- `references/data-model.md` — Data entities
+- `docs/agent/api-guide.md` — API endpoints and auth
+- `docs/agent/agent-workflows.md` — Common agent workflows
+- `docs/agent/data-model.md` — Data entities
 ```
 
 ---
 
 **Generation rules:**
-- Generate `references/api-guide.md` only if the project has an API (Web App, API, tRPC, etc.)
-- Generate `references/commands.md` only if the project is a CLI Tool
-- Always generate `references/agent-workflows.md` and `references/data-model.md`
+- Generate `docs/agent/api-guide.md` only if the project has an API (Web App, API, tRPC, etc.)
+- Generate `docs/agent/commands.md` only if the project is a CLI Tool
+- Always generate `docs/agent/agent-workflows.md` and `docs/agent/data-model.md`
   (unless project type has no data model — e.g. static site — then omit data-model.md)
 - The SKILL.md `description` frontmatter must be concrete — derive from Phase 1 Step 2
   answers and PRD FRs. Do not use generic placeholder text.
 - Keep SKILL.md under 150 lines — it is a discovery file, not full documentation.
-  Point to `references/` for details.
-- `references/` files may be longer — they are the detailed agent reference layer.
+  Point to `docs/agent/` for details.
+- `docs/agent/` files may be longer — they are the detailed agent reference layer.
+- Generate `docs/index.md` so humans can immediately find runtime state, `docs/product/`,
+  `docs/agent/`, and `docs/gitbook/`.
 
 ---
 
@@ -2146,6 +2169,8 @@ Required artifacts:
 - `AGENTS.md` and `CLAUDE.md` both exist and are byte-for-byte identical
 - `ARCHITECTURE.md`, `docs/PRD.md`, `docs/PLAN.md`, `docs/progress.json`, and
   `docs/learnings.md` exist
+- `docs/index.md` exists and links runtime state docs, `docs/product/`, `docs/agent/`,
+  and `docs/gitbook/`
 - `schemas/progress.schema.json` exists and matches the generated `progress.json` shape
 - CLI entry point exists for the chosen runtime:
   - **Node/TS:** `scripts/harness.ts` and all referenced `scripts/harness/` modules
@@ -2160,8 +2185,8 @@ Required artifacts:
   - **Non-Node projects (native CLI):** `.pre-commit-config.yaml` (Python/Go) or `.githooks/`
     (Rust) as specified in `harness-native.md` — `.husky/` is NOT required and must NOT
     be listed as missing for these projects
-- **Web App / Desktop / Mobile projects:** `docs/design-preview.html` exists, is a valid
-  HTML file, and contains one page/screen section per entry in `docs/design.md`
+- **Web App / Desktop / Mobile projects:** `docs/product/design-preview.html` exists, is a valid
+  HTML file, and contains one page/screen section per entry in `docs/product/design.md`
 
 Required consistency checks:
 
@@ -2169,6 +2194,9 @@ Required consistency checks:
 - The initial milestones from `docs/exec-plans/active/001-initial-setup.md` are already
   materialized in `docs/PLAN.md` and `docs/progress.json`
 - Every task marked available in `progress.json` actually exists in `PLAN.md`
+- The generated repo is handoff-ready for both Claude Code and Codex: a second agent can open
+  the repo, read `AGENTS.md` / `CLAUDE.md`, inspect `docs/PLAN.md` + `docs/progress.json`, and
+  continue without relying on the original scaffold chat history
 - `progress.schema.json` includes every required field written by the scaffold
 - `AGENTS.md` / `CLAUDE.md` contains both the fixed `Interaction Rules` section and the fixed
   `Iron Rules` section from `skill-artifacts.md`
@@ -2181,7 +2209,7 @@ Required consistency checks:
 - No milestone task is treated as complete solely because the scaffold generated placeholder
   files, route shells, stubs, schemas, or config. Product milestones stay pending until their
   `Done When` criteria are actually met in execution
-- **Frontend / UI projects** (web, mobile, desktop): `docs/frontend-design.md` exists and
+- **Frontend / UI projects** (web, mobile, desktop): `docs/product/frontend-design.md` exists and
   AGENTS.md Iron Rule 5 references it. If it was not generated via an active `frontend-design`
   skill session or a local copy, it must still be generated directly from the Phase 1 Step 5
   call 5 answers — do not fall back to a generic minimal template. See SKILL.md strategy.
@@ -2195,11 +2223,14 @@ Required consistency checks:
     theme-forward, and CTA-heavy it should be
   If call 5 was skipped (CLI Tool / MCP Server), these sections are omitted.
   Pure CLI tools and MCP servers are exempt from `frontend-design.md` entirely.
+- **Companion skill docs:** `docs/agent/agent-workflows.md` exists for every generated project,
+  and `docs/agent/api-guide.md` / `docs/agent/commands.md` / `docs/agent/data-model.md` are
+  present when the project type requires them
 - `docs/gitbook/SUMMARY.md`, `docs/gitbook/README.md`, and `docs/gitbook/quickstart.md`
   exist and contain substantive content derived from the PRD (not placeholder text).
   All new projects require this — CLI tools and MCP servers are not exempt.
 - Desktop projects include the shell-specific files from `skill-desktop.md`
-- Desktop projects: `docs/release.md` exists and documents packaging target, signing /
+- Desktop projects: `docs/product/release.md` exists and documents packaging target, signing /
   notarization expectations, updater channel, and a manual smoke checklist
 - Mixed-language monorepos include the root orchestration file (`Makefile` or `justfile`) plus
   native manifests in each app
@@ -2208,22 +2239,22 @@ Required consistency checks:
   and `.claude/settings.json` uses `Bash(bash scripts/harness.sh *)` instead of
   `Bash(npx tsx scripts/harness.ts *)`
 - **Page inventory** (Web App / Mobile / Desktop projects):
-  - `docs/design.md` exists and contains at least 2 page entries
+  - `docs/product/design.md` exists and contains at least 2 page entries
   - Every page entry has a route, name, purpose, `Primary action`, and `Critical states`
     (no placeholder text)
-  - The Navigation Structure table in `docs/design.md` matches the nav component
+  - The Navigation Structure table in `docs/product/design.md` matches the nav component
     generated in the scaffold
   - Each page in the inventory has a corresponding skeleton file in the source tree
     (e.g. `src/app/<route>/page.tsx` for Next.js App Router)
-  - `docs/design-preview.html` exists and reflects the same routes plus at least one
+  - `docs/product/design-preview.html` exists and reflects the same routes plus at least one
     representative non-happy-path state
 
 - **Companion Skill** (when COMPANION_SKILL=true):
   - `SKILL.md` exists at project root, frontmatter `description` contains project-specific
     content (not placeholder text)
-  - `references/agent-workflows.md` exists with at least 2 workflows
-  - `references/api-guide.md` exists (Web App/API projects) OR
-    `references/commands.md` exists (CLI projects)
+  - `docs/agent/agent-workflows.md` exists with at least 2 workflows
+  - `docs/agent/api-guide.md` exists (Web App/API projects) OR
+    `docs/agent/commands.md` exists (CLI projects)
   - AGENTS.md / CLAUDE.md contains a "Companion AI Skill" section
 
 If any artifact is missing, repair it in **Phase 3**. Do not defer missing files to execution.
@@ -2238,11 +2269,11 @@ Do not add a second approval gate in `skill-execution.md`.
 After the Phase 3 Exit Gate passes and all artifacts are generated:
 
 1. Tell the user:
-   > "Phase 3 is complete. I've generated `docs/design-preview.html` — a browser-viewable
+   > "Phase 3 is complete. I've generated `docs/product/design-preview.html` — a browser-viewable
    > mid-fi styled preview of your UI direction. Please open it and confirm the layout,
    > visual direction, density, and CTA hierarchy look right
    > before I begin Phase 4 execution.
-   > Path: `<absolute-or-relative path to docs/design-preview.html>`"
+   > Path: `<absolute-or-relative path to docs/product/design-preview.html>`"
    >
    > "This scaffold is foundation-only. The milestone plan is still ahead of us; placeholder
    > files and shells are not treated as completed feature work."
@@ -2251,12 +2282,13 @@ After the Phase 3 Exit Gate passes and all artifacts are generated:
    Phase 4. Do not auto-proceed.
 
 3. If the user requests changes to the page structure:
-   - Update `docs/design.md` first for route/layout/state changes
-   - Update `docs/frontend-design.md` first for visual language, density, theme, or
+   - Update `docs/product/design.md` first for route/layout/state changes
+   - Update `docs/product/frontend-design.md` first for visual language, density, theme, or
      component hierarchy changes
-   - Regenerate the affected sections of `docs/design-preview.html`
+   - Regenerate the affected sections of `docs/product/design-preview.html`
    - Re-run the page inventory Exit Gate check
    - Ask for confirmation again
 
 4. Once the user confirms ("ok", "looks good", "proceed", or equivalent):
-   → Load `references/skill-execution.md` and begin Phase 4.
+   → Load `docs/agent/skill-execution.md` and begin Phase 4.
+

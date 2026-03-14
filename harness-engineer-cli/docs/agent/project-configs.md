@@ -1474,7 +1474,7 @@ COPY --from=build /app/target/release/<app-name> /bin/app
       "Bash(git *)",
       "Bash(<package-manager> *)",
       "Bash(npx tsx scripts/harness.ts *)",
-      "Bash(npx tsx scripts/check-commit-msg.ts *)",
+      "Bash(npx tsx scripts/maintenance/check-commit-msg.ts *)",
       "Bash(npx lint-staged)",
       "Bash(npx prisma *)",
       "Bash(npx drizzle-kit *)"
@@ -1536,6 +1536,9 @@ project_doc_max_bytes = 65536
 - Codex does NOT have a native `plansDirectory` config
 - AGENTS.md contains the instruction to write plans to `docs/exec-plans/active/`
 - Codex sandbox allows workspace writes by default
+- Codex does not mirror Claude Code's per-path deny list here; secret protection still relies on
+  repo rules (`.gitignore`, `.env.example`, AGENTS/CLAUDE instructions) and not materializing
+  secret values into agent-visible repo state
 
 **Plan file flow (both agents):**
 
@@ -1544,7 +1547,7 @@ Plan mode → plan file lands in docs/exec-plans/active/
   ↓
 Main-root Session Init or explicit plan:apply → detects new plan file
   ↓
-Sync → parse plan → add to PRD + PLAN.md + progress.json
+Sync → parse plan → add to PLAN.md + progress.json
   ↓
 Task Execution Loop → runs the new milestone
   ↓
@@ -1554,3 +1557,19 @@ After copying newer harness runtime files into an existing project, run
 `harness migrate` once from main/root to refresh the runtime schema and
 exec-plan directories.
 ```
+
+### Cross-Agent Continuation
+
+When switching between Claude Code and Codex, do not create a second source of truth.
+
+1. Before leaving the current agent session, materialize any new plan, architecture, UI, or docs
+   changes into repo files.
+2. Serial mode handoff: the incoming agent opens the repo root and resumes with `harness init`.
+3. Managed worktree handoff: the incoming agent opens the same milestone worktree / branch and runs
+   `harness init` there, not on main/root.
+4. `AGENTS.md` / `CLAUDE.md`, `ARCHITECTURE.md`, `docs/PLAN.md`, `docs/progress.json`, and, when
+   present, `docs/product/frontend-design.md`, `docs/product/design.md`, `docs/product/design-preview.html`, and
+   `docs/gitbook/*` are the handoff contract.
+5. `.claude/settings.json` and `.codex/config.toml` adapt the runtime only; they do not replace
+   repo-backed state.
+

@@ -2,8 +2,8 @@
 
 Everything from "artifacts generated" to "project complete" is driven by the
 harness CLI. For agent guidelines (context budget, parallel coordination, quality gates),
-see `references/execution-runtime.md`. For optional release automation, docs-site
-workflows, and memory-system conventions, see `references/execution-advanced.md`.
+see `docs/agent/execution-runtime.md`. For optional release automation, docs-site
+workflows, and memory-system conventions, see `docs/agent/execution-advanced.md`.
 
 ### Execution Mode Selection
 
@@ -284,12 +284,12 @@ bash scripts/harness.sh learn dependency "what went wrong"
 
 The AGENTS.md / CLAUDE.md generated for non-Node projects replaces all `<pkg-mgr> run harness`
 references with the equivalent `bash scripts/harness.sh` and `make` commands.
-See `references/harness-native.md` for the full shell CLI source, pre-commit hook templates,
+See `docs/agent/harness-native.md` for the full shell CLI source, pre-commit hook templates,
 and feature comparison with the TypeScript CLI.
 
 ### Context Budget
 
-Use the canonical budget in `references/execution-runtime.md#Context Budget`.
+Use the canonical budget in `docs/agent/execution-runtime.md#Context Budget`.
 Do not maintain a second copy here. The runtime guide is the source of truth for
 AGENTS/PLAN/status, memory, PRD, source-file, and working-memory allocations.
 
@@ -403,14 +403,14 @@ The agent runs `harness changelog`, shows the generated notes, and asks:
 
 ### Release Automation (optional — choose one if project needs CI-driven releases)
 
-See `references/execution-advanced.md`, section `Release Automation`, if the
+See `docs/agent/execution-advanced.md`, section `Release Automation`, if the
 project needs CI-driven versioning and publishing.
 
 ---
 
 ## Phase 6: Documentation Site (Evolving)
 
-See `references/execution-advanced.md`, section `Phase 6: Documentation Site`,
+See `docs/agent/execution-advanced.md`, section `Phase 6: Documentation Site`,
 if the project needs a maintained documentation site workflow.
 
 ### GitBook Companion Track (mandatory — generated in Phase 3, maintained here)
@@ -467,6 +467,24 @@ docs/gitbook/
 - Larger docs changes get explicit PLAN tasks with measurable "done when"
   conditions.
 
+**GitBook writing workflow during execution:**
+1. Identify which page changed before writing:
+   - onboarding / local setup changes → `quickstart.md`
+   - product positioning / scope changes → `README.md` or `product-overview.md`
+   - audience / persona / use-case changes → `target-users.md`
+   - module / integration / deployment shape changes → `architecture.md`
+   - milestone sequencing / shipped-vs-next changes → `roadmap.md`
+2. Re-read the relevant repo sources first:
+   - `docs/PRD.md` for product language
+   - `ARCHITECTURE.md` for system truth
+   - `docs/PLAN.md` for roadmap truth
+   - `AGENTS.md` / `CLAUDE.md` for quickstart commands
+   - code/config when a page claims current behavior
+3. Rewrite the affected GitBook page in external-facing language.
+   Do not paste internal task tables, commit IDs, or raw execution notes.
+4. If multiple GitBook pages changed, update `SUMMARY.md` only if titles or navigation changed.
+5. Close the docs task only after the page matches current repo reality, not just current intent.
+
 **Writing rule:**
 - Prefer clear external-facing language over internal planning jargon.
 - Do not invent claims, capabilities, or future scope that are not grounded in
@@ -501,9 +519,27 @@ docs/gitbook/
 21. **Staleness is a bug** — `harness stale-check` catches it. Don't wait for humans.
 22. **Parallel when the graph justifies it** — Independent milestones can run in parallel. When parallel mode is active: one agent, one worktree.
 23. **Modularize proactively, not reactively** — Don't wait for 500 lines. Split at ~250 if a file has multiple responsibilities. Every module = one purpose. The CLI itself models this: 1 entry point + 6 focused modules, none exceeding 350 lines. If the CLI follows its own rule, so does all project code.
-24. **Frontend = frontend-design + design docs** — All frontend reads `docs/frontend-design.md` first, and reads `docs/design.md` before changing a specific page, screen, or overall app shell / navigation layout.
-25. **UI artifacts stay in sync** — If a task changes navigation, page structure, theme, density, or component hierarchy, update the relevant UI docs and regenerate `docs/design-preview.html` before closing the task.
-26. **Desktop release docs stay in sync** — If a desktop task changes packaging target, signing/notarization, updater channel, or release workflow, update `docs/release.md` before closing the task.
+24. **Frontend = frontend-design + design docs** — All frontend reads `docs/product/frontend-design.md` first, and reads `docs/product/design.md` before changing a specific page, screen, or overall app shell / navigation layout.
+25. **UI artifacts stay in sync** — If a task changes navigation, page structure, theme, density, or component hierarchy, update the relevant UI docs and regenerate `docs/product/design-preview.html` before closing the task.
+26. **Desktop release docs stay in sync** — If a desktop task changes packaging target, signing/notarization, updater channel, or release workflow, update `docs/product/release.md` before closing the task.
+27. **Everything closes the loop** — planning, code, docs, and handoff work are only done when repo state, validation state, and the next resume path all line up.
+
+## Closed-Loop Checklist
+
+Before calling a step complete, confirm all three layers:
+
+1. **Source of truth updated**
+   - relevant repo files now reflect the decision or change
+2. **Verification done**
+   - validation, schema, or doc-specific checks are current enough for the step
+3. **Next step resumable**
+   - the next Claude Code or Codex session can continue from repo state without missing context
+
+Use this checklist for:
+- planning handoff
+- task completion
+- GitBook/doc updates
+- cross-agent switching
 27. **The loop is perpetual** — Bootstrap, execute, idle, add work, repeat forever.
 28. **Production ready is the only standard** — Every milestone ships. No "it works locally." Error handling, input validation, structured logging, zero build warnings, no TODO/FIXME in committed code. If it's not production ready, the task is not done.
 
@@ -516,12 +552,13 @@ After creating all files:
 1. Present the file tree overview
 2. Show a concise summary of what was generated: stack, auth, environments, monorepo structure
 3. Highlight the core files the user must review:
+   - `docs/index.md` — human navigation entrypoint for the generated repo
    - `docs/PRD.md` — requirements and acceptance criteria
    - `docs/PLAN.md` — milestones, tasks, dependencies, "done when" conditions
    - `ARCHITECTURE.md` — system shape, module boundaries, integrations, and data flow
    - `AGENTS.md` / `CLAUDE.md` — agent rules and iron rules (including Production Ready Standard)
    - `docs/progress.json` — dependency graph and task order
-   - For frontend projects: `docs/frontend-design.md`, `docs/design.md`, and `docs/design-preview.html`
+   - For frontend projects: `docs/product/frontend-design.md`, `docs/product/design.md`, and `docs/product/design-preview.html`
 4. Call out `docs/PLAN.md` as the first file to spot-check if the user wants to adjust
    milestone order, task granularity (≤ 4h per task), measurable "done when" conditions,
    or task dependencies before execution starts
@@ -529,7 +566,7 @@ After creating all files:
    (Production Ready Standard) means every merge includes error handling, input validation,
    structured logging, zero build warnings, and no TODO/FIXME in committed code.
    The agent enforces this at every merge-gate."**
-6. For greenfield projects, the Design Preview Review Gate in `references/skill-greenfield.md`
+6. For greenfield projects, the Design Preview Review Gate in `docs/agent/skill-greenfield.md`
    is the canonical approval step. Do NOT ask for a second "approved" message here.
 7. If this file is being used from a non-greenfield entrypoint and no upstream scaffold-review
    gate has happened yet, return to that upstream workflow and complete its approval step there
@@ -549,7 +586,7 @@ autonomously until a Human quality checkpoint is triggered.
 ```
 harness-engineer-cli/                <← THIS IS THE SKILL (stays in claude.ai)
 ├── SKILL.md                    ← Instructions for generating the project
-└── references/                 ← Templates used DURING generation
+└── docs/agent/                 ← Templates used DURING generation
     ├── harness-cli.md          ← CLI source + schema + hooks → becomes scripts/harness.ts
     ├── eslint-configs.md       ← ESLint templates → becomes eslint.config.js
     ├── project-configs.md      ← tsconfig/prettier/vitest/Docker templates → becomes real files
@@ -560,10 +597,15 @@ harness-engineer-cli/                <← THIS IS THE SKILL (stays in claude.ai)
 my-project/                     ← THIS IS THE OUTPUT (goes to the agent)
 ├── AGENTS.md                   ← Codex reads this — has EVERYTHING it needs
 ├── CLAUDE.md                   ← Claude Code reads this — identical to AGENTS.md
-├── ...all other generated files
+├── docs/index.md               ← Human entrypoint into grouped project docs
+├── docs/product/               ← Human-facing product/design docs
+├── docs/agent/                 ← Companion agent-reference docs
+├── docs/PLAN.md + progress.json← Runtime state contract
+├── scripts/harness.*           ← Runtime commands
+└── ...all other generated files
 ```
 
-The references/ folder is the "mold." The generated project is the "cast."
+The docs/agent/ folder is the "mold." The generated project is the "cast."
 Once generated, the mold is not needed. All templates have been materialized into
 real config files. All protocols have been written into AGENTS.md and CLAUDE.md.
 
@@ -657,9 +699,31 @@ You can check progress at any time:
 The agent will pause and ask for your input at Quality Checkpoints marked **Human**
 (security changes, architecture decisions, merge gate failures).
 
+### Switching agents midstream
+
+Use this when work moves from Claude Code to Codex, or from Codex back to Claude Code.
+
+1. Finish the current planning handoff first. If a new plan exists, sync it into
+   `docs/PLAN.md` + `docs/progress.json` before switching agents.
+2. Sync every repo-backed artifact that changed in the current session:
+   - Always: `docs/PLAN.md` + `docs/progress.json`
+   - Architecture changes: `ARCHITECTURE.md` and `docs/gitbook/architecture.md` when present
+   - UI direction / page-structure changes: `docs/product/frontend-design.md`, `docs/product/design.md`, and
+     `docs/product/design-preview.html`
+   - Product/onboarding/roadmap doc changes: the relevant `docs/gitbook/*` pages
+3. Choose the resume location:
+   - Serial mode: the incoming agent opens the repo root and runs `harness init`
+   - Managed worktree mode: the incoming agent opens the same milestone worktree and runs
+     `harness init` there, not on main/root
+4. The incoming agent resumes from repo state, not from chat memory. `AGENTS.md` / `CLAUDE.md`,
+   `ARCHITECTURE.md`, `docs/PLAN.md`, `docs/progress.json`, and the current doc chain are the
+   only required handoff inputs.
+5. External skill sources or claude.ai-only context do not matter after generation. Once the
+   repo copies exist, they are the source of truth for the next agent.
+
 ### What the agent does NOT need
 
-- `references/` folder — templates already materialized into real files
+- `docs/agent/` folder — templates already materialized into real files
 - `SKILL.md` — that's the generation recipe, not the execution instructions
 - Any claude.ai conversation history — everything is in the repo files
 - External docs or wikis — all knowledge is in the repo (harness principle #4)
@@ -668,7 +732,7 @@ The agent will pause and ask for your input at Quality Checkpoints marked **Huma
 
 ## Agent Memory System
 
-See `references/execution-advanced.md`, section `Agent Memory System`, if the
+See `docs/agent/execution-advanced.md`, section `Agent Memory System`, if the
 project needs persistent memory conventions beyond `docs/learnings.md`.
 
 ---
@@ -872,7 +936,7 @@ All initial milestones done
   → Idle Protocol: report green, wait
 
 User adds new work (Claude Code / Codex or claude.ai)
-  → Update PRD + PLAN + progress.json
+  → Update PLAN + progress.json, and PRD/docs only when the new work changes them
   → New milestone(s) created
 
 Sprint 2 (Claude Code / Codex)
@@ -965,10 +1029,11 @@ If a merged milestone must be backed out:
 When the user reports a process-level issue (command drift, duplicated docs, wrong mode framing,
 or template confusion), run a short maintenance loop before continuing execution work:
 
-1. From this skill repo root, run `pwsh scripts/skill-maintenance.ps1`.
+1. From this skill repo root, run `pwsh scripts/maintenance/skill-maintenance.ps1`.
 2. Read failures, fix the minimal set of docs manually.
 3. Re-run with `-AutoFix` for safe corrections.
 4. Re-run check and only proceed when green.
 
 This is the default entry point when the agent notices repeated confusion in the
 skill's own generated workflow surfaces.
+

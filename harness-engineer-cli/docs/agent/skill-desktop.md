@@ -37,9 +37,9 @@ If the user already picked Electron or Tauri, keep that choice and optimize with
 - Validate all IPC / command payloads at the boundary. Treat the renderer as untrusted input.
 - Desktop apps still follow the harness rules: structured logging, zero build warnings, no
   TODO/FIXME in committed code, tests for happy path and at least one failure path.
-- Generate `docs/frontend-design.md`, `docs/design.md`, and `docs/design-preview.html` for
+- Generate `docs/product/frontend-design.md`, `docs/product/design.md`, and `docs/product/design-preview.html` for
   desktop apps with UI. The preview is the mid-fi static review artifact before Phase 4.
-- Generate `docs/release.md` for desktop apps. Include packaging target, signing/notarization,
+- Generate `docs/product/release.md` for desktop apps. Include packaging target, signing/notarization,
   updater channel, and manual QA smoke steps for each OS.
 
 ---
@@ -104,7 +104,7 @@ Testing minimum:
 - Renderer component tests
 - One main-process smoke test for window boot
 - One IPC contract test per privileged capability
-- One packaging smoke checklist in `docs/release.md`
+- One packaging smoke checklist in `docs/product/release.md`
 
 ---
 
@@ -154,7 +154,7 @@ Implementation rules:
 Packaging / release:
 
 - Use `tauri build` for production artifacts
-- Generate `docs/release.md` with updater channel, signing expectations, notarization, and
+- Generate `docs/product/release.md` with updater channel, signing expectations, notarization, and
   per-platform smoke tests
 - If updater support is enabled, document the exact plugin/configuration pair and release channel
 
@@ -163,7 +163,7 @@ Testing minimum:
 - Frontend tests for core screens
 - Rust unit tests for commands and state modules
 - One integration smoke flow covering frontend → command → persistence/result
-- One packaging smoke checklist in `docs/release.md`
+- One packaging smoke checklist in `docs/product/release.md`
 
 ---
 
@@ -173,7 +173,7 @@ Always generate:
 
 - `src/lib/logger.ts` or equivalent structured logger
 - `src/lib/errors.ts` and platform-specific error adapters
-- `docs/release.md`
+- `docs/product/release.md`
 - `tests/desktop/` or equivalent integration smoke area
 
 Recommended release document sections:
@@ -221,5 +221,6 @@ Prefer official docs:
 - Electron process model, preload, `contextBridge`, IPC, and security checklist
 - Tauri v2 capabilities, command model, and updater/plugin docs
 
-When you do search, summarize the result into the generated `docs/release.md` or architecture
+When you do search, summarize the result into the generated `docs/product/release.md` or architecture
 notes so the downstream agent does not need to rediscover it.
+
